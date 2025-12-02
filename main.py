@@ -18,9 +18,9 @@ setup_logging()
 # Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs",
-    redoc_url=f"{settings.API_V1_STR}/redoc",
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # Configure CORS
@@ -45,7 +45,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def startup_event():
     """Startup event"""
     logger.info(f"Starting {settings.PROJECT_NAME}")
-    logger.info(f"Documentation available at: {settings.API_V1_STR}/docs")
+    logger.info(f"Documentation available at: /docs")
 
 
 @app.on_event("shutdown")
@@ -60,7 +60,7 @@ async def root():
     logger.info("Root endpoint accessed")
     return {
         "message": "Welcome to Onebby API",
-        "docs": f"{settings.API_V1_STR}/docs",
+        "docs": "/docs",
         "health": f"{settings.API_V1_STR}/health"
     }
 
