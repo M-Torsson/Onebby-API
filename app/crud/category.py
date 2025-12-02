@@ -180,3 +180,29 @@ def update_category_translation(
     db.commit()
     db.refresh(translation)
     return translation
+
+
+def update_category_translations(
+    db: Session,
+    category_id: int,
+    translations_data: List[dict]
+) -> Category:
+    """Update all translations for a category"""
+    # Verify category exists
+    category = get_category(db, category_id)
+    if not category:
+        raise ValueError("Category not found")
+    
+    # Update each translation
+    for trans_data in translations_data:
+        update_category_translation(
+            db=db,
+            category_id=category_id,
+            lang=trans_data["lang"],
+            name=trans_data["name"],
+            slug=trans_data["slug"]
+        )
+    
+    # Reload category with updated translations
+    db.refresh(category)
+    return category

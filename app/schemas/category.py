@@ -19,6 +19,14 @@ class CategoryTranslationResponse(CategoryTranslationBase):
         from_attributes = True
 
 
+class CategoryTranslationUpdate(BaseModel):
+    """Schema for updating translations"""
+    translations: List[CategoryTranslationBase] = Field(
+        ..., 
+        description="List of translations for all languages"
+    )
+
+
 # Category Schemas
 class CategoryBase(BaseModel):
     """Base category schema"""

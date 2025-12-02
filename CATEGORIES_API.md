@@ -201,9 +201,27 @@ GET /api/v1/categories/1/children?lang=it
 }
 ```
 
-### خطوة 3: الحصول على الفئات الفرعية
+### خطوة 3: تحديث الترجمات
 
-**GET** `https://onebby-api.onrender.com/api/v1/categories/1/children?lang=it`
+**PUT** `https://onebby-api.onrender.com/admin/categories/11/translations`
+
+```json
+{
+  "translations": [
+    { "lang": "it", "name": "Da incasso", "slug": "da-incasso" },
+    { "lang": "en", "name": "Built-in", "slug": "built-in" },
+    { "lang": "fr", "name": "Intégré", "slug": "integre" },
+    { "lang": "de", "name": "Eingebaut", "slug": "eingebaut" },
+    { "lang": "ar", "name": "مدمج", "slug": "mdmj" }
+  ]
+}
+```
+
+### خطوة 4: الحصول على الفئات الفرعية
+
+**GET** `https://onebby-api.onrender.com/api/v1/categories/1/children?lang=en`
+
+الآن سترى الأسماء مترجمة للغة الإنجليزية!
 
 ---
 
@@ -264,14 +282,66 @@ alembic/
     └── 42615b91b703_create_categories_and_translations_.py  # Migration
 ```
 
+### 3️⃣ تحديث ترجمات الفئة (Update Category Translations)
+
+**PUT** `/admin/categories/{category_id}/translations`
+
+#### Headers:
+```
+X-API-Key: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
+Content-Type: application/json
+```
+
+#### Request Body:
+```json
+{
+  "translations": [
+    { "lang": "it", "name": "Da incasso", "slug": "da-incasso" },
+    { "lang": "en", "name": "Built-in", "slug": "built-in" },
+    { "lang": "fr", "name": "Intégré", "slug": "integre" },
+    { "lang": "de", "name": "Eingebaut", "slug": "eingebaut" },
+    { "lang": "ar", "name": "مدمج", "slug": "mdmj" }
+  ]
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "data": {
+    "id": 11,
+    "name": "Da incasso",
+    "slug": "da-incasso",
+    "image": "https://cdn.onebby.it/categories/da-incasso.jpg",
+    "icon": "https://cdn.onebby.it/icons/da-incasso.svg",
+    "sort_order": 1,
+    "is_active": true,
+    "parent_id": 1,
+    "has_children": false,
+    "translations": [
+      { "lang": "it", "name": "Da incasso", "slug": "da-incasso" },
+      { "lang": "en", "name": "Built-in", "slug": "built-in" },
+      { "lang": "fr", "name": "Intégré", "slug": "integre" },
+      { "lang": "de", "name": "Eingebaut", "slug": "eingebaut" },
+      { "lang": "ar", "name": "مدمج", "slug": "mdmj" }
+    ]
+  }
+}
+```
+
+#### ملاحظات:
+- يجب إرسال جميع الترجمات (الـ 5 لغات) في كل مرة
+- يمكنك تحديث الترجمات في أي وقت بعد إنشاء الفئة
+- الـ `slug` يجب أن يكون URL-friendly (بدون مسافات أو رموز خاصة)
+
 ---
 
 ## 🔄 التحديثات القادمة (Future Updates)
 
+- [x] Update translations endpoint ✅
 - [ ] Update category endpoint
 - [ ] Delete category endpoint
 - [ ] Get all categories (with pagination)
-- [ ] Update translations endpoint
 - [ ] Search categories
 - [ ] Bulk operations
 

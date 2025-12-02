@@ -6,7 +6,8 @@ from app.schemas.category import (
     CategoryCreate,
     CategoryCreateResponse,
     CategoryChildrenListResponse,
-    CategoryChildResponse
+    CategoryChildResponse,
+    CategoryTranslationUpdate
 )
 from app.crud import category as crud_category
 from app.core.security.api_key import verify_api_key
@@ -133,3 +134,72 @@ async def get_category_children(
             "resolved_lang": lang
         }
     }
+
+
+@router.put(
+    "/admin/categories/{category_id}/translations",
+    response_model=CategoryCreateResponse
+)
+async def update_category_translations(
+    category_id: int,
+    translations: CategoryTranslationUpdate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Update translations for a category
+    
+    Requires X-API-Key in header
+    
+    - **category_id**: ID of the category to update
+    - **translations**: Array of translations for all languages
+    
+    Example request body:
+    ```json
+    {
+      "translations": [
+        { "lang": "it", "name": "Da incasso", "slug": "da-incasso" },
+        { "lang": "en", "name": "Built-in", "slug": "built-in" },
+        { "lang": "fr", "name": "Intégré", "slug": "integre" },
+        { "lang": "de", "name": "Eingebaut", "slug": "eingebaut" },
+        { "lang": "ar", "name": "مدمج", "slug": "mdmj" }
+      ]
+    }
+    ```
+    """
+    try:
+        # Validate languages
+        supported_langs = ["it", "en", "fr", "de", "ar"]
+        provided_langs = [t.lang for t in translations.translations]
+        
+        for lang in provided_langs:
+            if lang not in supported_langs:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unsupported language: {lang}. Supported: {', '.join(supported_langs)}"
+                )
+        
+        # Update translations
+        translations_list = [
+            {"lang": t.lang, "name": t.name, "slug": t.slug}
+            for t in translations.translations
+        ]
+        
+        updated_category = crud_category.update_category_translations(
+            db=db,
+            category_id=category_id,
+            translations_data=translations_list
+        )
+        
+        return {"data": updated_category}
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
