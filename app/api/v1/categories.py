@@ -64,7 +64,7 @@ async def create_category(
 
 
 @router.get(
-    "/api/v1/categories/{category_id}/children",
+    "/categories/{category_id}/children",
     response_model=CategoryChildrenListResponse
 )
 async def get_category_children(
