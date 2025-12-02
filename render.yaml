@@ -1,0 +1,25 @@
+services:
+  # Web Service
+  - type: web
+    name: onebby-api
+    env: docker
+    region: frankfurt # or oregon, singapore, etc.
+    plan: free # or starter, standard, pro
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Set this in Render dashboard
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: DEBUG
+        value: false
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/v1/health
