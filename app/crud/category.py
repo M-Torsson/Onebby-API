@@ -109,7 +109,12 @@ def create_default_translations(db: Session, category: Category):
                     source='it',
                     target=target_lang
                 ).translate(category.name)
-                translated_slug = slugify(translated_name)
+                
+                # For Arabic, keep the Arabic text in slug (don't transliterate)
+                if lang_code == "ar":
+                    translated_slug = translated_name.replace(" ", "-").lower()
+                else:
+                    translated_slug = slugify(translated_name)
             
             # Create translation record
             translation = CategoryTranslation(
