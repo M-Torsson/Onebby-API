@@ -26,11 +26,14 @@ RUN pip install --no-cache-dir pydantic[email]
 # Copy application code
 COPY . .
 
+# Make startup script executable
+RUN chmod +x startup.sh
+
 # Create logs directory
 RUN mkdir -p logs
 
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application with migrations
+CMD ["./startup.sh"]

@@ -10,6 +10,8 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false # Set this in Render dashboard
+      - key: API_KEY
+        sync: false # Set this in Render dashboard
       - key: SECRET_KEY
         generateValue: true
       - key: ALGORITHM
@@ -22,4 +24,4 @@ services:
         value: 0.0.0.0
       - key: PORT
         value: 10000
-    healthCheckPath: /api/v1/health
+    healthCheckPath: /api/health
