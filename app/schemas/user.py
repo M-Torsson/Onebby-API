@@ -13,7 +13,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Schema for creating a user"""
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=6, max_length=72)
 
 
 class UserUpdate(BaseModel):
@@ -21,7 +21,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = None
     full_name: Optional[str] = None
-    password: Optional[str] = Field(None, min_length=6)
+    password: Optional[str] = Field(None, min_length=6, max_length=72)
 
 
 class UserInDB(UserBase):
