@@ -19,7 +19,7 @@ python-multipart==0.0.6
 
 # Utilities
 python-slugify==8.0.1
-googletrans==4.0.0rc1
+deep-translator==1.11.4
 
 # Authentication
 python-jose[cryptography]==3.3.0

@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from slugify import slugify
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from app.models.category import Category, CategoryTranslation
 from app.schemas.category import CategoryCreate, CategoryUpdate
 
@@ -88,8 +88,6 @@ def create_category(db: Session, category: CategoryCreate) -> Category:
 
 def create_default_translations(db: Session, category: Category):
     """Create automatic translations for a category using Google Translate"""
-    translator = Translator()
-    
     # Language mappings
     languages = {
         "it": "it",  # Italian (source language)
@@ -106,13 +104,11 @@ def create_default_translations(db: Session, category: Category):
                 translated_name = category.name
                 translated_slug = category.slug
             else:
-                # Translate to target language
-                translation_result = translator.translate(
-                    category.name,
-                    src='it',
-                    dest=target_lang
-                )
-                translated_name = translation_result.text
+                # Translate to target language using GoogleTranslator
+                translated_name = GoogleTranslator(
+                    source='it',
+                    target=target_lang
+                ).translate(category.name)
                 translated_slug = slugify(translated_name)
             
             # Create translation record
