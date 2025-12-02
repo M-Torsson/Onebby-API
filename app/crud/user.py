@@ -70,8 +70,14 @@ def delete_user(db: Session, user_id: int) -> bool:
 
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """Authenticate a user"""
+    """Authenticate a user by username or email"""
+    # Try to find user by username first
     user = get_user_by_username(db, username)
+    
+    # If not found, try to find by email
+    if not user:
+        user = get_user_by_email(db, username)
+    
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
