@@ -61,7 +61,7 @@ async def root():
     return {
         "message": "Welcome to Onebby API",
         "docs": "/docs",
-        "health": f"{settings.API_V1_STR}/health"
+        "health": "/api/health"
     }
 
 
