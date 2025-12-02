@@ -1,6 +1,7 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from slugify import slugify
+from googletrans import Translator
 from app.models.category import Category, CategoryTranslation
 from app.schemas.category import CategoryCreate, CategoryUpdate
 
@@ -86,24 +87,52 @@ def create_category(db: Session, category: CategoryCreate) -> Category:
 
 
 def create_default_translations(db: Session, category: Category):
-    """Create default translations for a category"""
-    # Translation mappings (basic examples - in production, use a translation service)
-    default_translations = {
-        "it": {"name": category.name, "slug": category.slug},
-        "en": {"name": category.name, "slug": category.slug},
-        "fr": {"name": category.name, "slug": category.slug},
-        "de": {"name": category.name, "slug": category.slug},
-        "ar": {"name": category.name, "slug": category.slug}
+    """Create automatic translations for a category using Google Translate"""
+    translator = Translator()
+    
+    # Language mappings
+    languages = {
+        "it": "it",  # Italian (source language)
+        "en": "en",  # English
+        "fr": "fr",  # French
+        "de": "de",  # German
+        "ar": "ar"   # Arabic
     }
     
-    for lang, trans_data in default_translations.items():
-        translation = CategoryTranslation(
-            category_id=category.id,
-            lang=lang,
-            name=trans_data["name"],
-            slug=trans_data["slug"]
-        )
-        db.add(translation)
+    for lang_code, target_lang in languages.items():
+        try:
+            if lang_code == "it":
+                # Italian is the source, use original name
+                translated_name = category.name
+                translated_slug = category.slug
+            else:
+                # Translate to target language
+                translation_result = translator.translate(
+                    category.name,
+                    src='it',
+                    dest=target_lang
+                )
+                translated_name = translation_result.text
+                translated_slug = slugify(translated_name)
+            
+            # Create translation record
+            translation = CategoryTranslation(
+                category_id=category.id,
+                lang=lang_code,
+                name=translated_name,
+                slug=translated_slug
+            )
+            db.add(translation)
+        
+        except Exception as e:
+            # Fallback to original name if translation fails
+            translation = CategoryTranslation(
+                category_id=category.id,
+                lang=lang_code,
+                name=category.name,
+                slug=category.slug
+            )
+            db.add(translation)
     
     db.commit()
     
