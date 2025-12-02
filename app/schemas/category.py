@@ -9,6 +9,7 @@ class CategoryTranslationBase(BaseModel):
     lang: str = Field(..., max_length=5, description="Language code: it, en, fr, de, ar")
     name: str = Field(..., max_length=255)
     slug: str = Field(..., max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
 
 
 class CategoryTranslationResponse(CategoryTranslationBase):
@@ -90,3 +91,23 @@ class CategoryChildrenListResponse(BaseModel):
 class CategoryCreateResponse(BaseModel):
     """Response schema for creating category"""
     data: CategoryResponse
+
+
+class CategoryMainResponse(BaseModel):
+    """Main category response schema (without image/icon)"""
+    id: int
+    name: str
+    slug: Optional[str]
+    sort_order: int
+    is_active: bool
+    parent_id: Optional[int]
+    has_children: bool
+
+    class Config:
+        from_attributes = True
+
+
+class CategoryListResponse(BaseModel):
+    """Response schema for listing main categories"""
+    data: List[CategoryMainResponse]
+    meta: dict

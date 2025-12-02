@@ -7,12 +7,68 @@ from app.schemas.category import (
     CategoryCreateResponse,
     CategoryChildrenListResponse,
     CategoryChildResponse,
-    CategoryTranslationUpdate
+    CategoryTranslationUpdate,
+    CategoryListResponse,
+    CategoryMainResponse
 )
 from app.crud import category as crud_category
 from app.core.security.api_key import verify_api_key
 
 router = APIRouter()
+
+
+@router.get(
+    "/admin/categories",
+    response_model=CategoryListResponse
+)
+async def get_main_categories(
+    lang: Optional[str] = Query(
+        default="it",
+        description="Language code: it, en, fr, de, ar"
+    ),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all main categories (parent_id = null)
+    
+    Requires X-API-Key in header
+    
+    - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
+    
+    Returns:
+    - List of main categories with localized names
+    - Meta information about language
+    """
+    # Validate language
+    supported_langs = ["it", "en", "fr", "de", "ar"]
+    if lang not in supported_langs:
+        lang = "it"  # Default to Italian
+    
+    # Get main categories
+    categories = crud_category.get_main_categories(db, lang)
+    
+    # Format response
+    categories_data = [
+        CategoryMainResponse(
+            id=cat.id,
+            name=cat.name,
+            slug=cat.slug,
+            sort_order=cat.sort_order,
+            is_active=cat.is_active,
+            parent_id=cat.parent_id,
+            has_children=cat.has_children
+        )
+        for cat in categories
+    ]
+    
+    return {
+        "data": categories_data,
+        "meta": {
+            "requested_lang": lang,
+            "resolved_lang": lang
+        }
+    }
 
 
 @router.post(
