@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # API Key for additional security (optional)
+    API_KEY: str = "your-api-key-here-change-in-production"
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
