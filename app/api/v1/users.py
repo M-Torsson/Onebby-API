@@ -6,14 +6,19 @@ from app.schemas.user import UserCreate, UserResponse, UserUpdate, LoginRequest,
 from app.crud import user as crud_user
 from app.core.security.auth import create_access_token
 from app.core.security.dependencies import get_current_active_user
+from app.core.security.api_key import verify_api_key
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register_user(user: UserCreate, db: Session = Depends(get_db)):
+async def register_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
     """
-    Register a new user
+    Register a new user (requires API Key)
     """
     # Check if email already exists
     db_user = crud_user.get_user_by_email(db, email=user.email)
@@ -35,9 +40,13 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+async def login(
+    login_data: LoginRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
     """
-    Login and get access token
+    Login and get access token (requires API Key)
     """
     user = crud_user.authenticate_user(db, login_data.username, login_data.password)
     if not user:
@@ -60,10 +69,11 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
 ):
     """
-    Get current user information
+    Get current user information (requires API Key + JWT)
     """
     user_id = int(current_user["id"])
     user = crud_user.get_user(db, user_id=user_id)
@@ -80,10 +90,11 @@ async def get_users(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
 ):
     """
-    Get all users (requires authentication)
+    Get all users (requires API Key + JWT)
     """
     users = crud_user.get_users(db, skip=skip, limit=limit)
     return users
@@ -93,10 +104,11 @@ async def get_users(
 async def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
 ):
     """
-    Get user by ID (requires authentication)
+    Get user by ID (requires API Key + JWT)
     """
     user = crud_user.get_user(db, user_id=user_id)
     if not user:
@@ -112,10 +124,11 @@ async def update_user(
     user_id: int,
     user_update: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
 ):
     """
-    Update user (requires authentication)
+    Update user (requires API Key + JWT)
     """
     user = crud_user.update_user(db, user_id=user_id, user=user_update)
     if not user:
@@ -130,10 +143,11 @@ async def update_user(
 async def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
 ):
     """
-    Delete user (requires authentication)
+    Delete user (requires API Key + JWT)
     """
     success = crud_user.delete_user(db, user_id=user_id)
     if not success:
