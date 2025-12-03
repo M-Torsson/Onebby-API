@@ -1,0 +1,480 @@
+from typing import Optional, List, Dict, Any
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_, or_
+from deep_translator import GoogleTranslator
+from datetime import datetime
+
+from app.models.product import (
+    Product, ProductTranslation, ProductImage, ProductImageAlt,
+    ProductFeature, ProductFeatureTranslation,
+    ProductAttribute, ProductAttributeTranslation,
+    ProductVariantAttribute, ProductVariantAttributeTranslation,
+    ProductDiscount, ProductType
+)
+from app.models.product_variant import ProductVariant, ProductVariantImage, ProductVariantImageAlt
+from app.models.category import Category
+from app.models.brand import Brand
+from app.models.tax_class import TaxClass
+from app.schemas.product import ProductCreate, ProductUpdate, StockUpdateInput
+
+
+# ============= Helper Functions =============
+
+def create_automatic_translation(text: str, target_lang: str) -> str:
+    """Translate text from Italian to target language"""
+    if target_lang == "it":
+        return text
+    
+    try:
+        translated = GoogleTranslator(source='it', target=target_lang).translate(text)
+        return translated
+    except Exception as e:
+        # Fallback to original text if translation fails
+        return text
+
+
+def create_product_translations(db: Session, product: Product, translations_data: List[dict]):
+    """Create product translations with automatic translation for missing languages"""
+    languages = ["it", "en", "fr", "de", "ar"]
+    provided_langs = {t["lang"]: t for t in translations_data}
+    
+    # Get Italian (source) translation
+    it_translation = provided_langs.get("it")
+    if not it_translation:
+        # Use first available translation as source
+        it_translation = translations_data[0]
+    
+    for lang in languages:
+        if lang in provided_langs:
+            # Use provided translation
+            trans_data = provided_langs[lang]
+            translation = ProductTranslation(
+                product_id=product.id,
+                lang=lang,
+                title=trans_data["title"],
+                sub_title=trans_data.get("sub_title"),
+                simple_description=trans_data.get("simple_description"),
+                meta_description=trans_data.get("meta_description")
+            )
+        else:
+            # Auto-translate from Italian
+            translation = ProductTranslation(
+                product_id=product.id,
+                lang=lang,
+                title=create_automatic_translation(it_translation["title"], lang),
+                sub_title=create_automatic_translation(it_translation.get("sub_title", ""), lang) if it_translation.get("sub_title") else None,
+                simple_description=create_automatic_translation(it_translation.get("simple_description", ""), lang) if it_translation.get("simple_description") else None,
+                meta_description=create_automatic_translation(it_translation.get("meta_description", ""), lang) if it_translation.get("meta_description") else None
+            )
+        
+        db.add(translation)
+    
+    db.commit()
+
+
+def create_product_images(db: Session, product_id: int, images_data: List[dict], is_variant: bool = False, variant_id: Optional[int] = None):
+    """Create product or variant images with alt texts"""
+    for img_data in images_data:
+        if is_variant and variant_id:
+            # Create variant image
+            image = ProductVariantImage(
+                variant_id=variant_id,
+                url=img_data["url"],
+                position=img_data.get("position", 1)
+            )
+            db.add(image)
+            db.flush()
+            
+            # Create alt texts
+            alt_data = img_data.get("alt", {})
+            for lang, alt_text in alt_data.items():
+                if alt_text:
+                    alt = ProductVariantImageAlt(
+                        image_id=image.id,
+                        lang=lang,
+                        alt_text=alt_text
+                    )
+                    db.add(alt)
+        else:
+            # Create product image
+            image = ProductImage(
+                product_id=product_id,
+                url=img_data["url"],
+                position=img_data.get("position", 1)
+            )
+            db.add(image)
+            db.flush()
+            
+            # Create alt texts
+            alt_data = img_data.get("alt", {})
+            for lang, alt_text in alt_data.items():
+                if alt_text:
+                    alt = ProductImageAlt(
+                        image_id=image.id,
+                        lang=lang,
+                        alt_text=alt_text
+                    )
+                    db.add(alt)
+    
+    db.commit()
+
+
+def create_product_features(db: Session, product: Product, features_data: List[dict]):
+    """Create product features with translations"""
+    for feat_data in features_data:
+        feature = ProductFeature(
+            product_id=product.id,
+            code=feat_data["code"]
+        )
+        db.add(feature)
+        db.flush()
+        
+        # Create translations
+        for trans_data in feat_data["translations"]:
+            trans = ProductFeatureTranslation(
+                feature_id=feature.id,
+                lang=trans_data["lang"],
+                name=trans_data["name"],
+                value=trans_data["value"]
+            )
+            db.add(trans)
+    
+    db.commit()
+
+
+def create_product_attributes(db: Session, product: Product, attributes_data: List[dict]):
+    """Create product attributes with translations"""
+    for attr_data in attributes_data:
+        attribute = ProductAttribute(
+            product_id=product.id,
+            code=attr_data["code"]
+        )
+        db.add(attribute)
+        db.flush()
+        
+        # Create translations
+        for trans_data in attr_data["translations"]:
+            trans = ProductAttributeTranslation(
+                attribute_id=attribute.id,
+                lang=trans_data["lang"],
+                name=trans_data["name"],
+                value=trans_data["value"]
+            )
+            db.add(trans)
+    
+    db.commit()
+
+
+def create_variant_attributes(db: Session, product: Product, variant_attrs_data: List[dict]):
+    """Create variant attribute definitions with translations"""
+    for attr_data in variant_attrs_data:
+        variant_attr = ProductVariantAttribute(
+            product_id=product.id,
+            code=attr_data["code"]
+        )
+        db.add(variant_attr)
+        db.flush()
+        
+        # Create translations
+        for trans_data in attr_data["translations"]:
+            trans = ProductVariantAttributeTranslation(
+                variant_attribute_id=variant_attr.id,
+                lang=trans_data["lang"],
+                label=trans_data["label"]
+            )
+            db.add(trans)
+    
+    db.commit()
+
+
+def create_product_discounts(db: Session, product_id: int, discounts_data: List[dict], variant_id: Optional[int] = None):
+    """Create product or variant discounts"""
+    for disc_data in discounts_data:
+        discount = ProductDiscount(
+            product_id=product_id if not variant_id else None,
+            variant_id=variant_id,
+            discount_type=disc_data["discount_type"],
+            discount_value=disc_data["discount_value"],
+            start_date=disc_data.get("start_date"),
+            end_date=disc_data.get("end_date"),
+            is_active=disc_data.get("is_active", True)
+        )
+        db.add(discount)
+    
+    db.commit()
+
+
+def create_product_variants(db: Session, product: Product, variants_data: List[dict]):
+    """Create product variants"""
+    for var_data in variants_data:
+        variant = ProductVariant(
+            parent_product_id=product.id,
+            reference=var_data["reference"],
+            ean13=var_data.get("ean13"),
+            is_active=var_data.get("is_active", True),
+            condition=var_data.get("condition", "new"),
+            attributes=var_data["attributes"],
+            price_list=var_data["price"]["list"],
+            currency=var_data["price"].get("currency", "EUR"),
+            stock_status=var_data["stock"]["status"],
+            stock_quantity=var_data["stock"]["quantity"]
+        )
+        db.add(variant)
+        db.flush()
+        
+        # Create variant images
+        if var_data.get("images"):
+            create_product_images(db, product.id, var_data["images"], is_variant=True, variant_id=variant.id)
+        
+        # Create variant discounts
+        if var_data["price"].get("discounts"):
+            create_product_discounts(db, product.id, var_data["price"]["discounts"], variant_id=variant.id)
+    
+    db.commit()
+
+
+# ============= Main CRUD Functions =============
+
+def get_product(db: Session, product_id: int, lang: Optional[str] = None) -> Optional[Product]:
+    """Get product by ID with all relationships"""
+    product = db.query(Product).options(
+        joinedload(Product.brand),
+        joinedload(Product.tax_class),
+        joinedload(Product.categories),
+        joinedload(Product.translations),
+        joinedload(Product.images).joinedload(ProductImage.alt_texts),
+        joinedload(Product.features).joinedload(ProductFeature.translations),
+        joinedload(Product.attributes).joinedload(ProductAttribute.translations),
+        joinedload(Product.variant_attributes).joinedload(ProductVariantAttribute.translations),
+        joinedload(Product.variants).joinedload(ProductVariant.images).joinedload(ProductVariantImage.alt_texts),
+        joinedload(Product.discounts)
+    ).filter(Product.id == product_id).first()
+    
+    return product
+
+
+def get_product_by_reference(db: Session, reference: str) -> Optional[Product]:
+    """Get product by reference"""
+    return db.query(Product).filter(Product.reference == reference).first()
+
+
+def get_products(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    product_type: Optional[str] = None,
+    category_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
+    active_only: bool = False
+) -> List[Product]:
+    """Get all products with filters"""
+    query = db.query(Product)
+    
+    if product_type:
+        query = query.filter(Product.product_type == product_type)
+    
+    if category_id:
+        query = query.join(Product.categories).filter(Category.id == category_id)
+    
+    if brand_id:
+        query = query.filter(Product.brand_id == brand_id)
+    
+    if active_only:
+        query = query.filter(Product.is_active == True)
+    
+    return query.offset(skip).limit(limit).all()
+
+
+def create_product(db: Session, product_data: ProductCreate) -> Product:
+    """Create a new product with all relationships"""
+    
+    # Validate tax class exists
+    tax_class = db.query(TaxClass).filter(TaxClass.id == product_data.tax.class_id).first()
+    if not tax_class:
+        raise ValueError("Tax class not found")
+    
+    # Validate brand if provided
+    if product_data.brand_id:
+        brand = db.query(Brand).filter(Brand.id == product_data.brand_id).first()
+        if not brand:
+            raise ValueError("Brand not found")
+    
+    # Validate categories
+    categories = db.query(Category).filter(Category.id.in_(product_data.categories)).all()
+    if len(categories) != len(product_data.categories):
+        raise ValueError("One or more categories not found")
+    
+    # Create product
+    product = Product(
+        product_type=product_data.product_type,
+        reference=product_data.reference,
+        ean13=product_data.ean13,
+        is_active=product_data.is_active,
+        condition=product_data.condition,
+        brand_id=product_data.brand_id,
+        tax_class_id=product_data.tax.class_id,
+        tax_included_in_price=product_data.tax.included_in_price,
+        price_list=product_data.price.list,
+        currency=product_data.price.currency,
+        stock_status=product_data.stock.status,
+        stock_quantity=product_data.stock.quantity,
+        duration_months=product_data.duration_months,
+        date_add=product_data.date_add or datetime.utcnow(),
+        date_update=product_data.date_update
+    )
+    
+    db.add(product)
+    db.flush()
+    
+    # Add categories
+    product.categories.extend(categories)
+    
+    # Create translations
+    create_product_translations(db, product, [t.dict() for t in product_data.translations])
+    
+    # Create images
+    if product_data.images:
+        create_product_images(db, product.id, [img.dict() for img in product_data.images])
+    
+    # Create features
+    if product_data.features:
+        create_product_features(db, product, [f.dict() for f in product_data.features])
+    
+    # Create attributes
+    if product_data.attributes:
+        create_product_attributes(db, product, [a.dict() for a in product_data.attributes])
+    
+    # Create variant attributes (for configurable products)
+    if product_data.variant_attributes:
+        create_variant_attributes(db, product, [va.dict() for va in product_data.variant_attributes])
+    
+    # Create variants (for configurable products)
+    if product_data.variants:
+        create_product_variants(db, product, [v.dict() for v in product_data.variants])
+    
+    # Create discounts
+    if product_data.price.discounts:
+        create_product_discounts(db, product.id, [d.dict() for d in product_data.price.discounts])
+    
+    # Add related products
+    if product_data.related_product_ids:
+        related_products = db.query(Product).filter(Product.id.in_(product_data.related_product_ids)).all()
+        product.related_products.extend(related_products)
+    
+    # Add service links (for configurable products)
+    if product_data.service_links:
+        if product_data.service_links.allowed_shipping_services:
+            shipping_services = db.query(Product).filter(
+                Product.id.in_(product_data.service_links.allowed_shipping_services),
+                Product.product_type == ProductType.SERVICE
+            ).all()
+            product.allowed_shipping_services.extend(shipping_services)
+        
+        if product_data.service_links.allowed_warranties:
+            warranties = db.query(Product).filter(
+                Product.id.in_(product_data.service_links.allowed_warranties),
+                Product.product_type == ProductType.WARRANTY
+            ).all()
+            product.allowed_warranties.extend(warranties)
+    
+    db.commit()
+    db.refresh(product)
+    
+    return product
+
+
+def update_product(db: Session, product_id: int, product_data: ProductUpdate) -> Optional[Product]:
+    """Update a product"""
+    product = get_product(db, product_id)
+    if not product:
+        return None
+    
+    update_data = product_data.dict(exclude_unset=True)
+    
+    # Validate tax class if being updated
+    if "tax_class_id" in update_data:
+        tax_class = db.query(TaxClass).filter(TaxClass.id == update_data["tax_class_id"]).first()
+        if not tax_class:
+            raise ValueError("Tax class not found")
+    
+    # Validate brand if being updated
+    if "brand_id" in update_data and update_data["brand_id"]:
+        brand = db.query(Brand).filter(Brand.id == update_data["brand_id"]).first()
+        if not brand:
+            raise ValueError("Brand not found")
+    
+    for field, value in update_data.items():
+        setattr(product, field, value)
+    
+    product.date_update = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def delete_product(db: Session, product_id: int) -> bool:
+    """Delete a product (soft delete by setting is_active to False)"""
+    product = get_product(db, product_id)
+    if not product:
+        return False
+    
+    # Soft delete
+    product.is_active = False
+    product.date_update = datetime.utcnow()
+    
+    db.commit()
+    return True
+
+
+def update_product_stock(db: Session, product_id: int, stock_data: StockUpdateInput) -> Optional[Product]:
+    """Update product stock"""
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        return None
+    
+    if stock_data.stock_status:
+        product.stock_status = stock_data.stock_status
+    
+    if stock_data.stock_quantity is not None:
+        product.stock_quantity = stock_data.stock_quantity
+        
+        # Auto-update status based on quantity
+        if stock_data.stock_quantity == 0:
+            product.stock_status = "out_of_stock"
+        elif stock_data.stock_quantity <= 5:
+            product.stock_status = "low_stock"
+        else:
+            product.stock_status = "in_stock"
+    
+    product.date_update = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def update_variant_stock(db: Session, variant_id: int, stock_data: StockUpdateInput) -> Optional[ProductVariant]:
+    """Update variant stock"""
+    variant = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
+    if not variant:
+        return None
+    
+    if stock_data.stock_status:
+        variant.stock_status = stock_data.stock_status
+    
+    if stock_data.stock_quantity is not None:
+        variant.stock_quantity = stock_data.stock_quantity
+        
+        # Auto-update status based on quantity
+        if stock_data.stock_quantity == 0:
+            variant.stock_status = "out_of_stock"
+        elif stock_data.stock_quantity <= 5:
+            variant.stock_status = "low_stock"
+        else:
+            variant.stock_status = "in_stock"
+    
+    db.commit()
+    db.refresh(variant)
+    return variant
+

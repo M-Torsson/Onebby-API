@@ -1,0 +1,200 @@
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List
+from datetime import datetime
+from app.schemas.product_base import (
+    ProductTypeEnum, ProductConditionEnum,
+    ProductTranslationInput, ProductImageInput,
+    ProductFeatureInput, ProductAttributeInput,
+    ProductVariantAttributeInput, ProductVariantInput,
+    TaxInput, PriceInput, StockInput, ServiceLinksInput,
+    ProductImageResponse, ProductFeatureResponse, ProductAttributeResponse,
+    ProductVariantAttributeResponse, ProductVariantResponse,
+    PriceResponse, StockResponse, CategorySimple
+)
+from app.schemas.brand_tax import BrandSimple, TaxClassSimple
+
+
+# ============= Product Create Schema =============
+
+class ProductCreate(BaseModel):
+    """Product creation schema (POST request)"""
+    product_type: ProductTypeEnum
+    
+    # Basic info
+    reference: str = Field(..., min_length=1, max_length=100)
+    ean13: Optional[str] = Field(None, min_length=13, max_length=13)
+    
+    # Status
+    is_active: bool = True
+    date_add: Optional[datetime] = None
+    date_update: Optional[datetime] = None
+    
+    # Brand
+    brand_id: Optional[int] = None
+    
+    # Tax
+    tax: TaxInput
+    
+    # Pricing
+    price: PriceInput
+    
+    # Condition
+    condition: ProductConditionEnum = ProductConditionEnum.NEW
+    
+    # Categories
+    categories: List[int] = Field(..., min_items=1)
+    
+    # Stock
+    stock: StockInput
+    
+    # Images
+    images: List[ProductImageInput] = []
+    
+    # Features
+    features: List[ProductFeatureInput] = []
+    
+    # Attributes
+    attributes: List[ProductAttributeInput] = []
+    
+    # Related products
+    related_product_ids: List[int] = []
+    
+    # Service links (for configurable products)
+    service_links: Optional[ServiceLinksInput] = None
+    
+    # Translations
+    translations: List[ProductTranslationInput] = Field(..., min_items=1)
+    
+    # Variant attributes (for configurable products only)
+    variant_attributes: List[ProductVariantAttributeInput] = []
+    
+    # Variants (for configurable products only)
+    variants: List[ProductVariantInput] = []
+    
+    # For service/warranty products
+    duration_months: Optional[int] = None
+
+    @field_validator('ean13')
+    @classmethod
+    def validate_ean13(cls, v):
+        if v and not v.isdigit():
+            raise ValueError('EAN13 must contain only digits')
+        return v
+
+    @field_validator('variants')
+    @classmethod
+    def validate_variants(cls, v, info):
+        if info.data.get('product_type') == ProductTypeEnum.CONFIGURABLE and not v:
+            raise ValueError('Configurable products must have at least one variant')
+        return v
+
+    @field_validator('variant_attributes')
+    @classmethod
+    def validate_variant_attributes(cls, v, info):
+        if info.data.get('product_type') == ProductTypeEnum.CONFIGURABLE and not v:
+            raise ValueError('Configurable products must have variant_attributes defined')
+        return v
+
+
+# ============= Product Update Schema =============
+
+class ProductUpdate(BaseModel):
+    """Product update schema"""
+    is_active: Optional[bool] = None
+    brand_id: Optional[int] = None
+    tax_class_id: Optional[int] = None
+    tax_included_in_price: Optional[bool] = None
+    price_list: Optional[float] = None
+    currency: Optional[str] = None
+    condition: Optional[ProductConditionEnum] = None
+    stock_status: Optional[str] = None
+    stock_quantity: Optional[int] = None
+    duration_months: Optional[int] = None
+
+
+# ============= Product Response Schemas =============
+
+class ProductResponseFull(BaseModel):
+    """Full product response (GET request)"""
+    id: int
+    product_type: str
+    
+    # Basic info
+    reference: str
+    ean13: Optional[str] = None
+    
+    # Status
+    is_active: bool
+    date_add: datetime
+    date_update: Optional[datetime] = None
+    
+    # Brand
+    brand: Optional[BrandSimple] = None
+    
+    # Tax
+    tax: TaxClassSimple
+    
+    # Categories
+    categories: List[CategorySimple] = []
+    
+    # Condition
+    condition: str
+    
+    # Translations (language-specific)
+    title: str
+    sub_title: Optional[str] = None
+    simple_description: Optional[str] = None
+    meta_description: Optional[str] = None
+    
+    # Images
+    images: List[ProductImageResponse] = []
+    
+    # Features
+    features: List[ProductFeatureResponse] = []
+    
+    # Attributes
+    attributes: List[ProductAttributeResponse] = []
+    
+    # Related products
+    related_product_ids: List[int] = []
+    
+    # Variant attributes (for configurable products)
+    variant_attributes: List[ProductVariantAttributeResponse] = []
+    
+    # Variants (for configurable products)
+    variants: List[ProductVariantResponse] = []
+    
+    # Options (shipping services and warranties)
+    options: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProductResponse(BaseModel):
+    """Product response wrapper"""
+    data: ProductResponseFull
+    meta: dict
+
+    class Config:
+        from_attributes = True
+
+
+# ============= Stock Update Schema =============
+
+class StockUpdateInput(BaseModel):
+    """Stock update input"""
+    stock_status: Optional[str] = None
+    stock_quantity: Optional[int] = Field(None, ge=0)
+
+
+class StockUpdateResponse(BaseModel):
+    """Stock update response"""
+    id: int
+    reference: str
+    stock_status: str
+    stock_quantity: int
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
