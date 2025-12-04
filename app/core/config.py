@@ -23,10 +23,10 @@ class Settings(BaseSettings):
     # API Key for additional security (optional)
     API_KEY: str = "your-api-key-here-change-in-production"
     
-    # Cloudinary Configuration
-    CLOUDINARY_CLOUD_NAME: str = ""
-    CLOUDINARY_API_KEY: str = ""
-    CLOUDINARY_API_SECRET: str = ""
+    # Cloudinary Configuration (required for image uploads)
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
     
     class Config:
         env_file = ".env"
