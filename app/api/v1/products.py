@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from app.db.session import get_db
 from app.core.config import settings
 from app.schemas.product import (
-    ProductCreate, ProductUpdate, ProductResponse, ProductResponseFull,
+    ProductCreate, ProductResponse, ProductResponseFull,
     StockUpdateInput, StockUpdateResponse
 )
 from app.schemas.product_base import (
@@ -14,8 +14,7 @@ from app.schemas.product_base import (
 )
 from app.schemas.brand_tax import BrandSimple, TaxClassSimple
 from app.crud import product as crud_product
-from app.models.product import Product, ProductImage, ProductFeature, ProductAttribute, ProductVariantAttribute
-from app.models.product_variant import ProductVariant
+from app.models.product import Product
 
 
 router = APIRouter()

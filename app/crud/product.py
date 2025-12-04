@@ -1,6 +1,5 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_
 from deep_translator import GoogleTranslator
 from datetime import datetime
 
