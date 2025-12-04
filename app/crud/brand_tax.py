@@ -55,7 +55,7 @@ def update_brand(db: Session, brand_id: int, brand: BrandUpdate) -> Optional[Bra
     if not db_brand:
         return None
     
-    update_data = brand.dict(exclude_unset=True)
+    update_data = brand.model_dump(exclude_unset=True)
     
     # If name is updated and no slug provided, regenerate slug
     if "name" in update_data and "slug" not in update_data:
@@ -118,7 +118,7 @@ def update_tax_class(db: Session, tax_class_id: int, tax_class: TaxClassUpdate) 
     if not db_tax_class:
         return None
     
-    update_data = tax_class.dict(exclude_unset=True)
+    update_data = tax_class.model_dump(exclude_unset=True)
     
     for field, value in update_data.items():
         setattr(db_tax_class, field, value)
