@@ -297,6 +297,83 @@ def create_product(
         raise HTTPException(status_code=500, detail=f"Error creating product: {str(e)}")
 
 
+@router.get("/api/v1/products")
+def get_all_products(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    product_type: Optional[str] = Query(None, regex="^(configurable|simple|service|warranty)$"),
+    category_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
+    active_only: bool = Query(True),
+    lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all products with optional filters
+    
+    - **skip**: Number of products to skip (pagination) - default: 0
+    - **limit**: Maximum number of products to return (1-100) - default: 50
+    - **product_type**: Filter by product type (configurable, simple, service, warranty)
+    - **category_id**: Filter by category ID
+    - **brand_id**: Filter by brand ID
+    - **active_only**: Show only active products - default: true
+    - **lang**: Language code (it, en, fr, de, ar) - default: it
+    
+    Requires X-API-Key header for authentication
+    """
+    products = crud_product.get_products(
+        db=db,
+        skip=skip,
+        limit=limit,
+        product_type=product_type,
+        category_id=category_id,
+        brand_id=brand_id,
+        active_only=active_only
+    )
+    
+    # Build simple product list
+    products_list = []
+    for product in products:
+        # Get translation for requested language
+        translation = next((t for t in product.translations if t.lang == lang), None)
+        if not translation:
+            translation = next((t for t in product.translations if t.lang == "it"), product.translations[0] if product.translations else None)
+        
+        if translation:
+            # Get first image
+            first_image = None
+            if product.images:
+                img = product.images[0]
+                alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == lang), "")
+                first_image = img.url
+            
+            products_list.append({
+                "id": product.id,
+                "reference": product.reference,
+                "product_type": product.product_type.value,
+                "title": translation.title,
+                "sub_title": translation.sub_title,
+                "price": product.price_list,
+                "currency": product.currency,
+                "image": first_image,
+                "stock_status": product.stock_status.value,
+                "is_active": product.is_active,
+                "brand_id": product.brand_id,
+                "date_add": product.date_add
+            })
+    
+    return {
+        "data": products_list,
+        "meta": {
+            "total": len(products_list),
+            "skip": skip,
+            "limit": limit,
+            "lang": lang
+        }
+    }
+
+
 @router.get("/api/v1/products/{product_id}", response_model=ProductResponse)
 def get_product(
     product_id: int,
