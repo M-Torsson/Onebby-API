@@ -383,25 +383,122 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
 
 
 def update_product(db: Session, product_id: int, product_data: ProductUpdate) -> Optional[Product]:
-    """Update a product"""
+    """Update a product with comprehensive support for all fields"""
     product = get_product(db, product_id)
     if not product:
         return None
     
-    update_data = product_data.dict(exclude_unset=True)
+    update_data = product_data.model_dump(exclude_unset=True)
     
-    # Validate tax class if being updated
+    # Handle categories update
+    if "categories" in update_data:
+        category_ids = update_data.pop("categories")
+        # Validate all categories exist
+        categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
+        if len(categories) != len(category_ids):
+            raise ValueError("One or more categories not found")
+        product.categories = categories
+    
+    # Handle tax class update
     if "tax_class_id" in update_data:
         tax_class = db.query(TaxClass).filter(TaxClass.id == update_data["tax_class_id"]).first()
         if not tax_class:
             raise ValueError("Tax class not found")
     
-    # Validate brand if being updated
+    # Handle brand update
     if "brand_id" in update_data and update_data["brand_id"]:
         brand = db.query(Brand).filter(Brand.id == update_data["brand_id"]).first()
         if not brand:
             raise ValueError("Brand not found")
     
+    # Handle translations update (replace all)
+    if "translations" in update_data:
+        translations_data = update_data.pop("translations")
+        # Delete existing translations
+        db.query(ProductTranslation).filter(ProductTranslation.product_id == product_id).delete()
+        # Create new translations
+        create_product_translations(db, product, [t.dict() if hasattr(t, 'dict') else t for t in translations_data])
+    
+    # Handle images update (replace all)
+    if "images" in update_data:
+        images_data = update_data.pop("images")
+        # Delete existing images and alt texts
+        db.query(ProductImageAlt).filter(
+            ProductImageAlt.image_id.in_(
+                db.query(ProductImage.id).filter(ProductImage.product_id == product_id)
+            )
+        ).delete(synchronize_session=False)
+        db.query(ProductImage).filter(ProductImage.product_id == product_id).delete()
+        # Create new images
+        create_product_images(db, product_id, [img.dict() if hasattr(img, 'dict') else img for img in images_data])
+    
+    # Handle features update (replace all)
+    if "features" in update_data:
+        features_data = update_data.pop("features")
+        # Delete existing features and translations
+        feature_ids = db.query(ProductFeature.id).filter(ProductFeature.product_id == product_id).all()
+        if feature_ids:
+            feature_ids = [f[0] for f in feature_ids]
+            db.query(ProductFeatureTranslation).filter(ProductFeatureTranslation.feature_id.in_(feature_ids)).delete(synchronize_session=False)
+        db.query(ProductFeature).filter(ProductFeature.product_id == product_id).delete()
+        # Create new features
+        create_product_features(db, product, [f.dict() if hasattr(f, 'dict') else f for f in features_data])
+    
+    # Handle attributes update (replace all)
+    if "attributes" in update_data:
+        attributes_data = update_data.pop("attributes")
+        # Delete existing attributes and translations
+        attr_ids = db.query(ProductAttribute.id).filter(ProductAttribute.product_id == product_id).all()
+        if attr_ids:
+            attr_ids = [a[0] for a in attr_ids]
+            db.query(ProductAttributeTranslation).filter(ProductAttributeTranslation.attribute_id.in_(attr_ids)).delete(synchronize_session=False)
+        db.query(ProductAttribute).filter(ProductAttribute.product_id == product_id).delete()
+        # Create new attributes
+        create_product_attributes(db, product, [a.dict() if hasattr(a, 'dict') else a for a in attributes_data])
+    
+    # Handle related products update
+    if "related_product_ids" in update_data:
+        related_ids = update_data.pop("related_product_ids")
+        # Validate related products exist
+        related_products = db.query(Product).filter(Product.id.in_(related_ids)).all()
+        product.related_products = related_products
+    
+    # Handle service links update
+    if "service_links" in update_data:
+        service_links = update_data.pop("service_links")
+        if service_links:
+            # Clear existing links
+            product.shipping_services.clear()
+            product.warranties.clear()
+            
+            # Add new shipping services
+            if hasattr(service_links, 'shipping_service_ids') and service_links.shipping_service_ids:
+                shipping_services = db.query(Product).filter(
+                    Product.id.in_(service_links.shipping_service_ids),
+                    Product.product_type == ProductType.SERVICE
+                ).all()
+                product.shipping_services = shipping_services
+            
+            # Add new warranties
+            if hasattr(service_links, 'warranty_ids') and service_links.warranty_ids:
+                warranties = db.query(Product).filter(
+                    Product.id.in_(service_links.warranty_ids),
+                    Product.product_type == ProductType.WARRANTY
+                ).all()
+                product.warranties = warranties
+    
+    # Handle variants update (for configurable products only)
+    if "variants" in update_data:
+        if product.product_type != ProductType.CONFIGURABLE:
+            raise ValueError("Only configurable products can have variants")
+        
+        variants_data = update_data.pop("variants")
+        # Delete existing variants
+        db.query(ProductVariant).filter(ProductVariant.parent_product_id == product_id).delete()
+        # Create new variants
+        create_product_variants(db, product, [v.dict() if hasattr(v, 'dict') else v for v in variants_data])
+    
+    # Update simple fields
     for field, value in update_data.items():
         setattr(product, field, value)
     

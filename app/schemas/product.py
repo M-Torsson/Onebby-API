@@ -99,16 +99,53 @@ class ProductCreate(BaseModel):
 # ============= Product Update Schema =============
 
 class ProductUpdate(BaseModel):
-    """Product update schema"""
+    """Product update schema - all fields optional"""
+    # Status
     is_active: Optional[bool] = None
+    
+    # Brand
     brand_id: Optional[int] = None
+    
+    # Tax
     tax_class_id: Optional[int] = None
     tax_included_in_price: Optional[bool] = None
-    price_list: Optional[float] = None
-    currency: Optional[str] = None
+    
+    # Pricing
+    price_list: Optional[float] = Field(None, gt=0)
+    currency: Optional[str] = Field(None, max_length=3)
+    
+    # Condition
     condition: Optional[ProductConditionEnum] = None
+    
+    # Categories
+    categories: Optional[List[int]] = None
+    
+    # Stock
     stock_status: Optional[str] = None
-    stock_quantity: Optional[int] = None
+    stock_quantity: Optional[int] = Field(None, ge=0)
+    
+    # Images (replace all)
+    images: Optional[List[ProductImageInput]] = None
+    
+    # Features (replace all)
+    features: Optional[List[ProductFeatureInput]] = None
+    
+    # Attributes (replace all)
+    attributes: Optional[List[ProductAttributeInput]] = None
+    
+    # Related products (replace all)
+    related_product_ids: Optional[List[int]] = None
+    
+    # Service links
+    service_links: Optional[ServiceLinksInput] = None
+    
+    # Translations (replace all)
+    translations: Optional[List[ProductTranslationInput]] = None
+    
+    # Variants (replace all - configurable products only)
+    variants: Optional[List[ProductVariantInput]] = None
+    
+    # Duration (service/warranty products)
     duration_months: Optional[int] = None
 
 

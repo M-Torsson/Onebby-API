@@ -333,6 +333,54 @@ def get_product(
     )
 
 
+@router.put("/admin/products/{product_id}")
+def update_product(
+    product_id: int,
+    product: ProductUpdate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Update a product by ID
+    
+    - **product_id**: Product ID to update
+    - **product**: Product update data (all fields optional)
+    
+    You can update any combination of:
+    - Basic info (is_active, brand_id, condition)
+    - Tax and pricing (tax_class_id, price_list, currency)
+    - Stock (stock_status, stock_quantity)
+    - Categories (replace all)
+    - Images (replace all)
+    - Features (replace all)
+    - Attributes (replace all)
+    - Translations (replace all)
+    - Variants (replace all - configurable products only)
+    - Related products (replace all)
+    - Service links (replace all)
+    
+    Requires X-API-Key header for authentication
+    """
+    try:
+        # Update product
+        db_product = crud_product.update_product(db, product_id, product)
+        
+        if not db_product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        return {
+            "message": "Product updated successfully",
+            "product_id": db_product.id,
+            "reference": db_product.reference,
+            "date_update": db_product.date_update
+        }
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating product: {str(e)}")
+
+
 @router.put("/admin/products/{product_id}/stock", response_model=StockUpdateResponse)
 def update_product_stock(
     product_id: int,
