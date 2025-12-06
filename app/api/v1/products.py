@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 from app.db.session import get_db
 from app.core.config import settings
 from app.schemas.product import (
-    ProductCreate, ProductResponse, ProductResponseFull,
+    ProductCreate, ProductUpdate, ProductResponse, ProductResponseFull,
     StockUpdateInput, StockUpdateResponse
 )
 from app.schemas.product_base import (
