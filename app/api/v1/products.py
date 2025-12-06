@@ -297,7 +297,7 @@ def create_product(
         raise HTTPException(status_code=500, detail=f"Error creating product: {str(e)}")
 
 
-@router.get("/api/v1/products")
+@router.get("/v1/products")
 def get_all_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -374,7 +374,7 @@ def get_all_products(
     }
 
 
-@router.get("/api/v1/products/{product_id}", response_model=ProductResponse)
+@router.get("/v1/products/{product_id}", response_model=ProductResponse)
 def get_product(
     product_id: int,
     lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
