@@ -381,6 +381,34 @@ def update_product(
         raise HTTPException(status_code=500, detail=f"Error updating product: {str(e)}")
 
 
+@router.delete("/admin/products/{product_id}", status_code=200)
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Delete a product by ID (soft delete - sets is_active to False)
+    
+    - **product_id**: Product ID to delete
+    
+    Note: This is a soft delete. The product will be marked as inactive
+    but will remain in the database for historical records.
+    
+    Requires X-API-Key header for authentication
+    """
+    success = crud_product.delete_product(db, product_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    return {
+        "message": "Product deleted successfully",
+        "product_id": product_id,
+        "note": "Soft delete - product marked as inactive"
+    }
+
+
 @router.put("/admin/products/{product_id}/stock", response_model=StockUpdateResponse)
 def update_product_stock(
     product_id: int,
