@@ -486,6 +486,43 @@ def delete_product(
     }
 
 
+@router.get("/v1/products/{product_id}/stock")
+def get_product_stock(
+    product_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get product stock information by ID
+    
+    - **product_id**: Product ID
+    
+    Returns only stock-related information for the product
+    
+    Requires X-API-Key header for authentication
+    """
+    product = crud_product.get_product(db, product_id)
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    return {
+        "product_id": product.id,
+        "reference": product.reference,
+        "stock_status": product.stock_status.value,
+        "stock_quantity": product.stock_quantity,
+        "is_active": product.is_active
+    }
+
+
+    
+    return {
+        "message": "Product deleted successfully",
+        "product_id": product_id,
+        "note": "Soft delete - product marked as inactive"
+    }
+
+
 @router.put("/admin/products/{product_id}/stock", response_model=StockUpdateResponse)
 def update_product_stock(
     product_id: int,
