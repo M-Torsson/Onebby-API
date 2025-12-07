@@ -315,6 +315,48 @@ async def update_category(
         )
 
 
+@router.delete(
+    "/admin/categories/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Delete a category
+    
+    Requires X-API-Key in header
+    
+    - **category_id**: ID of the category to delete
+    
+    Note: Cannot delete categories that have children (subcategories).
+    You must delete or reassign children first.
+    """
+    try:
+        success = crud_category.delete_category(db, category_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Category not found"
+            )
+        
+        return None  # 204 No Content
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
 @router.put(
     "/admin/categories/{category_id}/translations",
     response_model=CategoryCreateResponse
