@@ -4,6 +4,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.schemas.category import (
     CategoryCreate,
+    CategoryUpdate,
     CategoryCreateResponse,
     CategoryChildrenListResponse,
     CategoryChildResponse,
@@ -251,6 +252,67 @@ async def get_category_children(
             "resolved_lang": lang
         }
     }
+
+
+@router.put(
+    "/admin/categories/{category_id}",
+    response_model=CategoryCreateResponse
+)
+async def update_category(
+    category_id: int,
+    category: CategoryUpdate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Update a category
+    
+    Requires X-API-Key in header
+    
+    - **category_id**: ID of the category to update
+    - **name**: Category name (optional)
+    - **slug**: URL-friendly name (optional, auto-generated if name provided)
+    - **image**: Category image URL (optional)
+    - **icon**: Category icon URL (optional)
+    - **sort_order**: Display order (optional)
+    - **is_active**: Active status (optional)
+    - **parent_id**: Parent category ID (optional)
+    
+    Example request body:
+    ```json
+    {
+      "image": "https://example.com/image.jpg",
+      "icon": "https://example.com/icon.svg",
+      "sort_order": 5,
+      "is_active": true
+    }
+    ```
+    """
+    try:
+        updated_category = crud_category.update_category(
+            db=db,
+            category_id=category_id,
+            category=category
+        )
+        
+        if not updated_category:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Category not found"
+            )
+        
+        return {"data": updated_category}
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 @router.put(

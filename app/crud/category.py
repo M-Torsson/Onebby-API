@@ -195,7 +195,7 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
     if not db_category:
         return None
     
-    update_data = category.dict(exclude_unset=True)
+    update_data = category.model_dump(exclude_unset=True)
     
     # If parent_id is being updated, verify parent exists and is active
     if "parent_id" in update_data and update_data["parent_id"]:
