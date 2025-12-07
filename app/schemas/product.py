@@ -32,8 +32,8 @@ class ProductCreate(BaseModel):
     # Brand
     brand_id: Optional[int] = None
     
-    # Tax
-    tax: TaxInput
+    # Tax (optional - will use default tax class if not provided)
+    tax: Optional[TaxInput] = None
     
     # Pricing
     price: PriceInput
@@ -62,8 +62,8 @@ class ProductCreate(BaseModel):
     # Service links (for configurable products)
     service_links: Optional[ServiceLinksInput] = None
     
-    # Translations
-    translations: List[ProductTranslationInput] = Field(..., min_items=1)
+    # Translations (optional - if not provided, will use default language)
+    translations: Optional[List[ProductTranslationInput]] = None
     
     # Variant attributes (for configurable products only)
     variant_attributes: List[ProductVariantAttributeInput] = []

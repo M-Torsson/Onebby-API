@@ -287,10 +287,20 @@ def get_products(
 def create_product(db: Session, product_data: ProductCreate) -> Product:
     """Create a new product with all relationships"""
     
-    # Validate tax class exists
-    tax_class = db.query(TaxClass).filter(TaxClass.id == product_data.tax.class_id).first()
-    if not tax_class:
-        raise ValueError("Tax class not found")
+    # Get or use default tax class
+    if product_data.tax:
+        tax_class = db.query(TaxClass).filter(TaxClass.id == product_data.tax.class_id).first()
+        if not tax_class:
+            raise ValueError("Tax class not found")
+        tax_class_id = product_data.tax.class_id
+        tax_included = product_data.tax.included_in_price
+    else:
+        # Use first available tax class as default
+        tax_class = db.query(TaxClass).first()
+        if not tax_class:
+            raise ValueError("No tax class found. Please create a tax class first.")
+        tax_class_id = tax_class.id
+        tax_included = True
     
     # Validate brand if provided
     if product_data.brand_id:
@@ -311,8 +321,8 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
         is_active=product_data.is_active,
         condition=product_data.condition,
         brand_id=product_data.brand_id,
-        tax_class_id=product_data.tax.class_id,
-        tax_included_in_price=product_data.tax.included_in_price,
+        tax_class_id=tax_class_id,
+        tax_included_in_price=tax_included,
         price_list=product_data.price.list,
         currency=product_data.price.currency,
         stock_status=product_data.stock.status,
@@ -329,7 +339,19 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
     product.categories.extend(categories)
     
     # Create translations
-    create_product_translations(db, product, [t.dict() for t in product_data.translations])
+    if product_data.translations:
+        # Use provided translations
+        create_product_translations(db, product, [t.dict() for t in product_data.translations])
+    else:
+        # Create default translation in Italian with basic info from reference
+        default_translation = [{
+            "lang": "it",
+            "title": product_data.reference.replace("-", " ").title(),
+            "sub_title": None,
+            "simple_description": None,
+            "meta_description": None
+        }]
+        create_product_translations(db, product, default_translation)
     
     # Create images
     if product_data.images:
