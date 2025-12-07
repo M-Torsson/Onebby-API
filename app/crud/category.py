@@ -217,15 +217,15 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
 
 def delete_category(db: Session, category_id: int, delete_children: bool = False) -> bool:
     """Delete a category and optionally its children"""
-    # Simple query without loading relationships
-    db_category = db.query(Category).filter(Category.id == category_id).first()
-    if not db_category:
+    # Check if category exists (simple query without relationships)
+    category_exists = db.query(Category.id).filter(Category.id == category_id).first()
+    if not category_exists:
         return False
     
-    # Check if has children
-    has_children = db.query(Category).filter(Category.parent_id == category_id).count() > 0
+    # Check if has children (count only, no object loading)
+    children_count = db.query(Category.id).filter(Category.parent_id == category_id).count()
     
-    if has_children:
+    if children_count > 0:
         if not delete_children:
             raise ValueError("Cannot delete category with children. Set delete_children=True to delete children too.")
         
@@ -235,7 +235,7 @@ def delete_category(db: Session, category_id: int, delete_children: bool = False
         
         while current_level:
             ids_to_delete.extend(current_level)
-            # Get next level children
+            # Get next level children IDs only
             next_level = db.query(Category.id).filter(
                 Category.parent_id.in_(current_level)
             ).all()
@@ -252,8 +252,8 @@ def delete_category(db: Session, category_id: int, delete_children: bool = False
         # No children, simple delete
         db.query(CategoryTranslation).filter(
             CategoryTranslation.category_id == category_id
-        ).delete()
-        db.delete(db_category)
+        ).delete(synchronize_session=False)
+        db.query(Category).filter(Category.id == category_id).delete(synchronize_session=False)
     
     db.commit()
     return True
