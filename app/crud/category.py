@@ -28,6 +28,30 @@ def get_categories(db: Session, skip: int = 0, limit: int = 100, parent_id: Opti
     return query.offset(skip).limit(limit).all()
 
 
+def get_all_categories(db: Session, lang: Optional[str] = None, active_only: bool = True) -> List[Category]:
+    """Get all categories (main and children) with optional translation"""
+    query = db.query(Category)
+    
+    if active_only:
+        query = query.filter(Category.is_active == True)
+    
+    categories = query.order_by(Category.parent_id.nulls_first(), Category.sort_order).all()
+    
+    # If language is specified, load translated names
+    if lang and categories:
+        for category in categories:
+            translation = db.query(CategoryTranslation).filter(
+                CategoryTranslation.category_id == category.id,
+                CategoryTranslation.lang == lang
+            ).first()
+            
+            if translation:
+                category.name = translation.name
+                category.slug = translation.slug
+    
+    return categories
+
+
 def get_main_categories(db: Session, lang: Optional[str] = None) -> List[Category]:
     """Get all main categories (parent_id = null) with optional translation"""
     categories = db.query(Category).filter(

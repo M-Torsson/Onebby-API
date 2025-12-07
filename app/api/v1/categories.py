@@ -18,6 +18,67 @@ router = APIRouter()
 
 
 @router.get(
+    "/v1/categories",
+    response_model=CategoryListResponse
+)
+async def get_all_categories(
+    lang: Optional[str] = Query(
+        default="it",
+        description="Language code: it, en, fr, de, ar"
+    ),
+    active_only: bool = Query(
+        default=True,
+        description="Show only active categories"
+    ),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all categories (main and children)
+    
+    Requires X-API-Key in header
+    
+    - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
+    - **active_only**: Filter active categories only (default: true)
+    
+    Returns:
+    - List of all categories with localized names
+    - Main categories first (parent_id = null), then children ordered by sort_order
+    - Meta information about language
+    """
+    # Validate language
+    supported_langs = ["it", "en", "fr", "de", "ar"]
+    if lang not in supported_langs:
+        lang = "it"  # Default to Italian
+    
+    # Get all categories
+    categories = crud_category.get_all_categories(db, lang, active_only)
+    
+    # Format response
+    categories_data = [
+        CategoryMainResponse(
+            id=cat.id,
+            name=cat.name,
+            slug=cat.slug,
+            sort_order=cat.sort_order,
+            is_active=cat.is_active,
+            parent_id=cat.parent_id,
+            has_children=cat.has_children
+        )
+        for cat in categories
+    ]
+    
+    return {
+        "data": categories_data,
+        "meta": {
+            "requested_lang": lang,
+            "resolved_lang": lang,
+            "total": len(categories_data)
+        }
+    }
+
+
+@router.get(
     "/admin/categories",
     response_model=CategoryListResponse
 )
