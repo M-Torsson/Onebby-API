@@ -217,27 +217,44 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
 
 def delete_category(db: Session, category_id: int, delete_children: bool = False) -> bool:
     """Delete a category and optionally its children"""
-    # Simple query without loading relationships to avoid recursion
+    # Simple query without loading relationships
     db_category = db.query(Category).filter(Category.id == category_id).first()
     if not db_category:
         return False
     
-    # If has children and delete_children is True, delete them first
-    if db_category.has_children:
-        if delete_children:
-            # Get all children IDs only
-            children = db.query(Category.id).filter(Category.parent_id == category_id).all()
-            for child_tuple in children:
-                # Recursively delete child and its children
-                delete_category(db, child_tuple[0], delete_children=True)
-        else:
+    # Check if has children
+    has_children = db.query(Category).filter(Category.parent_id == category_id).count() > 0
+    
+    if has_children:
+        if not delete_children:
             raise ValueError("Cannot delete category with children. Set delete_children=True to delete children too.")
+        
+        # Collect all category IDs to delete (breadth-first approach)
+        ids_to_delete = []
+        current_level = [category_id]
+        
+        while current_level:
+            ids_to_delete.extend(current_level)
+            # Get next level children
+            next_level = db.query(Category.id).filter(
+                Category.parent_id.in_(current_level)
+            ).all()
+            current_level = [cat_id[0] for cat_id in next_level]
+        
+        # Delete translations for all categories
+        db.query(CategoryTranslation).filter(
+            CategoryTranslation.category_id.in_(ids_to_delete)
+        ).delete(synchronize_session=False)
+        
+        # Delete all categories
+        db.query(Category).filter(Category.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    else:
+        # No children, simple delete
+        db.query(CategoryTranslation).filter(
+            CategoryTranslation.category_id == category_id
+        ).delete()
+        db.delete(db_category)
     
-    # Delete all translations first
-    db.query(CategoryTranslation).filter(CategoryTranslation.category_id == category_id).delete()
-    
-    # Delete the category
-    db.delete(db_category)
     db.commit()
     return True
 
