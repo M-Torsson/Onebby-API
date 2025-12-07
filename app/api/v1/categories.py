@@ -321,21 +321,27 @@ async def update_category(
 )
 async def delete_category(
     category_id: int,
+    delete_children: bool = Query(
+        default=False,
+        description="Delete children (subcategories) too"
+    ),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Delete a category
+    Delete a category and optionally its children
     
     Requires X-API-Key in header
     
     - **category_id**: ID of the category to delete
+    - **delete_children**: If true, deletes all children (subcategories) recursively (default: false)
     
-    Note: Cannot delete categories that have children (subcategories).
-    You must delete or reassign children first.
+    Examples:
+    - DELETE /api/admin/categories/4 - Fails if has children
+    - DELETE /api/admin/categories/4?delete_children=true - Deletes category and all its children
     """
     try:
-        success = crud_category.delete_category(db, category_id)
+        success = crud_category.delete_category(db, category_id, delete_children)
         
         if not success:
             raise HTTPException(

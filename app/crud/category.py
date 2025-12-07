@@ -215,15 +215,22 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
     return db_category
 
 
-def delete_category(db: Session, category_id: int) -> bool:
-    """Delete a category"""
+def delete_category(db: Session, category_id: int, delete_children: bool = False) -> bool:
+    """Delete a category and optionally its children"""
     db_category = get_category(db, category_id)
     if not db_category:
         return False
     
-    # Check if category has children
+    # If has children and delete_children is True, delete them first
     if db_category.has_children:
-        raise ValueError("Cannot delete category with children")
+        if delete_children:
+            # Get all children
+            children = db.query(Category).filter(Category.parent_id == category_id).all()
+            for child in children:
+                # Recursively delete child and its children
+                delete_category(db, child.id, delete_children=True)
+        else:
+            raise ValueError("Cannot delete category with children. Set delete_children=True to delete children too.")
     
     db.delete(db_category)
     db.commit()
