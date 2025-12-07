@@ -217,21 +217,26 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
 
 def delete_category(db: Session, category_id: int, delete_children: bool = False) -> bool:
     """Delete a category and optionally its children"""
-    db_category = get_category(db, category_id)
+    # Simple query without loading relationships to avoid recursion
+    db_category = db.query(Category).filter(Category.id == category_id).first()
     if not db_category:
         return False
     
     # If has children and delete_children is True, delete them first
     if db_category.has_children:
         if delete_children:
-            # Get all children
-            children = db.query(Category).filter(Category.parent_id == category_id).all()
-            for child in children:
+            # Get all children IDs only
+            children = db.query(Category.id).filter(Category.parent_id == category_id).all()
+            for child_tuple in children:
                 # Recursively delete child and its children
-                delete_category(db, child.id, delete_children=True)
+                delete_category(db, child_tuple[0], delete_children=True)
         else:
             raise ValueError("Cannot delete category with children. Set delete_children=True to delete children too.")
     
+    # Delete all translations first
+    db.query(CategoryTranslation).filter(CategoryTranslation.category_id == category_id).delete()
+    
+    # Delete the category
     db.delete(db_category)
     db.commit()
     return True
