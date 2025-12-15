@@ -430,3 +430,82 @@ async def update_category_translations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
         )
+
+
+@router.get(
+    "/v1/categories/children/{category_id}/products",
+    response_model=dict
+)
+async def get_category_products(
+    category_id: int,
+    lang: Optional[str] = Query(
+        default="it",
+        description="Language code: it, en, fr, de, ar"
+    ),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get simple products by child category ID
+    
+    Requires X-API-Key in header
+    
+    - **category_id**: Child category ID
+    - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
+    
+    Returns:
+    - List of simple products with details
+    - Each product includes: id, child_category, slug, image, brand_id, condition,
+      quantity, title, sub_title, simple_description, is_active, and price object
+    """
+    from app.crud import product as crud_product
+    from app.schemas.product import CategoryProductsResponse, CategoryProductItem, ProductPriceSimple
+    
+    # Validate language
+    supported_langs = ["it", "en", "fr", "de", "ar"]
+    if lang not in supported_langs:
+        lang = "it"
+    
+    # Get products by category
+    products_data = crud_product.get_products_by_category(db, category_id, lang)
+    
+    if not products_data:
+        return {
+            "data": [],
+            "meta": {
+                "parent_id": None,
+                "requested_lang": lang,
+                "resolved_lang": lang
+            }
+        }
+    
+    # Format response
+    parent_id = products_data[0].get("parent_id") if products_data else None
+    
+    formatted_products = []
+    for prod in products_data:
+        formatted_products.append(
+            CategoryProductItem(
+                id=prod["id"],
+                child_category=prod["child_category"],
+                slug=prod["slug"],
+                image=prod["image"],
+                brand_id=prod["brand_id"],
+                condition=prod["condition"],
+                quantity=prod["quantity"],
+                title=prod["title"],
+                sub_title=prod["sub_title"],
+                simple_description=prod["simple_description"],
+                is_active=prod["is_active"],
+                price=ProductPriceSimple(**prod["price"])
+            )
+        )
+    
+    return {
+        "data": [p.model_dump() for p in formatted_products],
+        "meta": {
+            "parent_id": parent_id,
+            "requested_lang": lang,
+            "resolved_lang": lang
+        }
+    }

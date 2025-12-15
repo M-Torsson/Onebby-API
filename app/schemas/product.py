@@ -235,3 +235,35 @@ class StockUpdateResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============= Category Products Schema =============
+
+class ProductPriceSimple(BaseModel):
+    """Simple price response for category products"""
+    price: float
+    currency: str
+    discounts: str  # e.g. "10%" or "0"
+    tax_role: str   # e.g. "22%"
+
+
+class CategoryProductItem(BaseModel):
+    """Product item in category products list"""
+    id: int
+    child_category: str
+    slug: str
+    image: Optional[str] = None
+    brand_id: Optional[int] = None
+    condition: str
+    quantity: int
+    title: str
+    sub_title: Optional[str] = None
+    simple_description: Optional[str] = None
+    is_active: bool
+    price: ProductPriceSimple
+
+
+class CategoryProductsResponse(BaseModel):
+    """Response for category products"""
+    data: List[CategoryProductItem]
+    meta: dict

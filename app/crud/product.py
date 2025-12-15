@@ -596,3 +596,91 @@ def update_variant_stock(db: Session, variant_id: int, stock_data: StockUpdateIn
     db.refresh(variant)
     return variant
 
+
+def get_products_by_category(db: Session, category_id: int, lang: str = "it") -> List[dict]:
+    """Get simple products by category ID with all required fields"""
+    
+    # Get category to check parent_id
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        return []
+    
+    # Query simple products that belong to this category
+    products = db.query(Product).join(
+        Product.categories
+    ).filter(
+        Category.id == category_id,
+        Product.product_type == ProductType.SIMPLE
+    ).options(
+        joinedload(Product.translations),
+        joinedload(Product.images),
+        joinedload(Product.categories),
+        joinedload(Product.tax_class),
+        joinedload(Product.discounts)
+    ).all()
+    
+    result = []
+    for product in products:
+        # Get translation for requested language
+        translation = next(
+            (t for t in product.translations if t.lang == lang),
+            next((t for t in product.translations if t.lang == "it"), None)
+        )
+        
+        if not translation:
+            continue
+        
+        # Get first image
+        image_url = product.images[0].url if product.images else None
+        
+        # Get the specific child category name for this product
+        product_category = next(
+            (c for c in product.categories if c.id == category_id),
+            None
+        )
+        
+        child_category_name = ""
+        child_slug = ""
+        if product_category:
+            cat_translation = next(
+                (t for t in product_category.translations if t.lang == lang),
+                next((t for t in product_category.translations if t.lang == "it"), None)
+            )
+            if cat_translation:
+                child_category_name = cat_translation.name
+                child_slug = cat_translation.slug
+        
+        # Calculate discount percentage
+        active_discount = next(
+            (d for d in product.discounts if d.is_active),
+            None
+        )
+        discount_str = f"{int(active_discount.discount_percentage)}%" if active_discount else "0"
+        
+        # Get tax rate
+        tax_rate = product.tax_class.rate if product.tax_class else 0
+        tax_str = f"{int(tax_rate)}%"
+        
+        result.append({
+            "id": product.id,
+            "child_category": child_category_name,
+            "slug": child_slug,
+            "image": image_url,
+            "brand_id": product.brand_id,
+            "condition": product.condition.value,
+            "quantity": product.stock_quantity,
+            "title": translation.title,
+            "sub_title": translation.sub_title,
+            "simple_description": translation.simple_description,
+            "is_active": product.is_active,
+            "price": {
+                "price": product.price_list,
+                "currency": product.currency,
+                "discounts": discount_str,
+                "tax_role": tax_str
+            },
+            "parent_id": category.parent_id
+        })
+    
+    return result
+
