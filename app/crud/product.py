@@ -532,15 +532,13 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
 
 
 def delete_product(db: Session, product_id: int) -> bool:
-    """Delete a product (soft delete by setting is_active to False)"""
-    product = get_product(db, product_id)
+    """Delete a product permanently (hard delete)"""
+    product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         return False
     
-    # Soft delete
-    product.is_active = False
-    product.date_update = datetime.utcnow()
-    
+    # Hard delete - permanently remove from database
+    db.delete(product)
     db.commit()
     return True
 

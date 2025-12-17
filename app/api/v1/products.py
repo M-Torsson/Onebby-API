@@ -465,12 +465,12 @@ def delete_product(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Delete a product by ID (soft delete - sets is_active to False)
+    Delete a product by ID permanently
     
     - **product_id**: Product ID to delete
     
-    Note: This is a soft delete. The product will be marked as inactive
-    but will remain in the database for historical records.
+    Note: This is a hard delete. The product will be permanently removed
+    from the database and cannot be recovered.
     
     Requires X-API-Key header for authentication
     """
@@ -480,9 +480,9 @@ def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
     
     return {
-        "message": "Product deleted successfully",
+        "message": "Product deleted permanently",
         "product_id": product_id,
-        "note": "Soft delete - product marked as inactive"
+        "note": "Hard delete - product removed from database"
     }
 
 
