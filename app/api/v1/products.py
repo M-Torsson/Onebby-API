@@ -354,6 +354,7 @@ def get_all_products(
                 "product_type": product.product_type.value,
                 "title": translation.title,
                 "sub_title": translation.sub_title,
+                "content": translation.simple_description,
                 "price": product.price_list,
                 "currency": product.currency,
                 "image": first_image,
