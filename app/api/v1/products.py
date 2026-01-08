@@ -352,7 +352,7 @@ def create_product(
 @router.get("/v1/products")
 def get_all_products(
     skip: int = Query(0, ge=0),
-    limit: int = Query(10000, ge=1, le=10000),
+    limit: int = Query(50, ge=1, le=500),
     product_type: Optional[str] = Query(None, regex="^(configurable|simple|service|warranty)$"),
     category_id: Optional[int] = None,
     brand_id: Optional[int] = None,
@@ -362,10 +362,10 @@ def get_all_products(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get all products with optional filters
+    Get all products with pagination and optional filters
     
     - **skip**: Number of products to skip (pagination) - default: 0
-    - **limit**: Maximum number of products to return (1-10000) - default: 10000
+    - **limit**: Maximum number of products per page (1-500) - default: 50
     - **product_type**: Filter by product type (configurable, simple, service, warranty)
     - **category_id**: Filter by category ID
     - **brand_id**: Filter by brand ID
@@ -374,6 +374,16 @@ def get_all_products(
     
     Requires X-API-Key header for authentication
     """
+    # Get total count
+    total = crud_product.count_products(
+        db=db,
+        product_type=product_type,
+        category_id=category_id,
+        brand_id=brand_id,
+        active_only=active_only
+    )
+    
+    # Get products for current page
     products = crud_product.get_products(
         db=db,
         skip=skip,
@@ -416,12 +426,20 @@ def get_all_products(
                 "date_add": product.date_add
             })
     
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit  # Ceiling division
+    current_page = (skip // limit) + 1
+    
     return {
         "data": products_list,
         "meta": {
-            "total": len(products_list),
+            "total": total,
             "skip": skip,
             "limit": limit,
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_next": skip + limit < total,
+            "has_prev": skip > 0,
             "lang": lang
         }
     }

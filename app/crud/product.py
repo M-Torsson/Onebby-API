@@ -257,6 +257,31 @@ def get_product_by_reference(db: Session, reference: str) -> Optional[Product]:
     return db.query(Product).filter(Product.reference == reference).first()
 
 
+def count_products(
+    db: Session,
+    product_type: Optional[str] = None,
+    category_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
+    active_only: bool = False
+) -> int:
+    """Count total products with filters"""
+    query = db.query(Product)
+    
+    if product_type:
+        query = query.filter(Product.product_type == product_type)
+    
+    if category_id:
+        query = query.join(Product.categories).filter(Category.id == category_id)
+    
+    if brand_id:
+        query = query.filter(Product.brand_id == brand_id)
+    
+    if active_only:
+        query = query.filter(Product.is_active == True)
+    
+    return query.count()
+
+
 def get_products(
     db: Session,
     skip: int = 0,

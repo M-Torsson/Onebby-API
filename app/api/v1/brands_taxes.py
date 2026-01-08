@@ -25,7 +25,7 @@ def verify_api_key(x_api_key: str = Header(...)):
 @router.get("/v1/brands", response_model=List[BrandResponse])
 def get_brands_public(
     skip: int = Query(0, ge=0),
-    limit: int = Query(10000, ge=1, le=10000),
+    limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(True),
     db: Session = Depends(get_db)
 ):
@@ -48,7 +48,7 @@ def get_brand_public(
 @router.get("/v1/tax-classes", response_model=List[TaxClassResponse])
 def get_tax_classes_public(
     skip: int = Query(0, ge=0),
-    limit: int = Query(10000, ge=1, le=10000),
+    limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(True),
     db: Session = Depends(get_db)
 ):
@@ -87,7 +87,7 @@ def create_brand(
 @router.get("/admin/brands", response_model=List[BrandResponse])
 def get_brands(
     skip: int = Query(0, ge=0),
-    limit: int = Query(10000, ge=1, le=10000),
+    limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
@@ -149,7 +149,7 @@ def create_tax_class(
 @router.get("/admin/tax-classes", response_model=List[TaxClassResponse])
 def get_tax_classes(
     skip: int = Query(0, ge=0),
-    limit: int = Query(10000, ge=1, le=10000),
+    limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
