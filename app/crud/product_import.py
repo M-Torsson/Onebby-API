@@ -41,7 +41,8 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
     Example: ["Electronics", "Smartphones"] creates parent "Electronics" and child "Smartphones"
     Returns the leaf category (last in path)
     
-    Handles IntegrityError by fetching existing category if slug conflict occurs
+    Handles IntegrityError with proper rollback and parent refetch
+    Includes retry logic for FK constraint errors
     """
     if not category_path:
         return None
@@ -64,64 +65,99 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
             slug = slugify(category_name)
         
         # Try to find existing category by slug and parent
+        parent_id = parent_category.id if parent_category else None
         query = db.query(Category).filter(
             Category.slug == slug,
-            Category.parent_id == (parent_category.id if parent_category else None)
+            Category.parent_id == parent_id
         )
         category = query.first()
         
         if not category:
-            try:
-                # Create new category
-                category = Category(
-                    name=category_name,
-                    slug=slug,
-                    is_active=True,
-                    sort_order=0,
-                    parent_id=parent_category.id if parent_category else None
-                )
-                db.add(category)
-                db.flush()
-                
-                # Create default Italian translation
-                translation = CategoryTranslation(
-                    category_id=category.id,
-                    lang="it",
-                    name=category_name,
-                    slug=slug,
-                    description=None
-                )
-                db.add(translation)
-                db.flush()
-                
-            except IntegrityError:
-                # Slug conflict - rollback and fetch existing
-                db.rollback()
-                category = db.query(Category).filter(
-                    Category.slug == slug,
-                    Category.parent_id == (parent_category.id if parent_category else None)
-                ).first()
-                
-                if not category:
-                    # Still not found? Try by name and parent
-                    category = db.query(Category).filter(
-                        Category.name == category_name,
-                        Category.parent_id == (parent_category.id if parent_category else None)
-                    ).first()
-                
-                if not category:
-                    # Last resort: create with unique suffix
-                    import time
-                    unique_slug = f"{slug}-{int(time.time() * 1000) % 10000}"
+            # Attempt to create category with retry logic
+            retry_count = 0
+            max_retries = 2
+            
+            while retry_count < max_retries:
+                try:
+                    # Re-fetch parent if we're on a retry (after rollback)
+                    if retry_count > 0 and parent_id:
+                        parent_category = db.query(Category).filter(Category.id == parent_id).first()
+                        if not parent_category:
+                            raise ValueError(f"Parent category with id={parent_id} not found after rollback")
+                    
+                    # Create new category
                     category = Category(
                         name=category_name,
-                        slug=unique_slug,
+                        slug=slug,
                         is_active=True,
                         sort_order=0,
-                        parent_id=parent_category.id if parent_category else None
+                        parent_id=parent_id
                     )
                     db.add(category)
-                    db.flush()
+                    db.flush()  # Flush immediately to get ID and persist in transaction
+                    
+                    # Create default Italian translation
+                    translation = CategoryTranslation(
+                        category_id=category.id,
+                        lang="it",
+                        name=category_name,
+                        slug=slug,
+                        description=None
+                    )
+                    db.add(translation)
+                    db.flush()  # Flush translation too
+                    
+                    # Success - break retry loop
+                    break
+                    
+                except IntegrityError as e:
+                    # Rollback the failed transaction
+                    db.rollback()
+                    
+                    error_msg = str(e.orig).lower()
+                    
+                    # Check if it's a FK constraint error (parent not found)
+                    if 'foreign key' in error_msg or 'parent_id' in error_msg:
+                        # FK error - retry after re-fetching parent
+                        retry_count += 1
+                        if retry_count >= max_retries:
+                            raise ValueError(f"Failed to create category after {max_retries} retries. Parent category may not exist.")
+                        continue
+                    
+                    # Slug conflict - try to fetch existing category
+                    category = db.query(Category).filter(
+                        Category.slug == slug,
+                        Category.parent_id == parent_id
+                    ).first()
+                    
+                    if not category:
+                        # Try by name and parent
+                        category = db.query(Category).filter(
+                            Category.name == category_name,
+                            Category.parent_id == parent_id
+                        ).first()
+                    
+                    if not category:
+                        # Last resort: create with unique suffix
+                        import time
+                        unique_slug = f"{slug}-{int(time.time() * 1000) % 10000}"
+                        category = Category(
+                            name=category_name,
+                            slug=unique_slug,
+                            is_active=True,
+                            sort_order=0,
+                            parent_id=parent_id
+                        )
+                        db.add(category)
+                        db.flush()  # Flush immediately
+                    
+                    # Success - break retry loop
+                    break
+        
+        # Important: Ensure parent_category is attached to session
+        if category and category not in db:
+            # Category might be detached after rollback - re-fetch
+            category = db.query(Category).filter(Category.id == category.id).first()
         
         parent_category = category
     
