@@ -171,6 +171,12 @@ class ProductResponseFull(BaseModel):
     # Tax
     tax: TaxClassSimple
     
+    # Pricing
+    price: PriceResponse
+    
+    # Stock
+    stock: StockResponse
+    
     # Categories
     categories: List[CategorySimple] = []
     

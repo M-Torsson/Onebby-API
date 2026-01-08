@@ -271,6 +271,19 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
     if product.related_products:
         related_product_ids = [rp.id for rp in product.related_products]
     
+    # Build price
+    price_response = PriceResponse(
+        list=product.price_list or 0.0,
+        currency=product.currency or "EUR",
+        discounts=[]  # Product-level discounts if needed
+    )
+    
+    # Build stock
+    stock_response = StockResponse(
+        status=product.stock_status.value if product.stock_status else "out_of_stock",
+        quantity=product.stock_quantity or 0
+    )
+    
     # Build final response
     response_data = ProductResponseFull(
         id=product.id,
@@ -282,6 +295,8 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         date_update=product.date_update,
         brand=brand,
         tax=tax,
+        price=price_response,
+        stock=stock_response,
         categories=categories,
         condition=product.condition.value if product.condition else "new",
         title=translation.title or "",
