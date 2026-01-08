@@ -107,18 +107,25 @@ def get_or_create_default_tax_class(db: Session) -> TaxClass:
 def upsert_product(
     db: Session,
     product_data: Dict[str, Any],
-    dry_run: bool = False
-) -> tuple[str, Optional[Product]]:
+    dry_run: bool = False,
+    log_sample: bool = False
+) -> tuple[str, Optional[Product], bool]:
     """
     Upsert product by EAN
-    Returns: (action, product) where action is 'created', 'updated', or 'error'
+    Returns: (action, product, existed_before) where action is 'created' or 'updated'
     """
     ean = product_data.get("ean")
     if not ean:
-        return "error", None
+        raise ValueError("EAN is required")
     
     # Check if product exists
     existing_product = db.query(Product).filter(Product.ean == ean).first()
+    existed_before = existing_product is not None
+    
+    # Log sample (first 5 products)
+    if log_sample:
+        from app.core.logging import logger
+        logger.info(f"[SAMPLE] EAN: {ean} | Existed: {existed_before} | Title: {product_data.get('title', 'N/A')[:50]}")
     
     if existing_product:
         # Update existing product
@@ -180,8 +187,8 @@ def upsert_product(
         # Check for reference conflict (safety check)
         existing_ref = db.query(Product).filter(Product.reference == ean).first()
         if existing_ref:
-            # Reference already exists - skip to avoid conflict
-            return "error", None
+            # Reference already exists - raise error
+            raise ValueError(f"Reference '{ean}' already exists")
         
         # Get or create brand
         brand = None
@@ -235,39 +242,46 @@ def upsert_product(
     if not dry_run:
         db.flush()
     
-    return action, product
+    return action, product, existed_before
 
 
 def import_products_batch(
     db: Session,
     products_data: List[Dict[str, Any]],
-    dry_run: bool = False
+    dry_run: bool = False,
+    batch_index: int = 0
 ) -> Dict[str, Any]:
     """
     Import a batch of products
-    Returns: statistics dict with created, updated, errors counts
+    Returns: statistics dict with created, updated, errors, samples
     """
     stats = {
         "created": 0,
         "updated": 0,
-        "errors": []
+        "errors": [],
+        "samples": []  # First 5 imports
     }
     
     for product_data in products_data:
         try:
-            action, product = upsert_product(db, product_data, dry_run)
+            # Log sample for first batch only
+            log_sample = (batch_index == 0 and len(stats["samples"]) < 5)
+            
+            action, product, existed_before = upsert_product(db, product_data, dry_run, log_sample)
+            
+            # Add to samples (first 5)
+            if log_sample:
+                stats["samples"].append({
+                    "ean": product_data.get("ean"),
+                    "existed_before": existed_before,
+                    "action": action,
+                    "title": product_data.get("title", "")[:50]
+                })
             
             if action == "created":
                 stats["created"] += 1
             elif action == "updated":
                 stats["updated"] += 1
-            elif action == "error":
-                stats["errors"].append({
-                    "row_number": product_data.get("row_number", 0),
-                    "ean": product_data.get("ean"),
-                    "reason": "upsert_failed",
-                    "details": "Failed to upsert product"
-                })
         
         except IntegrityError as e:
             db.rollback()
@@ -283,7 +297,7 @@ def import_products_batch(
             stats["errors"].append({
                 "row_number": product_data.get("row_number", 0),
                 "ean": product_data.get("ean"),
-                "reason": "unexpected_error",
+                "reason": "processing_error",
                 "details": str(e)
             })
     
