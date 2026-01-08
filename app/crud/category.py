@@ -28,14 +28,23 @@ def get_categories(db: Session, skip: int = 0, limit: int = 100, parent_id: Opti
     return query.offset(skip).limit(limit).all()
 
 
-def get_all_categories(db: Session, lang: Optional[str] = None, active_only: bool = True) -> List[Category]:
-    """Get all categories (main and children) with optional translation"""
+def get_all_categories(
+    db: Session, 
+    lang: Optional[str] = None, 
+    active_only: bool = True,
+    skip: int = 0,
+    limit: int = 100
+) -> List[Category]:
+    """Get all categories (main and children) with optional translation and pagination"""
     query = db.query(Category)
     
     if active_only:
         query = query.filter(Category.is_active == True)
     
-    categories = query.order_by(Category.parent_id.nulls_first(), Category.sort_order).all()
+    categories = query.order_by(
+        Category.parent_id.nulls_first(), 
+        Category.sort_order
+    ).offset(skip).limit(limit).all()
     
     # If language is specified, load translated names
     if lang and categories:
@@ -52,12 +61,27 @@ def get_all_categories(db: Session, lang: Optional[str] = None, active_only: boo
     return categories
 
 
-def get_main_categories(db: Session, lang: Optional[str] = None) -> List[Category]:
-    """Get all main categories (parent_id = null) with optional translation"""
+def count_all_categories(db: Session, active_only: bool = True) -> int:
+    """Count total categories"""
+    query = db.query(Category)
+    
+    if active_only:
+        query = query.filter(Category.is_active == True)
+    
+    return query.count()
+
+
+def get_main_categories(
+    db: Session, 
+    lang: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100
+) -> List[Category]:
+    """Get all main categories (parent_id = null) with optional translation and pagination"""
     categories = db.query(Category).filter(
         Category.parent_id == None,
         Category.is_active == True
-    ).order_by(Category.sort_order).all()
+    ).order_by(Category.sort_order).offset(skip).limit(limit).all()
     
     # If language is specified, load translated names
     if lang and categories:
@@ -72,6 +96,14 @@ def get_main_categories(db: Session, lang: Optional[str] = None) -> List[Categor
                 category.slug = translation.slug
     
     return categories
+
+
+def count_main_categories(db: Session) -> int:
+    """Count main categories (parent_id = null)"""
+    return db.query(Category).filter(
+        Category.parent_id == None,
+        Category.is_active == True
+    ).count()
 
 
 def get_category_children(

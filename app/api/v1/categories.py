@@ -23,6 +23,8 @@ router = APIRouter()
     response_model=CategoryListResponse
 )
 async def get_all_categories(
+    skip: int = Query(0, ge=0, description="Number of categories to skip"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum categories to return"),
     lang: Optional[str] = Query(
         default="it",
         description="Language code: it, en, fr, de, ar"
@@ -39,10 +41,12 @@ async def get_all_categories(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get all categories (main and children) or only main categories
+    Get categories with pagination (like products endpoint)
     
     Requires X-API-Key in header
     
+    - **skip**: Number of categories to skip (default: 0)
+    - **limit**: Maximum categories per page (default: 50, max: 500)
     - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
     - **active_only**: Filter active categories only (default: true)
     - **parent_only**: Show only main categories without children (default: false)
@@ -51,18 +55,20 @@ async def get_all_categories(
     - List of categories with localized names
     - If parent_only=true: only main categories (parent_id = null)
     - If parent_only=false: all categories ordered by parent_id and sort_order
-    - Meta information about language and total count
+    - Pagination metadata (total, page, has_next, has_prev)
     """
     # Validate language
     supported_langs = ["it", "en", "fr", "de", "ar"]
     if lang not in supported_langs:
         lang = "it"  # Default to Italian
     
-    # Get categories based on filter
+    # Get total count
     if parent_only:
-        categories = crud_category.get_main_categories(db, lang)
+        total = crud_category.count_main_categories(db)
+        categories = crud_category.get_main_categories(db, lang, skip=skip, limit=limit)
     else:
-        categories = crud_category.get_all_categories(db, lang, active_only)
+        total = crud_category.count_all_categories(db, active_only=active_only)
+        categories = crud_category.get_all_categories(db, lang, active_only=active_only, skip=skip, limit=limit)
     
     # Format response
     categories_data = [
@@ -78,12 +84,22 @@ async def get_all_categories(
         for cat in categories
     ]
     
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit
+    current_page = (skip // limit) + 1
+    
     return {
         "data": categories_data,
         "meta": {
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_next": skip + limit < total,
+            "has_prev": skip > 0,
             "requested_lang": lang,
             "resolved_lang": lang,
-            "total": len(categories_data),
             "parent_only": parent_only
         }
     }

@@ -126,7 +126,7 @@ def create_brand(
     return crud.create_brand(db, brand)
 
 
-@router.get("/admin/brands", response_model=List[BrandResponse])
+@router.get("/admin/brands")
 def get_brands(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -134,8 +134,29 @@ def get_brands(
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Get all brands"""
-    return crud.get_brands(db, skip=skip, limit=limit, active_only=active_only)
+    """Get all brands with pagination - Admin endpoint"""
+    # Get total count
+    total = crud.count_brands(db, active_only=active_only)
+    
+    # Get brands for current page
+    brands = crud.get_brands(db, skip=skip, limit=limit, active_only=active_only)
+    
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit
+    current_page = (skip // limit) + 1
+    
+    return {
+        "data": brands,
+        "meta": {
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_next": skip + limit < total,
+            "has_prev": skip > 0
+        }
+    }
 
 
 @router.get("/admin/brands/{brand_id}", response_model=BrandResponse)
@@ -188,7 +209,7 @@ def create_tax_class(
     return crud.create_tax_class(db, tax_class)
 
 
-@router.get("/admin/tax-classes", response_model=List[TaxClassResponse])
+@router.get("/admin/tax-classes")
 def get_tax_classes(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -196,8 +217,29 @@ def get_tax_classes(
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Get all tax classes"""
-    return crud.get_tax_classes(db, skip=skip, limit=limit, active_only=active_only)
+    """Get all tax classes with pagination - Admin endpoint"""
+    # Get total count
+    total = crud.count_tax_classes(db, active_only=active_only)
+    
+    # Get tax classes for current page
+    tax_classes = crud.get_tax_classes(db, skip=skip, limit=limit, active_only=active_only)
+    
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit
+    current_page = (skip // limit) + 1
+    
+    return {
+        "data": tax_classes,
+        "meta": {
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_next": skip + limit < total,
+            "has_prev": skip > 0
+        }
+    }
 
 
 @router.get("/admin/tax-classes/{tax_class_id}", response_model=TaxClassResponse)
