@@ -14,7 +14,7 @@ class ProductVariant(Base):
     
     # Basic info
     reference = Column(String(100), unique=True, index=True, nullable=False)
-    ean13 = Column(String(13), unique=True, nullable=True, index=True)
+    ean = Column(String(255), unique=True, nullable=True, index=True)
     
     # Status
     is_active = Column(Boolean, default=True)

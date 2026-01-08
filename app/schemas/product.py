@@ -22,7 +22,7 @@ class ProductCreate(BaseModel):
     
     # Basic info
     reference: str = Field(..., min_length=1, max_length=100)
-    ean13: Optional[str] = Field(None, min_length=13, max_length=13)
+    ean: Optional[str] = Field(None, max_length=255)
     
     # Status
     is_active: bool = True
@@ -74,12 +74,12 @@ class ProductCreate(BaseModel):
     # For service/warranty products
     duration_months: Optional[int] = None
 
-    @field_validator('ean13')
+    @field_validator('ean')
     @classmethod
-    def validate_ean13(cls, v):
-        if v and not v.isdigit():
-            raise ValueError('EAN13 must contain only digits')
-        return v
+    def validate_ean(cls, v):
+        if v and not v.strip():
+            raise ValueError('EAN cannot be empty')
+        return v.strip() if v else None
 
     @field_validator('variants')
     @classmethod

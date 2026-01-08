@@ -77,7 +77,7 @@ class Product(Base):
     
     # Basic info
     reference = Column(String(100), unique=True, index=True, nullable=False)
-    ean13 = Column(String(13), unique=True, nullable=True, index=True)
+    ean = Column(String(255), unique=True, nullable=True, index=True)
     
     # Status
     is_active = Column(Boolean, default=True)
@@ -91,7 +91,7 @@ class Product(Base):
     tax_included_in_price = Column(Boolean, default=True)
     
     # Pricing
-    price_list = Column(Float, default=0.0)
+    price_list = Column(Float, nullable=True)
     currency = Column(String(3), default="EUR")
     
     # Stock
