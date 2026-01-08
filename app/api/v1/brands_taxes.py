@@ -20,7 +20,55 @@ def verify_api_key(x_api_key: str = Header(...)):
     return x_api_key
 
 
-# ============= Brand Endpoints =============
+# ============= Public Endpoints (No API Key) =============
+
+@router.get("/v1/brands", response_model=List[BrandResponse])
+def get_brands_public(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10000, ge=1, le=10000),
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db)
+):
+    """Get all brands - Public endpoint"""
+    return crud.get_brands(db, skip=skip, limit=limit, active_only=active_only)
+
+
+@router.get("/v1/brands/{brand_id}", response_model=BrandResponse)
+def get_brand_public(
+    brand_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get brand by ID - Public endpoint"""
+    brand = crud.get_brand(db, brand_id)
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return brand
+
+
+@router.get("/v1/tax-classes", response_model=List[TaxClassResponse])
+def get_tax_classes_public(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10000, ge=1, le=10000),
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db)
+):
+    """Get all tax classes - Public endpoint"""
+    return crud.get_tax_classes(db, skip=skip, limit=limit, active_only=active_only)
+
+
+@router.get("/v1/tax-classes/{tax_class_id}", response_model=TaxClassResponse)
+def get_tax_class_public(
+    tax_class_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get tax class by ID - Public endpoint"""
+    tax_class = crud.get_tax_class(db, tax_class_id)
+    if not tax_class:
+        raise HTTPException(status_code=404, detail="Tax class not found")
+    return tax_class
+
+
+# ============= Admin Endpoints (Require API Key) =============
 
 @router.post("/admin/brands", response_model=BrandResponse, status_code=201)
 def create_brand(
@@ -39,7 +87,7 @@ def create_brand(
 @router.get("/admin/brands", response_model=List[BrandResponse])
 def get_brands(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+    limit: int = Query(10000, ge=1, le=10000),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
@@ -88,8 +136,6 @@ def delete_brand(
     return None
 
 
-# ============= Tax Class Endpoints =============
-
 @router.post("/admin/tax-classes", response_model=TaxClassResponse, status_code=201)
 def create_tax_class(
     tax_class: TaxClassCreate,
@@ -103,7 +149,7 @@ def create_tax_class(
 @router.get("/admin/tax-classes", response_model=List[TaxClassResponse])
 def get_tax_classes(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+    limit: int = Query(10000, ge=1, le=10000),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)

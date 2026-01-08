@@ -352,7 +352,7 @@ def create_product(
 @router.get("/v1/products")
 def get_all_products(
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(10000, ge=1, le=10000),
     product_type: Optional[str] = Query(None, regex="^(configurable|simple|service|warranty)$"),
     category_id: Optional[int] = None,
     brand_id: Optional[int] = None,
@@ -365,7 +365,7 @@ def get_all_products(
     Get all products with optional filters
     
     - **skip**: Number of products to skip (pagination) - default: 0
-    - **limit**: Maximum number of products to return (1-100) - default: 50
+    - **limit**: Maximum number of products to return (1-10000) - default: 10000
     - **product_type**: Filter by product type (configurable, simple, service, warranty)
     - **category_id**: Filter by category ID
     - **brand_id**: Filter by brand ID
