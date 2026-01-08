@@ -19,7 +19,8 @@ from app.core.security.api_key import verify_api_key
 router = APIRouter()
 
 
-EXCEL_DIR = Path(__file__).parent.parent.parent / "app" / "excel"
+# Get excel directory: go up to app/ then add excel/
+EXCEL_DIR = Path(__file__).parent.parent.parent / "excel"
 
 
 @router.post("/import/products", response_model=ImportReport, status_code=status.HTTP_200_OK)
