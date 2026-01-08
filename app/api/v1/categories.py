@@ -31,29 +31,38 @@ async def get_all_categories(
         default=True,
         description="Show only active categories"
     ),
+    parent_only: bool = Query(
+        default=False,
+        description="Show only main categories (parent_id = null)"
+    ),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get all categories (main and children)
+    Get all categories (main and children) or only main categories
     
     Requires X-API-Key in header
     
     - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
     - **active_only**: Filter active categories only (default: true)
+    - **parent_only**: Show only main categories without children (default: false)
     
     Returns:
-    - List of all categories with localized names
-    - Main categories first (parent_id = null), then children ordered by sort_order
-    - Meta information about language
+    - List of categories with localized names
+    - If parent_only=true: only main categories (parent_id = null)
+    - If parent_only=false: all categories ordered by parent_id and sort_order
+    - Meta information about language and total count
     """
     # Validate language
     supported_langs = ["it", "en", "fr", "de", "ar"]
     if lang not in supported_langs:
         lang = "it"  # Default to Italian
     
-    # Get all categories
-    categories = crud_category.get_all_categories(db, lang, active_only)
+    # Get categories based on filter
+    if parent_only:
+        categories = crud_category.get_main_categories(db, lang)
+    else:
+        categories = crud_category.get_all_categories(db, lang, active_only)
     
     # Format response
     categories_data = [
@@ -74,7 +83,8 @@ async def get_all_categories(
         "meta": {
             "requested_lang": lang,
             "resolved_lang": lang,
-            "total": len(categories_data)
+            "total": len(categories_data),
+            "parent_only": parent_only
         }
     }
 
