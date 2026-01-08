@@ -40,6 +40,8 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
     Get or create category hierarchy from path
     Example: ["Electronics", "Smartphones"] creates parent "Electronics" and child "Smartphones"
     Returns the leaf category (last in path)
+    
+    Handles IntegrityError by fetching existing category if slug conflict occurs
     """
     if not category_path:
         return None
@@ -51,9 +53,17 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
             continue
         
         category_name = category_name.strip()
-        slug = slugify(category_name)
         
-        # Try to find existing category
+        # Generate unique slug based on full path to avoid conflicts
+        if parent_category:
+            # Child category: include parent slug in the unique slug
+            base_slug = slugify(category_name)
+            slug = f"{slugify(parent_category.name)}-{base_slug}"
+        else:
+            # Root category: use simple slug
+            slug = slugify(category_name)
+        
+        # Try to find existing category by slug and parent
         query = db.query(Category).filter(
             Category.slug == slug,
             Category.parent_id == (parent_category.id if parent_category else None)
@@ -61,27 +71,57 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
         category = query.first()
         
         if not category:
-            # Create new category
-            category = Category(
-                name=category_name,
-                slug=slug,
-                is_active=True,
-                sort_order=0,
-                parent_id=parent_category.id if parent_category else None
-            )
-            db.add(category)
-            db.flush()
-            
-            # Create default Italian translation
-            translation = CategoryTranslation(
-                category_id=category.id,
-                lang="it",
-                name=category_name,
-                slug=slug,
-                description=None
-            )
-            db.add(translation)
-            db.flush()
+            try:
+                # Create new category
+                category = Category(
+                    name=category_name,
+                    slug=slug,
+                    is_active=True,
+                    sort_order=0,
+                    parent_id=parent_category.id if parent_category else None
+                )
+                db.add(category)
+                db.flush()
+                
+                # Create default Italian translation
+                translation = CategoryTranslation(
+                    category_id=category.id,
+                    lang="it",
+                    name=category_name,
+                    slug=slug,
+                    description=None
+                )
+                db.add(translation)
+                db.flush()
+                
+            except IntegrityError:
+                # Slug conflict - rollback and fetch existing
+                db.rollback()
+                category = db.query(Category).filter(
+                    Category.slug == slug,
+                    Category.parent_id == (parent_category.id if parent_category else None)
+                ).first()
+                
+                if not category:
+                    # Still not found? Try by name and parent
+                    category = db.query(Category).filter(
+                        Category.name == category_name,
+                        Category.parent_id == (parent_category.id if parent_category else None)
+                    ).first()
+                
+                if not category:
+                    # Last resort: create with unique suffix
+                    import time
+                    unique_slug = f"{slug}-{int(time.time() * 1000) % 10000}"
+                    category = Category(
+                        name=category_name,
+                        slug=unique_slug,
+                        is_active=True,
+                        sort_order=0,
+                        parent_id=parent_category.id if parent_category else None
+                    )
+                    db.add(category)
+                    db.flush()
         
         parent_category = category
     

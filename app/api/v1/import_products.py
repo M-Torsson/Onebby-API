@@ -130,6 +130,7 @@ async def import_products(
             skipped=len(skipped_rows),
             errors_summary=errors_summary,
             errors=[ImportErrorDetail(**e) for e in all_errors] if verbose_errors else [],
+            errors_sample=[ImportErrorDetail(**e) for e in all_errors[:20]],  # First 20 errors
             sample_imports=all_samples[:5],  # First 5 only
             duration_seconds=round(duration, 2),
             dry_run=dry_run

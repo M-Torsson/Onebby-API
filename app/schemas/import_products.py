@@ -40,6 +40,10 @@ class ImportReport(BaseModel):
         default_factory=list,
         description="Detailed error list (controlled by verbose_errors parameter)"
     )
+    errors_sample: List[ImportErrorDetail] = Field(
+        default_factory=list,
+        description="Sample of first 20 errors for debugging"
+    )
     sample_imports: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Sample of first 5 imports with EAN and status"
@@ -58,9 +62,18 @@ class ImportReport(BaseModel):
                 "skipped": 30,
                 "errors_summary": {
                     "missing_ean": 356,
-                    "missing_title": 12
+                    "missing_title": 12,
+                    "integrity_error": 5
                 },
                 "errors": [],
+                "errors_sample": [
+                    {
+                        "row_number": 15,
+                        "ean": "8001234567890",
+                        "reason": "integrity_error",
+                        "details": "duplicate key value violates unique constraint 'products_ean_key'"
+                    }
+                ],
                 "sample_imports": [
                     {"ean": "8001234567890", "existed_before": False, "action": "created"},
                     {"ean": "8001234567891", "existed_before": True, "action": "updated"}
