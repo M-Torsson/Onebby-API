@@ -175,66 +175,52 @@ async def get_product_stats(
     - Products with/without price
     - Products with/without brand
     - Earliest/latest created and updated timestamps
+    
+    Optimized with single query for better performance
     """
-    from sqlalchemy import func
+    from sqlalchemy import func, case
     from app.models.product import Product
     from app.models.brand import Brand
     from app.models.category import Category
     
-    # Total products
-    total_products = db.query(func.count(Product.id)).scalar()
+    # Single optimized query for all product stats
+    product_stats = db.query(
+        func.count(Product.id).label('total_products'),
+        func.count(func.distinct(Product.ean)).label('unique_eans'),
+        func.sum(case((Product.ean.isnot(None) & (Product.ean != ''), 1), else_=0)).label('products_with_ean'),
+        func.sum(case((Product.price_list.isnot(None), 1), else_=0)).label('products_with_price'),
+        func.sum(case((Product.brand_id.isnot(None), 1), else_=0)).label('products_with_brand'),
+        func.min(Product.date_add).label('earliest_created'),
+        func.max(Product.date_add).label('latest_created'),
+        func.min(Product.date_update).label('earliest_updated'),
+        func.max(Product.date_update).label('latest_updated')
+    ).first()
     
-    # Unique EANs
-    unique_eans = db.query(func.count(func.distinct(Product.ean))).filter(
-        Product.ean.isnot(None),
-        Product.ean != ''
-    ).scalar()
-    
-    # Products with EAN
-    products_with_ean = db.query(func.count(Product.id)).filter(
-        Product.ean.isnot(None),
-        Product.ean != ''
-    ).scalar()
-    
-    products_without_ean = total_products - products_with_ean
-    
-    # Brands and categories
+    # Separate simple queries for brands and categories
     total_brands = db.query(func.count(Brand.id)).scalar()
     total_categories = db.query(func.count(Category.id)).scalar()
     
-    # Products with/without price
-    products_with_price = db.query(func.count(Product.id)).filter(
-        Product.price_list.isnot(None)
-    ).scalar()
-    products_without_price = total_products - products_with_price
-    
-    # Products with/without brand
-    products_with_brand = db.query(func.count(Product.id)).filter(
-        Product.brand_id.isnot(None)
-    ).scalar()
-    products_without_brand = total_products - products_with_brand
-    
-    # Timestamps
-    earliest_created = db.query(func.min(Product.date_add)).scalar()
-    latest_created = db.query(func.max(Product.date_add)).scalar()
-    earliest_updated = db.query(func.min(Product.date_update)).scalar()
-    latest_updated = db.query(func.max(Product.date_update)).scalar()
+    # Calculate derived values
+    total_products = product_stats.total_products or 0
+    products_with_ean = product_stats.products_with_ean or 0
+    products_with_price = product_stats.products_with_price or 0
+    products_with_brand = product_stats.products_with_brand or 0
     
     return ProductStatsResponse(
-        total_products=total_products or 0,
-        unique_eans=unique_eans or 0,
-        products_with_ean=products_with_ean or 0,
-        products_without_ean=products_without_ean or 0,
+        total_products=total_products,
+        unique_eans=product_stats.unique_eans or 0,
+        products_with_ean=products_with_ean,
+        products_without_ean=total_products - products_with_ean,
         total_brands=total_brands or 0,
         total_categories=total_categories or 0,
-        products_with_price=products_with_price or 0,
-        products_without_price=products_without_price or 0,
-        products_with_brand=products_with_brand or 0,
-        products_without_brand=products_without_brand or 0,
-        earliest_created_at=earliest_created,
-        latest_created_at=latest_created,
-        earliest_updated_at=earliest_updated,
-        latest_updated_at=latest_updated
+        products_with_price=products_with_price,
+        products_without_price=total_products - products_with_price,
+        products_with_brand=products_with_brand,
+        products_without_brand=total_products - products_with_brand,
+        earliest_created_at=product_stats.earliest_created,
+        latest_created_at=product_stats.latest_created,
+        earliest_updated_at=product_stats.earliest_updated,
+        latest_updated_at=product_stats.latest_updated
     )
 
 
