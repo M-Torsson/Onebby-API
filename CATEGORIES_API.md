@@ -27,7 +27,7 @@ X-API-Key: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
 
 #### Headers:
 ```
-X-API-Key: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
+X-API-KEY: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
 Content-Type: application/json
 ```
 
@@ -99,7 +99,7 @@ Content-Type: application/json
 
 #### Headers:
 ```
-X-API-Key: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
+X-API-KEY: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
 ```
 
 #### Parameters:
@@ -290,7 +290,7 @@ alembic/
 
 #### Headers:
 ```
-X-API-Key: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
+X-API-KEY: X9$eP!7wQ@3nZ8^tF#uL2rC6*mH1yB0_dV4+KpS%aGfJ5$qWzR!N7sT#hU9&bE
 Content-Type: application/json
 ```
 
@@ -351,7 +351,7 @@ Content-Type: application/json
 
 ## 📝 ملاحظات مهمة
 
-1. **كل endpoint يحتاج X-API-Key** للأمان
+1. **كل endpoint يحتاج X-API-KEY** للأمان
 2. **Slug يجب أن يكون فريد** لكل فئة
 3. **Parent category يجب أن تكون نشطة** (`is_active = true`)
 4. **الترجمات تُنشأ تلقائياً** عند إنشاء فئة جديدة

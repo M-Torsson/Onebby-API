@@ -34,5 +34,5 @@ Authorization: Bearer {your_jwt_token}
 
 أضف في Environment Variables:
 ```
-API_KEY=Onebby_API_Key_2025_!P9mK@7xL#4rT8nW$2qF5vB*3cH6jD9zY
+X-API-KEY: Onebby_API_Key_2025_!P9mK@7xL#4rT8nW$2qF5vB*3cH6jD9zY
 ```
