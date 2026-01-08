@@ -159,6 +159,68 @@ async def get_main_categories(
     }
 
 
+@router.get(
+    "/admin/categories/{category_id}"
+)
+async def get_category_by_id(
+    category_id: int,
+    lang: Optional[str] = Query(
+        default="it",
+        description="Language code: it, en, fr, de, ar"
+    ),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get single category by ID (works for both parent and sub-categories)
+    
+    Requires X-API-Key in header
+    
+    - **category_id**: Category ID to retrieve
+    - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
+    
+    Returns:
+    - Single category details with localized name
+    """
+    # Validate language
+    supported_langs = ["it", "en", "fr", "de", "ar"]
+    if lang not in supported_langs:
+        lang = "it"
+    
+    # Get category from database
+    category = crud_category.get_category(db, category_id)
+    
+    if not category:
+        raise HTTPException(status_code=404, detail=f"Category with ID {category_id} not found")
+    
+    # Get translated name if available
+    category_name = category.name
+    category_slug = category.slug
+    
+    if category.translations:
+        translation = next((t for t in category.translations if t.lang == lang), None)
+        if not translation and lang != "it":
+            # Fallback to Italian
+            translation = next((t for t in category.translations if t.lang == "it"), None)
+        
+        if translation:
+            category_name = translation.name
+            category_slug = translation.slug
+    
+    return {
+        "data": {
+            "id": category.id,
+            "name": category_name,
+            "slug": category_slug,
+            "image": category.image,
+            "icon": category.icon,
+            "parent_id": category.parent_id,
+            "is_active": category.is_active,
+            "sort_order": category.sort_order
+        }
+    }
+
+
 @router.post(
     "/admin/categories",
     response_model=CategoryCreateResponse,
