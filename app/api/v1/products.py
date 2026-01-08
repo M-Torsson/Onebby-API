@@ -33,140 +33,167 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
     """Build product response based on requested language"""
     
     # Get translation for requested language
-    translation = next((t for t in product.translations if t.lang == lang), None)
-    if not translation:
-        # Fallback to Italian
-        translation = next((t for t in product.translations if t.lang == "it"), product.translations[0] if product.translations else None)
+    translation = None
+    if product.translations:
+        translation = next((t for t in product.translations if t.lang == lang), None)
+        if not translation:
+            # Fallback to Italian
+            translation = next((t for t in product.translations if t.lang == "it"), None)
+        if not translation:
+            # Last fallback: use first available
+            translation = product.translations[0] if product.translations else None
     
     if not translation:
         raise HTTPException(status_code=404, detail="Product translation not found")
     
     # Build images with language-specific alt text
     images = []
-    for img in product.images:
-        alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == lang), "")
-        if not alt_text:
-            alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == "it"), "")
-        
-        images.append(ProductImageResponse(
-            url=img.url,
-            position=img.position,
-            alt=alt_text
-        ))
-    
-    # Build features with language-specific translations
-    features = []
-    for feat in product.features:
-        feat_trans = next((t for t in feat.translations if t.lang == lang), None)
-        if not feat_trans:
-            feat_trans = next((t for t in feat.translations if t.lang == "it"), None)
-        
-        if feat_trans:
-            features.append(ProductFeatureResponse(
-                name=feat_trans.name,
-                value=feat_trans.value
-            ))
-    
-    # Build attributes with language-specific translations
-    attributes = []
-    for attr in product.attributes:
-        attr_trans = next((t for t in attr.translations if t.lang == lang), None)
-        if not attr_trans:
-            attr_trans = next((t for t in attr.translations if t.lang == "it"), None)
-        
-        if attr_trans:
-            attributes.append(ProductAttributeResponse(
-                code=attr.code,
-                name=attr_trans.name,
-                value=attr_trans.value
-            ))
-    
-    # Build variant attributes with language-specific labels and options
-    variant_attributes = []
-    for var_attr in product.variant_attributes:
-        var_attr_trans = next((t for t in var_attr.translations if t.lang == lang), None)
-        if not var_attr_trans:
-            var_attr_trans = next((t for t in var_attr.translations if t.lang == "it"), None)
-        
-        if var_attr_trans:
-            # Extract unique options from variants
-            options = []
-            seen_values = set()
-            for variant in product.variants:
-                if variant.is_active and var_attr.code in variant.attributes:
-                    value = variant.attributes[var_attr.code]
-                    if value not in seen_values:
-                        seen_values.add(value)
-                        options.append({
-                            "value": value,
-                            "label": value.title()  # Simple formatting
-                        })
-            
-            variant_attributes.append(ProductVariantAttributeResponse(
-                code=var_attr.code,
-                label=var_attr_trans.label,
-                options=options
-            ))
-    
-    # Build variants
-    variants = []
-    for variant in product.variants:
-        if variant.is_active:
-            # Build variant images
-            variant_images = []
-            for img in variant.images:
+    if product.images:
+        for img in product.images:
+            alt_text = ""
+            if img.alt_texts:
                 alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == lang), "")
                 if not alt_text:
                     alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == "it"), "")
-                
-                variant_images.append(ProductImageResponse(
-                    url=img.url,
-                    position=img.position,
-                    alt=alt_text
-                ))
             
-            # Calculate discounts
-            active_discounts = [d for d in variant.discounts if d.is_active]
-            discount_data = []
-            for disc in active_discounts:
-                discount_data.append({
-                    "type": disc.discount_type,
-                    "value": disc.discount_value,
-                    "start_date": disc.start_date,
-                    "end_date": disc.end_date
-                })
-            
-            variants.append(ProductVariantResponse(
-                id=variant.id,
-                reference=variant.reference,
-                ean13=variant.ean13,
-                is_active=variant.is_active,
-                attributes=variant.attributes,
-                price=PriceResponse(
-                    list=variant.price_list,
-                    currency=variant.currency,
-                    discounts=discount_data
-                ),
-                stock=StockResponse(
-                    status=variant.stock_status.value,
-                    quantity=variant.stock_quantity
-                ),
-                images=variant_images
+            images.append(ProductImageResponse(
+                url=img.url,
+                position=img.position,
+                alt=alt_text
             ))
+    
+    # Build features with language-specific translations
+    features = []
+    if product.features:
+        for feat in product.features:
+            feat_trans = None
+            if feat.translations:
+                feat_trans = next((t for t in feat.translations if t.lang == lang), None)
+                if not feat_trans:
+                    feat_trans = next((t for t in feat.translations if t.lang == "it"), None)
+            
+            if feat_trans:
+                features.append(ProductFeatureResponse(
+                    name=feat_trans.name,
+                    value=feat_trans.value
+                ))
+    
+    # Build attributes with language-specific translations
+    attributes = []
+    if product.attributes:
+        for attr in product.attributes:
+            attr_trans = None
+            if attr.translations:
+                attr_trans = next((t for t in attr.translations if t.lang == lang), None)
+                if not attr_trans:
+                    attr_trans = next((t for t in attr.translations if t.lang == "it"), None)
+            
+            if attr_trans:
+                attributes.append(ProductAttributeResponse(
+                    code=attr.code,
+                    name=attr_trans.name,
+                    value=attr_trans.value
+                ))
+    
+    # Build variant attributes with language-specific labels and options
+    variant_attributes = []
+    if product.variant_attributes:
+        for var_attr in product.variant_attributes:
+            var_attr_trans = None
+            if var_attr.translations:
+                var_attr_trans = next((t for t in var_attr.translations if t.lang == lang), None)
+                if not var_attr_trans:
+                    var_attr_trans = next((t for t in var_attr.translations if t.lang == "it"), None)
+            
+            if var_attr_trans:
+                # Extract unique options from variants
+                options = []
+                seen_values = set()
+                if product.variants:
+                    for variant in product.variants:
+                        if variant.is_active and variant.attributes and var_attr.code in variant.attributes:
+                            value = variant.attributes[var_attr.code]
+                            if value not in seen_values:
+                                seen_values.add(value)
+                                options.append({
+                                    "value": value,
+                                    "label": value.title()  # Simple formatting
+                                })
+                
+                variant_attributes.append(ProductVariantAttributeResponse(
+                    code=var_attr.code,
+                    label=var_attr_trans.label,
+                    options=options
+                ))
+    
+    # Build variants
+    variants = []
+    if product.variants:
+        for variant in product.variants:
+            if variant.is_active:
+                # Build variant images
+                variant_images = []
+                if variant.images:
+                    for img in variant.images:
+                        alt_text = ""
+                        if img.alt_texts:
+                            alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == lang), "")
+                            if not alt_text:
+                                alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == "it"), "")
+                        
+                        variant_images.append(ProductImageResponse(
+                            url=img.url,
+                            position=img.position,
+                            alt=alt_text
+                        ))
+                
+                # Calculate discounts
+                active_discounts = []
+                if variant.discounts:
+                    active_discounts = [d for d in variant.discounts if d.is_active]
+                discount_data = []
+                for disc in active_discounts:
+                    discount_data.append({
+                        "type": disc.discount_type,
+                        "value": disc.discount_value,
+                        "start_date": disc.start_date,
+                        "end_date": disc.end_date
+                    })
+                
+                variants.append(ProductVariantResponse(
+                    id=variant.id,
+                    reference=variant.reference,
+                    ean13=variant.ean13 or "",
+                    is_active=variant.is_active,
+                    attributes=variant.attributes or {},
+                    price=PriceResponse(
+                        list=variant.price_list or 0.0,
+                        currency=variant.currency or "EUR",
+                        discounts=discount_data
+                    ),
+                    stock=StockResponse(
+                        status=variant.stock_status.value if variant.stock_status else "out_of_stock",
+                        quantity=variant.stock_quantity or 0
+                    ),
+                    images=variant_images
+                ))
     
     # Build categories with translations
     categories = []
-    for cat in product.categories:
-        cat_trans = next((t for t in cat.translations if t.lang == lang), None)
-        if not cat_trans:
-            cat_trans = next((t for t in cat.translations if t.lang == "it"), None)
-        
-        if cat_trans:
-            categories.append(CategorySimple(
-                id=cat.id,
-                name=cat_trans.name,
-                slug=cat_trans.slug
-            ))
+    if product.categories:
+        for cat in product.categories:
+            cat_trans = None
+            if cat.translations:
+                cat_trans = next((t for t in cat.translations if t.lang == lang), None)
+                if not cat_trans:
+                    cat_trans = next((t for t in cat.translations if t.lang == "it"), None)
+            
+            if cat_trans:
+                categories.append(CategorySimple(
+                    id=cat.id,
+                    name=cat_trans.name,
+                    slug=cat_trans.slug
+                ))
     
     # Build brand
     brand = None
@@ -177,53 +204,61 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
             image=product.brand.image
         )
     
-    # Build tax
-    tax = TaxClassSimple(
-        id=product.tax_class.id,
-        name=product.tax_class.name,
-        rate=product.tax_class.rate,
-        included_in_price=product.tax_included_in_price
-    )
+    # Build tax - with null safety
+    tax = None
+    if product.tax_class:
+        tax = TaxClassSimple(
+            id=product.tax_class.id,
+            name=product.tax_class.name,
+            rate=product.tax_class.rate,
+            included_in_price=product.tax_included_in_price
+        )
     
     # Build options (shipping services and warranties)
     options = None
-    if product.product_type.value == "configurable":
+    if product.product_type and product.product_type.value == "configurable":
         shipping_services = []
-        for service in product.allowed_shipping_services:
-            service_trans = next((t for t in service.translations if t.lang == lang), None)
-            if not service_trans:
-                service_trans = next((t for t in service.translations if t.lang == "it"), None)
-            
-            if service_trans:
-                shipping_services.append({
-                    "id": service.id,
-                    "type": "shipping_service",
-                    "title": service_trans.title,
-                    "description": service_trans.simple_description or "",
-                    "price": {
-                        "amount": service.price_list,
+        if product.allowed_shipping_services:
+            for service in product.allowed_shipping_services:
+                service_trans = None
+                if service.translations:
+                    service_trans = next((t for t in service.translations if t.lang == lang), None)
+                    if not service_trans:
+                        service_trans = next((t for t in service.translations if t.lang == "it"), None)
+                
+                if service_trans:
+                    shipping_services.append({
+                        "id": service.id,
+                        "type": "shipping_service",
+                        "title": service_trans.title,
+                        "description": service_trans.simple_description or "",
+                        "price": {
+                            "amount": service.price_list or 0.0,
                         "currency": service.currency
                     }
                 })
         
         warranties = []
-        for warranty in product.allowed_warranties:
-            warranty_trans = next((t for t in warranty.translations if t.lang == lang), None)
-            if not warranty_trans:
-                warranty_trans = next((t for t in warranty.translations if t.lang == "it"), None)
-            
-            if warranty_trans:
-                warranties.append({
-                    "id": warranty.id,
-                    "type": "warranty",
-                    "title": warranty_trans.title,
-                    "description": warranty_trans.simple_description or "",
-                    "price": {
-                        "amount": warranty.price_list,
-                        "currency": warranty.currency
-                    },
-                    "duration_months": warranty.duration_months
-                })
+        if product.allowed_warranties:
+            for warranty in product.allowed_warranties:
+                warranty_trans = None
+                if warranty.translations:
+                    warranty_trans = next((t for t in warranty.translations if t.lang == lang), None)
+                    if not warranty_trans:
+                        warranty_trans = next((t for t in warranty.translations if t.lang == "it"), None)
+                
+                if warranty_trans:
+                    warranties.append({
+                        "id": warranty.id,
+                        "type": "warranty",
+                        "title": warranty_trans.title,
+                        "description": warranty_trans.simple_description or "",
+                        "price": {
+                            "amount": warranty.price_list or 0.0,
+                            "currency": warranty.currency or "EUR"
+                        },
+                        "duration_months": warranty.duration_months or 0
+                    })
         
         if shipping_services or warranties:
             options = {
@@ -232,25 +267,27 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
             }
     
     # Build related product IDs
-    related_product_ids = [rp.id for rp in product.related_products]
+    related_product_ids = []
+    if product.related_products:
+        related_product_ids = [rp.id for rp in product.related_products]
     
     # Build final response
     response_data = ProductResponseFull(
         id=product.id,
-        product_type=product.product_type.value,
-        reference=product.reference,
-        ean13=product.ean13,
-        is_active=product.is_active,
+        product_type=product.product_type.value if product.product_type else "simple",
+        reference=product.reference or "",
+        ean13=product.ean13 or "",
+        is_active=product.is_active if product.is_active is not None else True,
         date_add=product.date_add,
         date_update=product.date_update,
         brand=brand,
         tax=tax,
         categories=categories,
-        condition=product.condition.value,
-        title=translation.title,
-        sub_title=translation.sub_title,
-        simple_description=translation.simple_description,
-        meta_description=translation.meta_description,
+        condition=product.condition.value if product.condition else "new",
+        title=translation.title or "",
+        sub_title=translation.sub_title or "",
+        simple_description=translation.simple_description or "",
+        meta_description=translation.meta_description or "",
         images=images,
         features=features,
         attributes=attributes,
