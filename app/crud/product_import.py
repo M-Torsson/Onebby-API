@@ -35,17 +35,52 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
     return brand
 
 
+def get_or_create_uncategorized(db: Session) -> Category:
+    """
+    Get or create 'Uncategorized' fallback category
+    Used when category creation fails to prevent product loss
+    """
+    uncategorized = db.query(Category).filter(
+        Category.slug == "uncategorized",
+        Category.parent_id == None
+    ).first()
+    
+    if not uncategorized:
+        uncategorized = Category(
+            name="Uncategorized",
+            slug="uncategorized",
+            is_active=True,
+            sort_order=9999,
+            parent_id=None
+        )
+        db.add(uncategorized)
+        db.flush()
+        
+        # Create translation
+        translation = CategoryTranslation(
+            category_id=uncategorized.id,
+            lang="it",
+            name="Non categorizzato",
+            slug="uncategorized",
+            description="Prodotti senza categoria assegnata"
+        )
+        db.add(translation)
+        db.flush()
+    
+    return uncategorized
+
+
 def get_or_create_category_path(db: Session, category_path: List[str]) -> Optional[Category]:
     """
     Get or create category hierarchy from path
     Example: ["Electronics", "Smartphones"] creates parent "Electronics" and child "Smartphones"
     Returns the leaf category (last in path)
     
-    Handles IntegrityError with proper rollback and parent refetch
-    Includes retry logic for FK constraint errors
+    Fallback strategy: On persistent FK errors, returns Uncategorized category
+    This ensures products are never lost due to category creation issues
     """
     if not category_path:
-        return None
+        return get_or_create_uncategorized(db)
     
     parent_category = None
     
@@ -79,11 +114,12 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
             
             while retry_count < max_retries:
                 try:
-                    # Re-fetch parent if we're on a retry (after rollback)
-                    if retry_count > 0 and parent_id:
-                        parent_category = db.query(Category).filter(Category.id == parent_id).first()
-                        if not parent_category:
-                            raise ValueError(f"Parent category with id={parent_id} not found after rollback")
+                    # GUARD: Verify parent exists in DB before creating child
+                    if parent_id:
+                        parent_exists = db.query(Category.id).filter(Category.id == parent_id).scalar()
+                        if not parent_exists:
+                            # Parent missing - fallback to Uncategorized
+                            return get_or_create_uncategorized(db)
                     
                     # Create new category
                     category = Category(
@@ -94,7 +130,7 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
                         parent_id=parent_id
                     )
                     db.add(category)
-                    db.flush()  # Flush immediately to get ID and persist in transaction
+                    db.flush()  # ✅ IMMEDIATE FLUSH to get real ID in same transaction
                     
                     # Create default Italian translation
                     translation = CategoryTranslation(
@@ -118,10 +154,17 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
                     
                     # Check if it's a FK constraint error (parent not found)
                     if 'foreign key' in error_msg or 'parent_id' in error_msg:
-                        # FK error - retry after re-fetching parent
                         retry_count += 1
                         if retry_count >= max_retries:
-                            raise ValueError(f"Failed to create category after {max_retries} retries. Parent category may not exist.")
+                            # FALLBACK: Return Uncategorized instead of failing
+                            return get_or_create_uncategorized(db)
+                        
+                        # Rebuild from scratch with fresh queries
+                        if parent_id:
+                            parent_category = db.query(Category).filter(Category.id == parent_id).first()
+                            if not parent_category:
+                                # Parent lost - fallback
+                                return get_or_create_uncategorized(db)
                         continue
                     
                     # Slug conflict - try to fetch existing category
@@ -141,27 +184,37 @@ def get_or_create_category_path(db: Session, category_path: List[str]) -> Option
                         # Last resort: create with unique suffix
                         import time
                         unique_slug = f"{slug}-{int(time.time() * 1000) % 10000}"
-                        category = Category(
-                            name=category_name,
-                            slug=unique_slug,
-                            is_active=True,
-                            sort_order=0,
-                            parent_id=parent_id
-                        )
-                        db.add(category)
-                        db.flush()  # Flush immediately
+                        try:
+                            category = Category(
+                                name=category_name,
+                                slug=unique_slug,
+                                is_active=True,
+                                sort_order=0,
+                                parent_id=parent_id
+                            )
+                            db.add(category)
+                            db.flush()  # Flush immediately
+                        except IntegrityError:
+                            # Even unique slug failed - fallback
+                            db.rollback()
+                            return get_or_create_uncategorized(db)
                     
                     # Success - break retry loop
                     break
         
-        # Important: Ensure parent_category is attached to session
-        if category and category not in db:
-            # Category might be detached after rollback - re-fetch
-            category = db.query(Category).filter(Category.id == category.id).first()
+        # Important: Ensure category is attached and has valid ID
+        if category:
+            if category not in db:
+                # Category might be detached after rollback - re-fetch
+                category = db.query(Category).filter(Category.id == category.id).first()
+            
+            # Final verification: ensure category has ID
+            if not category or not category.id:
+                return get_or_create_uncategorized(db)
         
         parent_category = category
     
-    return parent_category
+    return parent_category if parent_category else get_or_create_uncategorized(db)
 
 
 def get_or_create_default_tax_class(db: Session) -> TaxClass:
