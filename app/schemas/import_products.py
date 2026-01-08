@@ -106,11 +106,5 @@ class ProductStatsResponse(BaseModel):
                 "latest_created_at": "2026-01-08T12:00:00",
                 "earliest_updated_at": "2026-01-08T10:00:00",
                 "latest_updated_at": "2026-01-08T12:00:00"
-                        "details": "Product has no EAN code"
-                    }
-                ],
-                "duration_seconds": 45.2,
-                "dry_run": False,
-                "timestamp": "2026-01-08T12:00:00"
             }
         }
