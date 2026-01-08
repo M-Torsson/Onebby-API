@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20  # Increased from default 5
     DB_MAX_OVERFLOW: int = 30  # Increased from default 10
     DB_POOL_TIMEOUT: int = 60  # Increased from default 30
-    DB_POOL_RECYCLE: int = 3600  # Recycle connections after 1 hour
+    DB_POOL_RECYCLE: int = 300  # Recycle connections after 5 minutes (prevent SSL timeout)
     DB_POOL_PRE_PING: bool = True  # Test connections before using
     
     # Security Configuration
