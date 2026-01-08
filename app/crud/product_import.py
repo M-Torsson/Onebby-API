@@ -264,6 +264,7 @@ def import_products_batch(
             elif action == "error":
                 stats["errors"].append({
                     "row_number": product_data.get("row_number", 0),
+                    "ean": product_data.get("ean"),
                     "reason": "upsert_failed",
                     "details": "Failed to upsert product"
                 })
@@ -272,6 +273,7 @@ def import_products_batch(
             db.rollback()
             stats["errors"].append({
                 "row_number": product_data.get("row_number", 0),
+                "ean": product_data.get("ean"),
                 "reason": "integrity_error",
                 "details": str(e.orig)
             })
@@ -280,6 +282,7 @@ def import_products_batch(
             db.rollback()
             stats["errors"].append({
                 "row_number": product_data.get("row_number", 0),
+                "ean": product_data.get("ean"),
                 "reason": "unexpected_error",
                 "details": str(e)
             })

@@ -20,6 +20,7 @@ class ImportRequest(BaseModel):
 class ImportErrorDetail(BaseModel):
     """Single error detail"""
     row_number: int
+    ean: Optional[str] = None
     reason: str
     details: Optional[str] = None
 
@@ -47,6 +48,7 @@ class ImportReport(BaseModel):
                 "errors": [
                     {
                         "row_number": 15,
+                        "ean": None,
                         "reason": "missing_ean",
                         "details": "Product has no EAN code"
                     }

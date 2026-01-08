@@ -274,12 +274,14 @@ class ProductImportService:
                 if not ean:
                     skipped_rows.append({
                         "row_number": row_number,
+                        "ean": None,
                         "reason": "missing_ean",
                         "details": "Product has no EAN code"
                     })
                 else:
                     skipped_rows.append({
                         "row_number": row_number,
+                        "ean": ean,
                         "reason": "missing_title",
                         "details": "Product has no title"
                     })

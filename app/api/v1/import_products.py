@@ -100,6 +100,7 @@ async def import_products(
         all_errors.extend([
             ImportErrorDetail(
                 row_number=skip["row_number"],
+                ean=skip.get("ean"),
                 reason=skip["reason"],
                 details=skip.get("details")
             )
@@ -142,3 +143,58 @@ async def import_products(
                 file_path.unlink()
             except:
                 pass
+
+
+@router.get("/import/stats", status_code=status.HTTP_200_OK)
+async def get_import_stats(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key)
+):
+    """
+    Get database statistics for imported products
+    
+    Returns:
+    - total_products: Total number of products
+    - unique_eans: Number of unique EAN codes
+    - total_brands: Total number of brands
+    - total_categories: Total number of categories
+    - products_with_price: Products that have a price
+    - products_without_price: Products without a price
+    - products_with_brand: Products that have a brand
+    - products_without_brand: Products without a brand
+    """
+    from sqlalchemy import func, distinct
+    from app.models.product import Product
+    from app.models.brand import Brand
+    from app.models.category import Category
+    
+    # Count total products
+    total_products = db.query(func.count(Product.id)).scalar()
+    
+    # Count unique EANs
+    unique_eans = db.query(func.count(distinct(Product.ean))).filter(Product.ean.isnot(None)).scalar()
+    
+    # Count total brands
+    total_brands = db.query(func.count(Brand.id)).scalar()
+    
+    # Count total categories
+    total_categories = db.query(func.count(Category.id)).scalar()
+    
+    # Count products with/without price
+    products_with_price = db.query(func.count(Product.id)).filter(Product.price_list.isnot(None)).scalar()
+    products_without_price = db.query(func.count(Product.id)).filter(Product.price_list.is_(None)).scalar()
+    
+    # Count products with/without brand
+    products_with_brand = db.query(func.count(Product.id)).filter(Product.brand_id.isnot(None)).scalar()
+    products_without_brand = db.query(func.count(Product.id)).filter(Product.brand_id.is_(None)).scalar()
+    
+    return {
+        "total_products": total_products,
+        "unique_eans": unique_eans,
+        "total_brands": total_brands,
+        "total_categories": total_categories,
+        "products_with_price": products_with_price,
+        "products_without_price": products_without_price,
+        "products_with_brand": products_with_brand,
+        "products_without_brand": products_without_brand
+    }
