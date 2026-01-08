@@ -163,7 +163,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                 variants.append(ProductVariantResponse(
                     id=variant.id,
                     reference=variant.reference,
-                    ean13=variant.ean13 or "",
+                    ean13=variant.ean or "",
                     is_active=variant.is_active,
                     attributes=variant.attributes or {},
                     price=PriceResponse(
@@ -276,7 +276,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         id=product.id,
         product_type=product.product_type.value if product.product_type else "simple",
         reference=product.reference or "",
-        ean13=product.ean13 or "",
+        ean13=product.ean or "",
         is_active=product.is_active if product.is_active is not None else True,
         date_add=product.date_add,
         date_update=product.date_update,
