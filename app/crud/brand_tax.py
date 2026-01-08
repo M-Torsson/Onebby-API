@@ -18,6 +18,16 @@ def get_brand_by_slug(db: Session, slug: str) -> Optional[Brand]:
     return db.query(Brand).filter(Brand.slug == slug).first()
 
 
+def count_brands(db: Session, active_only: bool = False) -> int:
+    """Count total brands"""
+    query = db.query(Brand)
+    
+    if active_only:
+        query = query.filter(Brand.is_active == True)
+    
+    return query.count()
+
+
 def get_brands(db: Session, skip: int = 0, limit: int = 100, active_only: bool = False) -> List[Brand]:
     """Get all brands"""
     query = db.query(Brand)
@@ -85,6 +95,16 @@ def delete_brand(db: Session, brand_id: int) -> bool:
 def get_tax_class(db: Session, tax_class_id: int) -> Optional[TaxClass]:
     """Get tax class by ID"""
     return db.query(TaxClass).filter(TaxClass.id == tax_class_id).first()
+
+
+def count_tax_classes(db: Session, active_only: bool = False) -> int:
+    """Count total tax classes"""
+    query = db.query(TaxClass)
+    
+    if active_only:
+        query = query.filter(TaxClass.is_active == True)
+    
+    return query.count()
 
 
 def get_tax_classes(db: Session, skip: int = 0, limit: int = 100, active_only: bool = False) -> List[TaxClass]:

@@ -22,15 +22,36 @@ def verify_api_key(x_api_key: str = Header(...)):
 
 # ============= Public Endpoints (No API Key) =============
 
-@router.get("/v1/brands", response_model=List[BrandResponse])
+@router.get("/v1/brands")
 def get_brands_public(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(True),
     db: Session = Depends(get_db)
 ):
-    """Get all brands - Public endpoint"""
-    return crud.get_brands(db, skip=skip, limit=limit, active_only=active_only)
+    """Get all brands with pagination - Public endpoint"""
+    # Get total count
+    total = crud.count_brands(db, active_only=active_only)
+    
+    # Get brands for current page
+    brands = crud.get_brands(db, skip=skip, limit=limit, active_only=active_only)
+    
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit
+    current_page = (skip // limit) + 1
+    
+    return {
+        "data": brands,
+        "meta": {
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_next": skip + limit < total,
+            "has_prev": skip > 0
+        }
+    }
 
 
 @router.get("/v1/brands/{brand_id}", response_model=BrandResponse)
@@ -45,15 +66,36 @@ def get_brand_public(
     return brand
 
 
-@router.get("/v1/tax-classes", response_model=List[TaxClassResponse])
+@router.get("/v1/tax-classes")
 def get_tax_classes_public(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(True),
     db: Session = Depends(get_db)
 ):
-    """Get all tax classes - Public endpoint"""
-    return crud.get_tax_classes(db, skip=skip, limit=limit, active_only=active_only)
+    """Get all tax classes with pagination - Public endpoint"""
+    # Get total count
+    total = crud.count_tax_classes(db, active_only=active_only)
+    
+    # Get tax classes for current page
+    tax_classes = crud.get_tax_classes(db, skip=skip, limit=limit, active_only=active_only)
+    
+    # Calculate pagination metadata
+    total_pages = (total + limit - 1) // limit
+    current_page = (skip // limit) + 1
+    
+    return {
+        "data": tax_classes,
+        "meta": {
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_next": skip + limit < total,
+            "has_prev": skip > 0
+        }
+    }
 
 
 @router.get("/v1/tax-classes/{tax_class_id}", response_model=TaxClassResponse)
