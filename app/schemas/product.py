@@ -247,8 +247,8 @@ class StockUpdateResponse(BaseModel):
 
 class ProductPriceSimple(BaseModel):
     """Simple price response for category products"""
-    price: float
-    currency: str
+    price: float = Field(default=0.0, ge=0)  # السعر مع قيمة افتراضية 0.0
+    currency: str = Field(default="EUR")
     discounts: str  # e.g. "10%" or "0"
     tax_role: str   # e.g. "22%"
 

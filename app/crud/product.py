@@ -697,8 +697,8 @@ def get_products_by_category(db: Session, category_id: int, lang: str = "it") ->
             "simple_description": translation.simple_description,
             "is_active": product.is_active,
             "price": {
-                "price": product.price_list,
-                "currency": product.currency,
+                "price": product.price_list or 0.0,
+                "currency": product.currency or "EUR",
                 "discounts": discount_str,
                 "tax_role": tax_str
             },
