@@ -154,7 +154,7 @@ class ProductUpdate(BaseModel):
 class ProductResponseFull(BaseModel):
     """Full product response (GET request)"""
     id: int
-    product_type: str
+    # product_type: str  # مخفي مؤقتاً - Hidden temporarily
     
     # Basic info
     reference: str
