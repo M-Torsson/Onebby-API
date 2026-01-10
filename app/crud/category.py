@@ -181,18 +181,26 @@ def create_default_translations(db: Session, category: Category):
         "ar": "ar"   # Arabic
     }
     
+    translations_created = []
     for lang_code, target_lang in languages.items():
         try:
             if lang_code == "it":
                 # Italian is the source, use original name
                 translated_name = category.name
                 translated_slug = category.slug
+                print(f"   → {lang_code}: {translated_name} (original)")
             else:
                 # Translate to target language using GoogleTranslator
-                translated_name = GoogleTranslator(
-                    source='it',
-                    target=target_lang
-                ).translate(category.name)
+                try:
+                    translated_name = GoogleTranslator(
+                        source='it',
+                        target=target_lang
+                    ).translate(category.name)
+                    print(f"   → {lang_code}: {translated_name} (translated)")
+                except Exception as trans_error:
+                    # If translation fails, use original name
+                    print(f"   ⚠ {lang_code}: Translation failed, using original name - {trans_error}")
+                    translated_name = category.name
                 
                 # For Arabic, keep the Arabic text in slug (don't transliterate)
                 if lang_code == "ar":
@@ -209,9 +217,11 @@ def create_default_translations(db: Session, category: Category):
                 description=None  # Empty for now, can be updated later
             )
             db.add(translation)
+            translations_created.append(lang_code)
         
         except Exception as e:
             # Fallback to original name if translation fails
+            print(f"   ✗ {lang_code}: Error creating translation - {e}")
             translation = CategoryTranslation(
                 category_id=category.id,
                 lang=lang_code,
@@ -220,8 +230,10 @@ def create_default_translations(db: Session, category: Category):
                 description=None
             )
             db.add(translation)
+            translations_created.append(f"{lang_code} (fallback)")
     
     db.commit()
+    print(f"   ✓ Total translations created: {len(translations_created)} - {', '.join(translations_created)}")
     
     # Reload category with translations
     db.refresh(category)
