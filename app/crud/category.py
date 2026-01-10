@@ -36,7 +36,7 @@ def get_all_categories(
     limit: int = 100
 ) -> List[Category]:
     """Get all categories (main and children) with optional translation and pagination"""
-    query = db.query(Category)
+    query = db.query(Category).options(joinedload(Category.children))
     
     if active_only:
         query = query.filter(Category.is_active == True)
@@ -78,7 +78,9 @@ def get_main_categories(
     limit: int = 100
 ) -> List[Category]:
     """Get all main categories (parent_id = null) with optional translation and pagination"""
-    categories = db.query(Category).filter(
+    categories = db.query(Category).options(
+        joinedload(Category.children)
+    ).filter(
         Category.parent_id == None,
         Category.is_active == True
     ).order_by(Category.sort_order).offset(skip).limit(limit).all()
@@ -158,8 +160,12 @@ def create_category(db: Session, category: CategoryCreate) -> Category:
     db.commit()
     db.refresh(db_category)
     
+    print(f"✓ Category created: ID={db_category.id}, Name={db_category.name}, Active={db_category.is_active}")
+    
     # Create default translations
     create_default_translations(db, db_category)
+    
+    print(f"✓ Translations created for category: {db_category.name}")
     
     return db_category
 
