@@ -160,12 +160,8 @@ def create_category(db: Session, category: CategoryCreate) -> Category:
     db.commit()
     db.refresh(db_category)
     
-    print(f"✓ Category created: ID={db_category.id}, Name={db_category.name}, Active={db_category.is_active}")
-    
     # Create default translations
     create_default_translations(db, db_category)
-    
-    print(f"✓ Translations created for category: {db_category.name}")
     
     return db_category
 

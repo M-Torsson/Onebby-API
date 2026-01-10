@@ -38,7 +38,6 @@ async def get_all_categories(
         description="Show only main categories (parent_id = null)"
     ),
     db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
 ):
     """
     Get categories with pagination (like products endpoint)
@@ -279,8 +278,7 @@ async def get_category_children(
         default="it",
         description="Language code: it, en, fr, de, ar"
     ),
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Get all children (subcategories) of a parent category

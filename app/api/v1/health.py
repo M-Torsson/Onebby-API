@@ -12,12 +12,11 @@ router = APIRouter()
 @router.get("/health", response_model=HealthResponse)
 async def health_check(
     db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
 ):
     """
     Health check endpoint
     Returns API status and database connectivity
-    Requires X-API-Key header
+    Public health check endpoint (no API key)
     """
     try:
         # Test database connection
