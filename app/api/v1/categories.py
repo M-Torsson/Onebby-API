@@ -19,87 +19,16 @@ router = APIRouter()
 
 
 @router.get(
-    "/v1/categories/search",
-    response_model=CategoryListResponse
-)
-async def search_categories(
-    q: str = Query(..., min_length=1, description="Search text (name or slug)"),
-    lang: Optional[str] = Query(
-        default="it",
-        description="Language code: it, en, fr, de, ar"
-    ),
-    active_only: bool = Query(
-        default=True,
-        description="Show only active categories"
-    ),
-    parent_only: bool = Query(
-        default=False,
-        description="Show only main categories (parent_id = null)"
-    ),
-    limit: int = Query(
-        default=5000,
-        ge=1,
-        le=5000,
-        description="Maximum matches to return (default: 5000)"
-    ),
-    db: Session = Depends(get_db),
-):
-    """Search categories across ALL records (not just first page).
-
-    Use this endpoint instead of paginating through /v1/categories when you need
-    a global search that returns all matching categories in one response.
-    """
-    supported_langs = ["it", "en", "fr", "de", "ar"]
-    if lang not in supported_langs:
-        lang = "it"
-
-    categories, total = crud_category.search_categories(
-        db=db,
-        q=q,
-        lang=lang,
-        active_only=active_only,
-        parent_only=parent_only,
-        limit=limit,
-    )
-
-    categories_data = [
-        CategoryMainResponse(
-            id=cat.id,
-            name=cat.name,
-            slug=cat.slug,
-            sort_order=cat.sort_order,
-            is_active=cat.is_active,
-            parent_id=cat.parent_id,
-            has_children=cat.has_children,
-        )
-        for cat in categories
-    ]
-
-    return {
-        "data": categories_data,
-        "meta": {
-            "total": total,
-            "skip": 0,
-            "limit": limit,
-            "page": 1,
-            "total_pages": 1,
-            "has_next": False,
-            "has_prev": False,
-            "requested_lang": lang,
-            "resolved_lang": lang,
-            "parent_only": parent_only,
-            "q": q,
-        },
-    }
-
-
-@router.get(
     "/v1/categories",
     response_model=CategoryListResponse
 )
 async def get_all_categories(
     skip: int = Query(0, ge=0, description="Number of categories to skip"),
     limit: int = Query(50, ge=1, le=500, description="Maximum categories to return"),
+    q: Optional[str] = Query(
+        default=None,
+        description="Optional search text (name or slug). If provided, search runs across ALL categories (not just first page)."
+    ),
     lang: Optional[str] = Query(
         default="it",
         description="Language code: it, en, fr, de, ar"
@@ -115,9 +44,7 @@ async def get_all_categories(
     db: Session = Depends(get_db),
 ):
     """
-    Get categories with pagination (like products endpoint)
-    
-    Requires X-API-Key in header
+    Get categories with pagination. If `q` is provided, performs a global search across all categories.
     
     - **skip**: Number of categories to skip (default: 0)
     - **limit**: Maximum categories per page (default: 50, max: 500)
@@ -135,6 +62,49 @@ async def get_all_categories(
     supported_langs = ["it", "en", "fr", "de", "ar"]
     if lang not in supported_langs:
         lang = "it"  # Default to Italian
+
+    # Global search mode (ignore pagination)
+    if q and q.strip():
+        categories, total = crud_category.search_categories(
+            db=db,
+            q=q,
+            lang=lang,
+            active_only=active_only,
+            parent_only=parent_only,
+            limit=5000,
+        )
+
+        categories_data = [
+            CategoryMainResponse(
+                id=cat.id,
+                name=cat.name,
+                slug=cat.slug,
+                sort_order=cat.sort_order,
+                is_active=cat.is_active,
+                parent_id=cat.parent_id,
+                has_children=cat.has_children,
+            )
+            for cat in categories
+        ]
+
+        return {
+            "data": categories_data,
+            "meta": {
+                "total": total,
+                "returned": len(categories_data),
+                "skip": 0,
+                "limit": len(categories_data),
+                "page": 1,
+                "total_pages": 1,
+                "has_next": False,
+                "has_prev": False,
+                "requested_lang": lang,
+                "resolved_lang": lang,
+                "parent_only": parent_only,
+                "q": q,
+                "search_limit": 5000,
+            },
+        }
     
     # Get total count
     if parent_only:
@@ -174,7 +144,8 @@ async def get_all_categories(
             "has_prev": skip > 0,
             "requested_lang": lang,
             "resolved_lang": lang,
-            "parent_only": parent_only
+            "parent_only": parent_only,
+            "q": q
         }
     }
 
