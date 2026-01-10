@@ -19,6 +19,81 @@ router = APIRouter()
 
 
 @router.get(
+    "/v1/categories/search",
+    response_model=CategoryListResponse
+)
+async def search_categories(
+    q: str = Query(..., min_length=1, description="Search text (name or slug)"),
+    lang: Optional[str] = Query(
+        default="it",
+        description="Language code: it, en, fr, de, ar"
+    ),
+    active_only: bool = Query(
+        default=True,
+        description="Show only active categories"
+    ),
+    parent_only: bool = Query(
+        default=False,
+        description="Show only main categories (parent_id = null)"
+    ),
+    limit: int = Query(
+        default=5000,
+        ge=1,
+        le=5000,
+        description="Maximum matches to return (default: 5000)"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Search categories across ALL records (not just first page).
+
+    Use this endpoint instead of paginating through /v1/categories when you need
+    a global search that returns all matching categories in one response.
+    """
+    supported_langs = ["it", "en", "fr", "de", "ar"]
+    if lang not in supported_langs:
+        lang = "it"
+
+    categories, total = crud_category.search_categories(
+        db=db,
+        q=q,
+        lang=lang,
+        active_only=active_only,
+        parent_only=parent_only,
+        limit=limit,
+    )
+
+    categories_data = [
+        CategoryMainResponse(
+            id=cat.id,
+            name=cat.name,
+            slug=cat.slug,
+            sort_order=cat.sort_order,
+            is_active=cat.is_active,
+            parent_id=cat.parent_id,
+            has_children=cat.has_children,
+        )
+        for cat in categories
+    ]
+
+    return {
+        "data": categories_data,
+        "meta": {
+            "total": total,
+            "skip": 0,
+            "limit": limit,
+            "page": 1,
+            "total_pages": 1,
+            "has_next": False,
+            "has_prev": False,
+            "requested_lang": lang,
+            "resolved_lang": lang,
+            "parent_only": parent_only,
+            "q": q,
+        },
+    }
+
+
+@router.get(
     "/v1/categories",
     response_model=CategoryListResponse
 )

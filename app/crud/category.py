@@ -1,4 +1,5 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
+from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session, joinedload
 from slugify import slugify
 from deep_translator import GoogleTranslator
@@ -59,6 +60,79 @@ def get_all_categories(
                 category.slug = translation.slug
     
     return categories
+
+
+def search_categories(
+    db: Session,
+    q: str,
+    lang: Optional[str] = None,
+    active_only: bool = True,
+    parent_only: bool = False,
+    limit: int = 5000,
+) -> Tuple[List[Category], int]:
+    """Search categories by name/slug (and translation for requested lang).
+
+    Returns (categories, total_matches). Uses an ID subquery to avoid duplicate rows
+    when joining translations.
+    """
+    q = (q or "").strip()
+    if not q:
+        return ([], 0)
+
+    like = f"%{q}%"
+
+    # Build an ID query first (stable ordering, distinct IDs)
+    join_cond = (CategoryTranslation.category_id == Category.id)
+    if lang:
+        join_cond = and_(join_cond, CategoryTranslation.lang == lang)
+
+    ids_query = db.query(Category.id).outerjoin(CategoryTranslation, join_cond)
+
+    if active_only:
+        ids_query = ids_query.filter(Category.is_active == True)
+
+    if parent_only:
+        ids_query = ids_query.filter(Category.parent_id == None)
+
+    ids_query = ids_query.filter(
+        or_(
+            Category.name.ilike(like),
+            Category.slug.ilike(like),
+            CategoryTranslation.name.ilike(like),
+            CategoryTranslation.slug.ilike(like),
+        )
+    )
+
+    ids_query = ids_query.distinct().order_by(
+        Category.parent_id.nulls_first(),
+        Category.sort_order,
+        Category.id,
+    )
+
+    total = ids_query.count()
+    ids = [row[0] for row in ids_query.limit(limit).all()]
+
+    if not ids:
+        return ([], total)
+
+    categories = db.query(Category).options(joinedload(Category.children)).filter(Category.id.in_(ids)).all()
+
+    # Preserve ordering from ids_query
+    order_index = {category_id: idx for idx, category_id in enumerate(ids)}
+    categories.sort(key=lambda c: order_index.get(c.id, 10**9))
+
+    # Apply translation override for response language
+    if lang and categories:
+        for category in categories:
+            translation = db.query(CategoryTranslation).filter(
+                CategoryTranslation.category_id == category.id,
+                CategoryTranslation.lang == lang,
+            ).first()
+            if translation:
+                category.name = translation.name
+                category.slug = translation.slug
+
+    return (categories, total)
 
 
 def count_all_categories(db: Session, active_only: bool = True) -> int:
