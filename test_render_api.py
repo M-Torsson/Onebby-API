@@ -100,7 +100,7 @@ def create_pellet_on_render():
     
     try:
         response = requests.post(
-            f"{RENDER_URL}/admin/categories",
+            f"{RENDER_URL}/v1/categories",
             headers=headers,
             json=data,
             timeout=15

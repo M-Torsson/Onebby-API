@@ -25,7 +25,7 @@ def test_create_category():
     }
     
     response = requests.post(
-        f"{BASE_URL}/admin/categories",
+        f"{BASE_URL}/v1/categories",
         json=data,
         headers=headers
     )
@@ -62,9 +62,9 @@ def test_get_main_categories():
     print("\n=== اختبار جلب Main Categories ===")
     
     response = requests.get(
-        f"{BASE_URL}/admin/categories",
+        f"{BASE_URL}/v1/categories",
         headers=headers,
-        params={"lang": "it"}
+        params={"lang": "it", "parent_only": True}
     )
     
     print(f"Status Code: {response.status_code}")

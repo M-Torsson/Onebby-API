@@ -102,7 +102,7 @@ def test_create_and_verify():
         print("=" * 50)
         print("\nالآن يمكنك اختبار API من Postman:")
         print(f"GET http://localhost:8000/v1/categories?lang=it")
-        print(f"GET http://localhost:8000/admin/categories?lang=it")
+        print(f"GET http://localhost:8000/v1/categories?lang=it&parent_only=true")
         
     except Exception as e:
         print(f"\n✗ خطأ: {str(e)}")

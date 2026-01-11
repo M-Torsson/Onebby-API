@@ -151,7 +151,7 @@ async def get_all_categories(
 
 
 @router.get(
-    "/admin/categories",
+    "/v1/categories/main",
     response_model=CategoryListResponse
 )
 async def get_main_categories(
@@ -205,7 +205,7 @@ async def get_main_categories(
 
 
 @router.get(
-    "/admin/categories/{category_id}"
+    "/v1/categories/{category_id}"
 )
 async def get_category_by_id(
     category_id: int,
@@ -267,7 +267,7 @@ async def get_category_by_id(
 
 
 @router.post(
-    "/admin/categories",
+    "/v1/categories",
     response_model=CategoryCreateResponse,
     status_code=status.HTTP_201_CREATED
 )
@@ -315,7 +315,7 @@ async def create_category(
 
 
 @router.get(
-    "/categories/{category_id}/children",
+    "/v1/categories/{category_id}/children",
     response_model=CategoryChildrenListResponse
 )
 async def get_category_children(
@@ -328,8 +328,6 @@ async def get_category_children(
 ):
     """
     Get all children (subcategories) of a parent category
-    
-    Requires X-API-Key in header
     
     - **category_id**: ID of the parent category
     - **lang**: Language code (default: it) - Supported: it, en, fr, de, ar
@@ -351,6 +349,18 @@ async def get_category_children(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Parent category is not active"
         )
+
+    # Enforce max depth=2: children of a child category are always empty
+    if parent.parent_id is not None:
+        return {
+            "data": [],
+            "meta": {
+                "parent_id": category_id,
+                "requested_lang": lang,
+                "resolved_lang": lang,
+                "note": "Max depth is 2 (no grandchildren)"
+            }
+        }
     
     # Validate language
     supported_langs = ["it", "en", "fr", "de", "ar"]
@@ -387,7 +397,7 @@ async def get_category_children(
 
 
 @router.put(
-    "/admin/categories/{category_id}",
+    "/v1/categories/{category_id}",
     response_model=CategoryCreateResponse
 )
 async def update_category(
@@ -448,7 +458,7 @@ async def update_category(
 
 
 @router.delete(
-    "/admin/categories/{category_id}",
+    "/v1/categories/{category_id}",
     status_code=status.HTTP_204_NO_CONTENT
 )
 async def delete_category(
@@ -469,8 +479,8 @@ async def delete_category(
     - **force**: If true, deletes category with all children (default: false)
     
     Examples:
-    - DELETE /api/admin/categories/4 - Fails if has children
-    - DELETE /api/admin/categories/4?force=true - Deletes with all children
+    - DELETE /api/v1/categories/4 - Fails if has children
+    - DELETE /api/v1/categories/4?force=true - Deletes with all children
     """
     try:
         success = crud_category.delete_category(db, category_id, force)
@@ -496,7 +506,7 @@ async def delete_category(
 
 
 @router.put(
-    "/admin/categories/{category_id}/translations",
+    "/v1/categories/{category_id}/translations",
     response_model=CategoryCreateResponse
 )
 async def update_category_translations(

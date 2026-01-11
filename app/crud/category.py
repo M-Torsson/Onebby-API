@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, aliased
 from slugify import slugify
 from deep_translator import GoogleTranslator
 from app.models.category import Category, CategoryTranslation
@@ -37,7 +37,14 @@ def get_all_categories(
     limit: int = 100
 ) -> List[Category]:
     """Get all categories (main and children) with optional translation and pagination"""
-    query = db.query(Category).options(joinedload(Category.children))
+    # Enforce max depth=2 (parent + child only). Exclude grandchildren or deeper.
+    Parent = aliased(Category)
+    query = (
+        db.query(Category)
+        .outerjoin(Parent, Category.parent_id == Parent.id)
+        .options(joinedload(Category.children))
+        .filter(or_(Category.parent_id == None, Parent.parent_id == None))
+    )
     
     if active_only:
         query = query.filter(Category.is_active == True)
@@ -81,12 +88,20 @@ def search_categories(
 
     like = f"%{q}%"
 
+    # Enforce max depth=2 (exclude grandchildren/deeper)
+    Parent = aliased(Category)
+
     # Build an ID query first (stable ordering, distinct IDs)
     join_cond = (CategoryTranslation.category_id == Category.id)
     if lang:
         join_cond = and_(join_cond, CategoryTranslation.lang == lang)
 
-    ids_query = db.query(Category.id).outerjoin(CategoryTranslation, join_cond)
+    ids_query = (
+        db.query(Category.id)
+        .outerjoin(Parent, Category.parent_id == Parent.id)
+        .outerjoin(CategoryTranslation, join_cond)
+        .filter(or_(Category.parent_id == None, Parent.parent_id == None))
+    )
 
     if active_only:
         ids_query = ids_query.filter(Category.is_active == True)
@@ -137,7 +152,12 @@ def search_categories(
 
 def count_all_categories(db: Session, active_only: bool = True) -> int:
     """Count total categories"""
-    query = db.query(Category)
+    Parent = aliased(Category)
+    query = (
+        db.query(Category)
+        .outerjoin(Parent, Category.parent_id == Parent.id)
+        .filter(or_(Category.parent_id == None, Parent.parent_id == None))
+    )
     
     if active_only:
         query = query.filter(Category.is_active == True)
@@ -188,6 +208,11 @@ def get_category_children(
     lang: Optional[str] = None
 ) -> List[Category]:
     """Get children categories of a parent category"""
+    # Enforce max depth=2: if parent is itself a child, it cannot have children.
+    parent = db.query(Category).filter(Category.id == parent_id).first()
+    if parent and parent.parent_id is not None:
+        return []
+
     children = db.query(Category).filter(
         Category.parent_id == parent_id,
         Category.is_active == True
@@ -219,6 +244,9 @@ def create_category(db: Session, category: CategoryCreate) -> Category:
         parent = get_category(db, category.parent_id)
         if not parent or not parent.is_active:
             raise ValueError("Parent category not found or not active")
+        # Max depth=2: parent must be a main category
+        if parent.parent_id is not None:
+            raise ValueError("Invalid parent_id: max depth is 2 (no grandchildren)")
     
     db_category = Category(
         name=category.name,
@@ -318,10 +346,17 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
     update_data = category.model_dump(exclude_unset=True)
     
     # If parent_id is being updated, verify parent exists and is active
-    if "parent_id" in update_data and update_data["parent_id"]:
-        parent = get_category(db, update_data["parent_id"])
-        if not parent or not parent.is_active:
-            raise ValueError("Parent category not found or not active")
+    if "parent_id" in update_data:
+        new_parent_id = update_data.get("parent_id")
+        if new_parent_id is not None:
+            if new_parent_id == category_id:
+                raise ValueError("Invalid parent_id: category cannot be its own parent")
+            parent = get_category(db, new_parent_id)
+            if not parent or not parent.is_active:
+                raise ValueError("Parent category not found or not active")
+            # Max depth=2: parent must be a main category
+            if parent.parent_id is not None:
+                raise ValueError("Invalid parent_id: max depth is 2 (no grandchildren)")
     
     # If name is updated and no slug provided, regenerate slug
     if "name" in update_data and "slug" not in update_data:
