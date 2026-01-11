@@ -289,6 +289,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         id=product.id,
         # product_type=product.product_type.value if product.product_type else "simple",  # مخفي مؤقتاً
         reference=product.reference or "",
+        ean=product.ean or "",
         ean13=product.ean or "",
         is_active=product.is_active if product.is_active is not None else True,
         date_add=product.date_add,
@@ -613,6 +614,7 @@ def update_product_stock(
     return StockUpdateResponse(
         id=product.id,
         reference=product.reference,
+        ean=product.ean,
         stock_status=product.stock_status.value,
         stock_quantity=product.stock_quantity,
         updated_at=product.date_update or product.created_at

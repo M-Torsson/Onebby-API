@@ -158,7 +158,8 @@ class ProductResponseFull(BaseModel):
     
     # Basic info
     reference: str
-    ean13: Optional[str] = None
+    ean: Optional[str] = None
+    ean13: Optional[str] = None  # legacy/backward compatibility
     
     # Status
     is_active: bool
@@ -235,6 +236,7 @@ class StockUpdateResponse(BaseModel):
     """Stock update response"""
     id: int
     reference: str
+    ean: Optional[str] = None
     stock_status: str
     stock_quantity: int
     updated_at: datetime

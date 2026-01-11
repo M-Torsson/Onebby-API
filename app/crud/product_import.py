@@ -20,6 +20,17 @@ from app.models.category import Category, CategoryTranslation
 from app.models.tax_class import TaxClass
 
 
+def _clean_ean(raw: Any) -> Optional[str]:
+    """Digits-only EAN; returns None if empty."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    digits = "".join(ch for ch in text if ch.isdigit())
+    return digits or None
+
+
 def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
     """Get existing brand or create new one by name"""
     if not brand_name:
@@ -250,12 +261,15 @@ def upsert_product(
     Upsert product by EAN
     Returns: (action, product, existed_before) where action is 'created' or 'updated'
     """
-    ean = product_data.get("ean")
+    ean = _clean_ean(product_data.get("ean"))
     if not ean:
         raise ValueError("EAN is required")
     
     # Check if product exists
     existing_product = db.query(Product).filter(Product.ean == ean).first()
+    # Temporary fallback: some legacy rows stored EAN in reference
+    if not existing_product:
+        existing_product = db.query(Product).filter(Product.reference == ean).first()
     existed_before = existing_product is not None
     
     # Log sample (first 5 products)
@@ -320,11 +334,13 @@ def upsert_product(
         # Create new product
         action = "created"
         
-        # Check for reference conflict (safety check)
-        existing_ref = db.query(Product).filter(Product.reference == ean).first()
-        if existing_ref:
-            # Reference already exists - raise error
-            raise ValueError(f"Reference '{ean}' already exists")
+        incoming_ref = product_data.get("reference")
+        if incoming_ref:
+            ref_conflict = db.query(Product).filter(Product.reference == incoming_ref).first()
+            if ref_conflict:
+                raise ValueError(f"Reference '{incoming_ref}' already exists")
+        # Use provided reference or fallback to EAN
+        reference_value = incoming_ref or ean
         
         # Get or create brand
         brand = None
@@ -346,7 +362,7 @@ def upsert_product(
         # Create product
         product = Product(
             product_type=ProductType.SIMPLE,
-            reference=ean,  # Use EAN as reference
+            reference=reference_value,
             ean=ean,
             is_active=True,
             condition=ProductCondition.NEW,
@@ -466,11 +482,13 @@ def enrich_product(
     - Do NOT overwrite non-empty fields (fill-if-empty only).
     - Price updated only if provided AND current price_list is null.
     """
-    ean = product_data.get("ean")
+    ean = _clean_ean(product_data.get("ean"))
     if not ean:
         raise ValueError("EAN is required")
 
     product = db.query(Product).filter(Product.ean == ean).first()
+    if not product:
+        product = db.query(Product).filter(Product.reference == ean).first()
     if not product:
         return False, None, []
 

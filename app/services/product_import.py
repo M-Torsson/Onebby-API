@@ -8,6 +8,17 @@ import openpyxl
 from slugify import slugify
 
 
+def normalize_ean(raw: Any) -> Optional[str]:
+    """Return digits-only EAN string or None if empty/invalid."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    digits = "".join(ch for ch in text if ch.isdigit())
+    return digits or None
+
+
 class SourceMapper:
     """Base class for source-specific column mapping"""
     
@@ -34,10 +45,7 @@ class EffezzetaMapper(SourceMapper):
         self.source_name = "effezzeta"
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        ean = row.get("Codice a barre EAN-13 o JAN")
-        if ean and str(ean).strip():
-            return str(ean).strip()
-        return None
+        return normalize_ean(row.get("Codice a barre EAN-13 o JAN"))
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
         ean = self.get_ean(row)
@@ -100,10 +108,7 @@ class ErregameMapper(SourceMapper):
         self.source_name = "erregame"
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        ean = row.get("EAN")
-        if ean and str(ean).strip():
-            return str(ean).strip()
-        return None
+        return normalize_ean(row.get("EAN"))
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
         ean = self.get_ean(row)
@@ -172,10 +177,7 @@ class DixeMapper(SourceMapper):
         self.source_name = "dixe"
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        ean = row.get("COD/EAN")
-        if ean and str(ean).strip():
-            return str(ean).strip()
-        return None
+        return normalize_ean(row.get("COD/EAN"))
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
         ean = self.get_ean(row)
