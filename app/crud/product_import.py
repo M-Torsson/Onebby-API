@@ -47,25 +47,60 @@ def _clean_ean(raw: Any) -> Optional[str]:
 
 
 def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
-    """Get existing brand or create new one by name"""
+    """Get existing brand or create new one by name (with slug conflict handling)"""
     if not brand_name:
         return None
     
-    # Try to find existing brand
+    brand_name = str(brand_name).strip()
+    if not brand_name:
+        return None
+    
+    # Try to find existing brand by name first
     brand = db.query(Brand).filter(Brand.name == brand_name).first()
+    if brand:
+        return brand
     
-    if not brand:
-        # Create new brand
-        brand = Brand(
-            name=brand_name,
-            slug=slugify(brand_name),
-            is_active=True,
-            sort_order=0
-        )
-        db.add(brand)
-        db.flush()
+    # Generate slug
+    base_slug = slugify(brand_name)
+    slug = base_slug
     
-    return brand
+    # Try to find by slug (in case name differs slightly)
+    existing = db.query(Brand).filter(Brand.slug == slug).first()
+    if existing:
+        return existing
+    
+    # Create new brand with IntegrityError handling for slug conflicts
+    attempt = 0
+    while attempt < 10:
+        try:
+            brand = Brand(
+                name=brand_name,
+                slug=slug,
+                is_active=True,
+                sort_order=0
+            )
+            db.add(brand)
+            db.flush()
+            return brand
+        except IntegrityError as e:
+            db.rollback()
+            error_str = str(e).lower()
+            
+            # If slug conflict, try with suffix
+            if "ix_brands_slug" in error_str or "duplicate" in error_str:
+                attempt += 1
+                slug = f"{base_slug}-{attempt}"
+                
+                # Check if this slug exists
+                existing = db.query(Brand).filter(Brand.slug == slug).first()
+                if existing:
+                    return existing
+            else:
+                # Other integrity error, give up
+                return None
+    
+    # After 10 attempts, give up
+    return None
 
 
 def get_or_create_uncategorized(db: Session) -> Category:
@@ -506,11 +541,19 @@ def import_products_batch(
 
         except IntegrityError as e:
             db.rollback()
-            details = str(e.orig)
+            details = str(e.orig) if hasattr(e, 'orig') else str(e)
             reason = "integrity_error"
-            if "unique" in details.lower() or "duplicate" in details.lower():
+            
+            # Classify the error more accurately
+            details_lower = details.lower()
+            if "ix_brands_slug" in details_lower or "brands_slug" in details_lower:
+                reason = "brand_slug_conflict"
+            elif "products_brand_id_fkey" in details_lower or "brand_id" in details_lower:
+                reason = "invalid_brand_id"
+            elif ("unique" in details_lower or "duplicate" in details_lower) and "ean" in details_lower:
                 stats["skipped_duplicate"] += 1
                 reason = "duplicate_ean_db"
+            
             stats["errors"].append({
                 "row_number": product_data.get("row_number", 0),
                 "ean": product_data.get("ean"),
