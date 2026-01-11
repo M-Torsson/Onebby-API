@@ -291,14 +291,75 @@ class InformaticaMapper(SourceMapper):
     def __init__(self):
         super().__init__()
         self.source_name = "informatica"
+        self.header_row = 13  # Header starts at row 13
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        # Need to check actual structure - seems complex
+        # Read EAN directly from "EAN" column
+        ean = row.get("EAN")
+        if ean:
+            # Convert to string to preserve leading zeros
+            ean_str = str(ean).strip()
+            # Remove .0 suffix if pandas read it as float
+            if ean_str.endswith('.0'):
+                ean_str = ean_str[:-2]
+            
+            # Accept both 12 and 13 digit EAN
+            if ean_str.isdigit():
+                if len(ean_str) == 13:
+                    return ean_str
+                elif len(ean_str) == 12:
+                    # Pad 12-digit EAN to 13 digits with leading zero
+                    return '0' + ean_str
+            
         return None
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
-        # TODO: Complex structure - needs manual inspection
-        return None
+        ean = self.get_ean(row)
+        if not ean:
+            return None
+        
+        # Extract title from "MODELLO " column (note the space)
+        title = row.get("MODELLO ") or row.get("MODELLO")
+        if not title or not str(title).strip():
+            return None
+        
+        # Extract stock from "DISPON." column (may have variations)
+        stock = row.get("DISPON.") or row.get("DISPON") or row.get("DISPONIBILITA")
+        try:
+            stock_value = int(float(stock)) if stock else 0
+        except (ValueError, TypeError):
+            stock_value = 0
+        
+        # Extract price from "prezzo         Iva  esclusa" (with spaces)
+        price = row.get("prezzo         Iva  esclusa") or row.get("prezzo Iva esclusa") or row.get("prezzo")
+        try:
+            price_value = float(price) if price else None
+        except (ValueError, TypeError):
+            price_value = None
+        
+        # Extract brand from "MARCA"
+        brand = row.get("MARCA")
+        brand_name = str(brand).strip() if brand and str(brand).strip() else None
+        
+        # Extract category from "CATEGORIA"
+        category = row.get("CATEGORIA")
+        category_path = []
+        if category and str(category).strip():
+            parts = str(category).split('/')
+            category_path = [p.strip() for p in parts if p.strip()]
+        
+        return {
+            "ean": ean,
+            "title": str(title).strip(),
+            "price": price_value,
+            "stock": stock_value,
+            "brand_name": brand_name,
+            "category_path": category_path if category_path else ["Informatica"],
+            "description": None,
+            "image_urls": [],
+            "source": self.source_name,
+            "row_number": row_number
+        }
 
 
 class GiochiMapper(SourceMapper):
