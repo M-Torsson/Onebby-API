@@ -58,7 +58,6 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
     # Try to find existing brand by name first (case-insensitive)
     brand = db.query(Brand).filter(Brand.name.ilike(brand_name)).first()
     if brand:
-        db.refresh(brand)
         return brand
     
     # Generate slug
@@ -67,11 +66,10 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
     # Try to find by slug first (in case name differs slightly)
     existing = db.query(Brand).filter(Brand.slug == base_slug).first()
     if existing:
-        db.refresh(existing)
         return existing
     
-    # Try to create new brand (no rollback, let caller handle it)
-    # Check for slug conflicts by trying with suffix
+    # Try to create new brand with nested transaction (SAVEPOINT)
+    # This ensures brand is committed even if parent transaction fails
     attempt = 0
     max_attempts = 10
     
@@ -81,34 +79,45 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
         # Check if slug exists before trying to create
         existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
         if existing_with_slug:
-            # Slug exists, return existing brand instead of creating duplicate
-            db.refresh(existing_with_slug)
             return existing_with_slug
         
-        # Try to create
+        # Use nested transaction (SAVEPOINT) to isolate brand creation
         try:
-            brand = Brand(
-                name=brand_name,
-                slug=slug,
-                is_active=True,
-                sort_order=0
-            )
-            db.add(brand)
-            db.flush()
-            # Refresh to ensure we have the committed ID
-            db.refresh(brand)
-            return brand
+            # Begin nested transaction
+            nested = db.begin_nested()
             
-        except IntegrityError:
-            # Slug was created between check and insert (race condition)
-            # Re-query to find the existing brand with this slug
-            existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
-            if existing_with_slug:
-                # Refresh to ensure consistency
-                db.refresh(existing_with_slug)
-                return existing_with_slug
-            
-            # If still not found, try next suffix
+            try:
+                brand = Brand(
+                    name=brand_name,
+                    slug=slug,
+                    is_active=True,
+                    sort_order=0
+                )
+                db.add(brand)
+                db.flush()
+                
+                # Commit the nested transaction (SAVEPOINT)
+                nested.commit()
+                
+                # Re-query to get fresh instance attached to session
+                brand = db.query(Brand).filter(Brand.id == brand.id).first()
+                return brand
+                
+            except IntegrityError:
+                # Rollback only the nested transaction
+                nested.rollback()
+                
+                # Re-query to find the existing brand with this slug
+                existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
+                if existing_with_slug:
+                    return existing_with_slug
+                
+                # If still not found, try next suffix
+                attempt += 1
+                continue
+                
+        except Exception:
+            # If nested transaction fails entirely, try next suffix
             attempt += 1
             continue
     
