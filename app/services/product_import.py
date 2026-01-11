@@ -19,6 +19,11 @@ def normalize_ean(raw: Any) -> Optional[str]:
     return digits or None
 
 
+def is_valid_ean13(ean: Optional[str]) -> bool:
+    """Check EAN has exactly 13 digits."""
+    return bool(ean) and ean.isdigit() and len(ean) == 13
+
+
 class SourceMapper:
     """Base class for source-specific column mapping"""
     
@@ -267,26 +272,35 @@ class ProductImportService:
         for row_info in rows:
             row_data = row_info["data"]
             row_number = row_info["row_number"]
-            
+
+            ean = self.mapper.get_ean(row_data)
+            if not ean:
+                skipped_rows.append({
+                    "row_number": row_number,
+                    "ean": None,
+                    "reason": "missing_ean",
+                    "details": "Product has no EAN code"
+                })
+                continue
+
+            if not is_valid_ean13(ean):
+                skipped_rows.append({
+                    "row_number": row_number,
+                    "ean": ean,
+                    "reason": "invalid_ean13",
+                    "details": "EAN must be exactly 13 digits"
+                })
+                continue
+
             mapped = self.mapper.map_row(row_data, row_number)
-            
+
             if mapped is None:
-                # Check reason for skip
-                ean = self.mapper.get_ean(row_data)
-                if not ean:
-                    skipped_rows.append({
-                        "row_number": row_number,
-                        "ean": None,
-                        "reason": "missing_ean",
-                        "details": "Product has no EAN code"
-                    })
-                else:
-                    skipped_rows.append({
-                        "row_number": row_number,
-                        "ean": ean,
-                        "reason": "missing_title",
-                        "details": "Product has no title"
-                    })
+                skipped_rows.append({
+                    "row_number": row_number,
+                    "ean": ean,
+                    "reason": "missing_title",
+                    "details": "Product has no title"
+                })
             else:
                 valid_rows.append(mapped)
         

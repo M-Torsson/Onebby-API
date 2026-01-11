@@ -16,7 +16,7 @@ from app.schemas.import_products import (
     ProductStatsResponse,
     EnrichmentReport,
 )
-from app.services.product_import import ProductImportService
+from app.services.product_import import ProductImportService, normalize_ean, is_valid_ean13
 from app.services.product_enrichment import EnrichmentReader
 from app.crud.product_import import import_products_batch, enrich_products_batch
 from app.core.security.api_key import verify_api_key
@@ -37,10 +37,13 @@ ENRICHMENT_DEFAULTS = {
     "accessori": "Listino ACCESSORI telefonia.xlsx",
 }
 
+COMMERCE_ALLOWED_FILES = set(ENRICHMENT_DEFAULTS.values())
+
 
 @router.post("/import/products", response_model=ImportReport, status_code=status.HTTP_200_OK)
 async def import_products(
     source: Literal["effezzeta", "erregame", "dixe", "commerce_clarity"],
+    filename: Optional[str] = None,
     dry_run: bool = False,
     verbose_errors: bool = False,
     file: UploadFile = File(None),
@@ -58,8 +61,168 @@ async def import_products(
     Returns import report with statistics, error summary, and sample imports
     """
     start_time = time.time()
-    
-    # Determine file path
+
+    # Special path: commerce_clarity uses the five fixed EDS files only
+    if source == "commerce_clarity":
+        if file:
+            original_name = Path(file.filename or "").name
+            if original_name not in COMMERCE_ALLOWED_FILES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File '{original_name}' is not allowed. Use one of: {sorted(COMMERCE_ALLOWED_FILES)}"
+                )
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
+                shutil.copyfileobj(file.file, tmp_file)
+                file_path = Path(tmp_file.name)
+        else:
+            if not filename:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="filename is required for commerce_clarity when no file is uploaded"
+                )
+            if filename not in COMMERCE_ALLOWED_FILES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File '{filename}' is not allowed. Use one of: {sorted(COMMERCE_ALLOWED_FILES)}"
+                )
+            file_path = EXCEL_DIR / filename
+            if not file_path.exists():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"File not found: {file_path}"
+                )
+
+        try:
+            reader = EnrichmentReader(file_path)
+            raw_rows = reader.read()
+            total_rows = len(raw_rows)
+
+            valid_rows = []
+            skipped_rows = []
+            for row in raw_rows:
+                row_number = row.get("row_number", 0)
+                raw_ean = row.get("ean")
+                if not raw_ean:
+                    skipped_rows.append({
+                        "row_number": row_number,
+                        "ean": None,
+                        "reason": "missing_ean",
+                        "details": "Product has no EAN code"
+                    })
+                    continue
+
+                ean = normalize_ean(raw_ean)
+                if not is_valid_ean13(ean):
+                    skipped_rows.append({
+                        "row_number": row_number,
+                        "ean": raw_ean,
+                        "reason": "invalid_ean13",
+                        "details": "EAN must be exactly 13 digits"
+                    })
+                    continue
+
+                title = row.get("title")
+                if not title:
+                    skipped_rows.append({
+                        "row_number": row_number,
+                        "ean": ean,
+                        "reason": "missing_title",
+                        "details": "Product has no title"
+                    })
+                    continue
+
+                valid_rows.append({
+                    "ean": ean,
+                    "title": title,
+                    "price": row.get("price"),
+                    "stock": 0,
+                    "brand_name": row.get("brand_name"),
+                    "category_path": [],
+                    "description": row.get("description"),
+                    "image_urls": row.get("image_urls") or [],
+                    "row_number": row_number,
+                })
+
+            chunk_size = ProductImportService.CHUNK_SIZE
+            chunks = [valid_rows[i:i + chunk_size] for i in range(0, len(valid_rows), chunk_size)]
+
+            total_created = 0
+            total_updated = 0
+            total_skipped_dupe = 0
+            total_skipped_manual = 0
+            all_errors = []
+            all_samples = []
+
+            for idx, chunk in enumerate(chunks):
+                stats = import_products_batch(db, chunk, dry_run, batch_index=idx)
+                total_created += stats["created"]
+                total_updated += stats["updated"]
+                total_skipped_dupe += stats.get("skipped_duplicate", 0)
+                total_skipped_manual += stats.get("skipped_manual", 0)
+                all_errors.extend(stats["errors"])
+                all_samples.extend(stats["samples"])
+
+            skipped_errors = [
+                {
+                    "row_number": skip["row_number"],
+                    "ean": skip.get("ean"),
+                    "reason": skip["reason"],
+                    "details": skip.get("details"),
+                }
+                for skip in skipped_rows
+            ]
+            all_errors.extend(skipped_errors)
+
+            errors_summary: dict[str, int] = {}
+            for error in all_errors:
+                reason = error.get("reason", "unknown")
+                errors_summary[reason] = errors_summary.get(reason, 0) + 1
+
+            duration = time.time() - start_time
+
+            invalid_count = errors_summary.get("invalid_ean13", 0)
+            duplicate_count = errors_summary.get("duplicate_ean_in_batch", 0) + errors_summary.get("duplicate_ean_db", 0)
+            manual_count = errors_summary.get("manual_blocked", 0)
+
+            total_skipped = len(skipped_rows) + duplicate_count + manual_count
+
+            report = ImportReport(
+                source=source,
+                total_rows=total_rows,
+                created=total_created,
+                updated=total_updated,
+                skipped=total_skipped,
+                skipped_invalid_ean13=invalid_count,
+                skipped_duplicate=duplicate_count,
+                skipped_manual=manual_count,
+                errors_summary=errors_summary,
+                errors=[ImportErrorDetail(**e) for e in all_errors] if verbose_errors else [],
+                errors_sample=[ImportErrorDetail(**e) for e in all_errors[:20]],
+                sample_imports=all_samples[:5],
+                duration_seconds=round(duration, 2),
+                dry_run=dry_run,
+            )
+
+            return report
+
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Import failed: {str(e)}"
+            )
+        finally:
+            if file and file_path.exists():
+                try:
+                    file_path.unlink()
+                except:
+                    pass
+
+    # Determine file path for the legacy sources
     if file:
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
@@ -72,16 +235,16 @@ async def import_products(
             "erregame": "erregame_organized.xlsx",
             "dixe": "Dixe_organized.xlsx",
         }
-        
-        filename = file_mapping.get(source)
-        if not filename:
+
+        resolved_name = file_mapping.get(source)
+        if not resolved_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"No default file configured for source: {source}"
             )
-        
-        file_path = EXCEL_DIR / filename
-        
+
+        file_path = EXCEL_DIR / resolved_name
+
         if not file_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -107,11 +270,17 @@ async def import_products(
         total_updated = 0
         all_errors = []
         all_samples = []
+        total_skipped_invalid = 0
+        total_skipped_dupe = 0
+        total_skipped_manual = 0
         
         for idx, chunk in enumerate(chunks):
             stats = import_products_batch(db, chunk, dry_run, batch_index=idx)
             total_created += stats["created"]
             total_updated += stats["updated"]
+            total_skipped_invalid += stats.get("skipped_invalid_ean13", 0)
+            total_skipped_dupe += stats.get("skipped_duplicate", 0)
+            total_skipped_manual += stats.get("skipped_manual", 0)
             all_errors.extend(stats["errors"])
             all_samples.extend(stats["samples"])
         
@@ -135,6 +304,11 @@ async def import_products(
         
         # Calculate duration
         duration = time.time() - start_time
+
+        invalid_count = errors_summary.get("invalid_ean13", 0)
+        duplicate_count = errors_summary.get("duplicate_ean_in_batch", 0) + errors_summary.get("duplicate_ean_db", 0)
+        manual_count = errors_summary.get("manual_blocked", 0)
+        total_skipped = len(skipped_rows) + duplicate_count + manual_count
         
         # Build report
         report = ImportReport(
@@ -142,7 +316,10 @@ async def import_products(
             total_rows=total_rows,
             created=total_created,
             updated=total_updated,
-            skipped=len(skipped_rows),
+            skipped=total_skipped,
+            skipped_invalid_ean13=invalid_count,
+            skipped_duplicate=duplicate_count,
+            skipped_manual=manual_count,
             errors_summary=errors_summary,
             errors=[ImportErrorDetail(**e) for e in all_errors] if verbose_errors else [],
             errors_sample=[ImportErrorDetail(**e) for e in all_errors[:20]],  # First 20 errors

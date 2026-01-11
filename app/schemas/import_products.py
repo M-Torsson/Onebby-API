@@ -32,6 +32,9 @@ class ImportReport(BaseModel):
     created: int
     updated: int
     skipped: int
+    skipped_invalid_ean13: int = Field(default=0, description="Rows skipped because EAN was not 13 digits")
+    skipped_duplicate: int = Field(default=0, description="Rows skipped because of duplicate EAN")
+    skipped_manual: int = Field(default=0, description="Rows skipped to protect manual/test products")
     errors_summary: Dict[str, int] = Field(
         default_factory=dict,
         description="Summary of errors by reason"
@@ -60,6 +63,9 @@ class ImportReport(BaseModel):
                 "created": 850,
                 "updated": 100,
                 "skipped": 30,
+                "skipped_invalid_ean13": 10,
+                "skipped_duplicate": 5,
+                "skipped_manual": 0,
                 "errors_summary": {
                     "missing_ean": 356,
                     "missing_title": 12,

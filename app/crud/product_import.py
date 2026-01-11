@@ -20,6 +20,21 @@ from app.models.category import Category, CategoryTranslation
 from app.models.tax_class import TaxClass
 
 
+class ManualProductSkip(Exception):
+    """Raised when a product is skipped because it's a manual/test item."""
+
+
+BLOCKED_KEYWORDS = ("asus", "iphone", "samsung")
+
+
+def _is_manual_keyword(text: Optional[str]) -> bool:
+    return bool(text) and any(word in str(text).lower() for word in BLOCKED_KEYWORDS)
+
+
+def _is_valid_ean13(ean: Optional[str]) -> bool:
+    return bool(ean) and ean.isdigit() and len(ean) == 13
+
+
 def _clean_ean(raw: Any) -> Optional[str]:
     """Digits-only EAN; returns None if empty."""
     if raw is None:
@@ -262,15 +277,29 @@ def upsert_product(
     Returns: (action, product, existed_before) where action is 'created' or 'updated'
     """
     ean = _clean_ean(product_data.get("ean"))
-    if not ean:
-        raise ValueError("EAN is required")
+    if not _is_valid_ean13(ean):
+        raise ValueError("EAN-13 is required")
+
+    incoming_title = product_data.get("title") or ""
+    incoming_brand = product_data.get("brand_name") or ""
+    if _is_manual_keyword(incoming_title) or _is_manual_keyword(incoming_brand):
+        raise ManualProductSkip("Manual/test product blocked by incoming data")
     
     # Check if product exists
     existing_product = db.query(Product).filter(Product.ean == ean).first()
-    # Temporary fallback: some legacy rows stored EAN in reference
-    if not existing_product:
-        existing_product = db.query(Product).filter(Product.reference == ean).first()
     existed_before = existing_product is not None
+
+    if existing_product:
+        translation = db.query(ProductTranslation).filter(
+            ProductTranslation.product_id == existing_product.id,
+            ProductTranslation.lang == "it"
+        ).first()
+        if (
+            _is_manual_keyword(existing_product.reference)
+            or _is_manual_keyword(getattr(existing_product.brand, "name", None))
+            or _is_manual_keyword(getattr(translation, "title", None))
+        ):
+            raise ManualProductSkip("Manual/test product protected")
     
     # Log sample (first 5 products)
     if log_sample:
@@ -411,10 +440,39 @@ def import_products_batch(
         "created": 0,
         "updated": 0,
         "errors": [],
-        "samples": []  # First 5 imports
+        "samples": [],  # First 5 imports
+        "skipped_invalid_ean13": 0,
+        "skipped_duplicate": 0,
+        "skipped_manual": 0,
     }
+
+    seen_eans: set[str] = set()
     
     for product_data in products_data:
+        cleaned_ean = _clean_ean(product_data.get("ean"))
+        if not _is_valid_ean13(cleaned_ean):
+            stats["skipped_invalid_ean13"] += 1
+            stats["errors"].append({
+                "row_number": product_data.get("row_number", 0),
+                "ean": product_data.get("ean"),
+                "reason": "invalid_ean13",
+                "details": "EAN must be exactly 13 digits"
+            })
+            continue
+
+        if cleaned_ean in seen_eans:
+            stats["skipped_duplicate"] += 1
+            stats["errors"].append({
+                "row_number": product_data.get("row_number", 0),
+                "ean": cleaned_ean,
+                "reason": "duplicate_ean_in_batch",
+                "details": "EAN already processed in this batch"
+            })
+            continue
+
+        product_data["ean"] = cleaned_ean
+        seen_eans.add(cleaned_ean)
+
         try:
             # Log sample for first batch only
             log_sample = (batch_index == 0 and len(stats["samples"]) < 5)
@@ -435,13 +493,29 @@ def import_products_batch(
             elif action == "updated":
                 stats["updated"] += 1
         
-        except IntegrityError as e:
-            db.rollback()
+        except ManualProductSkip as e:
+            stats["skipped_manual"] += 1
             stats["errors"].append({
                 "row_number": product_data.get("row_number", 0),
                 "ean": product_data.get("ean"),
-                "reason": "integrity_error",
-                "details": str(e.orig)
+                "reason": "manual_blocked",
+                "details": str(e)
+            })
+            db.rollback()
+            continue
+
+        except IntegrityError as e:
+            db.rollback()
+            details = str(e.orig)
+            reason = "integrity_error"
+            if "unique" in details.lower() or "duplicate" in details.lower():
+                stats["skipped_duplicate"] += 1
+                reason = "duplicate_ean_db"
+            stats["errors"].append({
+                "row_number": product_data.get("row_number", 0),
+                "ean": product_data.get("ean"),
+                "reason": reason,
+                "details": details
             })
         
         except Exception as e:
