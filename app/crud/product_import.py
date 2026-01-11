@@ -77,9 +77,10 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
         slug = base_slug if attempt == 0 else f"{base_slug}-{attempt}"
         
         # Check if slug exists before trying to create
-        if db.query(Brand).filter(Brand.slug == slug).first():
-            attempt += 1
-            continue
+        existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
+        if existing_with_slug:
+            # Slug exists, return existing brand instead of creating duplicate
+            return existing_with_slug
         
         # Try to create
         try:
@@ -95,7 +96,12 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
             
         except IntegrityError:
             # Slug was created between check and insert (race condition)
-            # Try next suffix
+            # Re-query to find the existing brand with this slug
+            existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
+            if existing_with_slug:
+                return existing_with_slug
+            
+            # If still not found, try next suffix
             attempt += 1
             continue
     
