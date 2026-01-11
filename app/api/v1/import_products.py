@@ -7,12 +7,18 @@ from pathlib import Path
 import time
 import tempfile
 import shutil
-from typing import Literal
+from typing import Literal, Optional
 
 from app.db.session import get_db
-from app.schemas.import_products import ImportReport, ImportErrorDetail, ProductStatsResponse
+from app.schemas.import_products import (
+    ImportReport,
+    ImportErrorDetail,
+    ProductStatsResponse,
+    EnrichmentReport,
+)
 from app.services.product_import import ProductImportService
-from app.crud.product_import import import_products_batch
+from app.services.product_enrichment import EnrichmentReader
+from app.crud.product_import import import_products_batch, enrich_products_batch
 from app.core.security.api_key import verify_api_key
 
 
@@ -21,6 +27,15 @@ router = APIRouter()
 
 # Get excel directory: go up to app/ then add excel/
 EXCEL_DIR = Path(__file__).parent.parent.parent / "excel"
+
+# Default enrichment file mapping (eds group lists)
+ENRICHMENT_DEFAULTS = {
+    "telefonia": "Listino Telefonia web.xlsx",
+    "informatica": "Listino INFORMATICA web.xlsx",
+    "giochi": "Listino GIOCHI.xlsx",
+    "cartoleria": "Listino Cartoleria.xlsx",
+    "accessori": "Listino ACCESSORI telefonia.xlsx",
+}
 
 
 @router.post("/import/products", response_model=ImportReport, status_code=status.HTTP_200_OK)
@@ -152,6 +167,85 @@ async def import_products(
     
     finally:
         # Clean up temporary file if uploaded
+        if file and file_path.exists():
+            try:
+                file_path.unlink()
+            except:
+                pass
+
+
+@router.post("/import/products/enrich", response_model=EnrichmentReport, status_code=status.HTTP_200_OK)
+async def enrich_products(
+    filename: Optional[str] = None,
+    dry_run: bool = False,
+    verbose_errors: bool = False,
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
+):
+    """
+    Enrich existing products using EAN as the only key.
+
+    Rules:
+    - Skip rows where EAN is missing or not found in DB.
+    - Only fill missing fields (title/description/brand/images/price-if-empty).
+    - Never touch stock or categories.
+    """
+    start_time = time.time()
+
+    # Determine file path
+    if file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
+            shutil.copyfileobj(file.file, tmp_file)
+            file_path = Path(tmp_file.name)
+    else:
+        # Pick default file
+        chosen = filename
+        if not chosen:
+            # default to telefonia if not specified
+            chosen = ENRICHMENT_DEFAULTS.get("telefonia")
+        elif chosen in ENRICHMENT_DEFAULTS:
+            chosen = ENRICHMENT_DEFAULTS[chosen]
+
+        file_path = EXCEL_DIR / chosen
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {file_path}"
+            )
+
+    try:
+        reader = EnrichmentReader(file_path)
+        rows = reader.read()
+        total_rows = len(rows)
+
+        stats = enrich_products_batch(db, rows, dry_run=dry_run, batch_index=0)
+
+        errors_summary: dict[str, int] = {}
+        for err in stats["errors"]:
+            reason = err.get("reason", "unknown")
+            errors_summary[reason] = errors_summary.get(reason, 0) + 1
+
+        duration = time.time() - start_time
+
+        return EnrichmentReport(
+            total_rows=total_rows,
+            matched=stats["matched"],
+            skipped=stats["skipped"],
+            errors=len(stats["errors"]),
+            errors_summary=errors_summary,
+            matched_samples=stats.get("matched_samples", [])[:5],
+            skipped_samples=stats.get("skipped_samples", [])[:5],
+            errors_sample=[ImportErrorDetail(**e) for e in stats["errors"][:20]] if verbose_errors else [],
+            duration_seconds=round(duration, 2),
+            dry_run=dry_run,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Enrichment failed: {str(e)}")
+    finally:
         if file and file_path.exists():
             try:
                 file_path.unlink()

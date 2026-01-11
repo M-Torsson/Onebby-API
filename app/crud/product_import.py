@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from slugify import slugify
 
-from app.models.product import Product, ProductTranslation, ProductType, ProductCondition, StockStatus
+from app.models.product import (
+    Product,
+    ProductTranslation,
+    ProductType,
+    ProductCondition,
+    StockStatus,
+    ProductImage,
+)
 from app.models.brand import Brand
 from app.models.category import Category, CategoryTranslation
 from app.models.tax_class import TaxClass
@@ -439,4 +446,146 @@ def import_products_batch(
     else:
         db.rollback()
     
+    return stats
+
+
+# ============ Enrichment (fill missing fields only) ============
+
+def enrich_product(
+    db: Session,
+    product_data: Dict[str, Any],
+    dry_run: bool = False,
+    log_sample: bool = False,
+) -> tuple[bool, Optional[Product], List[str]]:
+    """
+    Enrich an existing product by EAN. Returns (matched, product, updated_fields).
+
+    Rules:
+    - Skip if product not found.
+    - Do NOT touch stock or categories.
+    - Do NOT overwrite non-empty fields (fill-if-empty only).
+    - Price updated only if provided AND current price_list is null.
+    """
+    ean = product_data.get("ean")
+    if not ean:
+        raise ValueError("EAN is required")
+
+    product = db.query(Product).filter(Product.ean == ean).first()
+    if not product:
+        return False, None, []
+
+    updated_fields: List[str] = []
+
+    # Translation (Italian)
+    translation = db.query(ProductTranslation).filter(
+        ProductTranslation.product_id == product.id,
+        ProductTranslation.lang == "it",
+    ).first()
+    if not translation:
+        translation = ProductTranslation(
+            product_id=product.id,
+            lang="it",
+            title=product_data.get("title") or product.reference,
+            simple_description=product_data.get("description"),
+        )
+        db.add(translation)
+        updated_fields.append("translation_created")
+    else:
+        if (not translation.title) and product_data.get("title"):
+            translation.title = product_data["title"]
+            updated_fields.append("title")
+        if (not translation.simple_description) and product_data.get("description"):
+            translation.simple_description = product_data["description"]
+            updated_fields.append("description")
+
+    # Price: set only if DB empty and new value present
+    if product.price_list is None and product_data.get("price") is not None:
+        product.price_list = product_data["price"]
+        updated_fields.append("price")
+
+    # Brand: set only if DB empty
+    if product.brand_id is None and product_data.get("brand_name"):
+        brand = get_or_create_brand(db, product_data["brand_name"])
+        if brand:
+            product.brand_id = brand.id
+            updated_fields.append("brand")
+
+    # Images: add only if product has no images yet
+    image_urls = product_data.get("image_urls") or []
+    if image_urls and not product.images:
+        for pos, url in enumerate(image_urls, start=1):
+            db.add(ProductImage(product_id=product.id, url=url, position=pos))
+        updated_fields.append("images")
+
+    if updated_fields and not dry_run:
+        db.flush()
+
+    return True, product, updated_fields
+
+
+def enrich_products_batch(
+    db: Session,
+    products_data: List[Dict[str, Any]],
+    dry_run: bool = False,
+    batch_index: int = 0,
+) -> Dict[str, Any]:
+    """Batch enrichment using EAN as key (no creations)."""
+    stats = {
+        "matched": 0,
+        "skipped": 0,
+        "errors": [],
+        "matched_samples": [],
+        "skipped_samples": [],
+    }
+
+    for product_data in products_data:
+        try:
+            log_sample = batch_index == 0 and len(stats["matched_samples"]) < 5
+            matched, product, updated_fields = enrich_product(db, product_data, dry_run, log_sample)
+
+            if not matched:
+                stats["skipped"] += 1
+                if len(stats["skipped_samples"]) < 5:
+                    stats["skipped_samples"].append({
+                        "ean": product_data.get("ean"),
+                        "reason": "not_found",
+                        "details": "EAN not found in DB",
+                    })
+                continue
+
+            if updated_fields:
+                stats["matched"] += 1
+                if log_sample:
+                    stats["matched_samples"].append({
+                        "ean": product_data.get("ean"),
+                        "updated_fields": updated_fields,
+                        "title": product_data.get("title"),
+                    })
+            else:
+                stats["skipped"] += 1
+                if len(stats["skipped_samples"]) < 5:
+                    stats["skipped_samples"].append({
+                        "ean": product_data.get("ean"),
+                        "reason": "no_updates",
+                        "details": "All target fields already populated",
+                    })
+
+        except Exception as e:
+            db.rollback()
+            stats["errors"].append({
+                "row_number": product_data.get("row_number", 0),
+                "ean": product_data.get("ean"),
+                "reason": "processing_error",
+                "details": str(e),
+            })
+
+    if not dry_run:
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+    else:
+        db.rollback()
+
     return stats

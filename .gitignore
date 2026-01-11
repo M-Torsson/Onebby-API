@@ -41,6 +41,10 @@ ENV/
 *.db
 *.sqlite3
 
+# Spreadsheets
+*.xls
+*.xlsx
+
 # Logs
 *.log
 logs/

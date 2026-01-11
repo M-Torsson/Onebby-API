@@ -121,3 +121,55 @@ class ProductStatsResponse(BaseModel):
                 "latest_updated_at": "2026-01-08T12:00:00"
             }
         }
+
+
+class EnrichmentMatchSample(BaseModel):
+    """Sample of matched/enriched rows"""
+    ean: str
+    updated_fields: List[str]
+    title: Optional[str] = None
+
+
+class EnrichmentSkipSample(BaseModel):
+    """Sample of skipped rows"""
+    ean: Optional[str] = None
+    reason: str
+    details: Optional[str] = None
+
+
+class EnrichmentReport(BaseModel):
+    """Report for Product Enrichment import"""
+    total_rows: int
+    matched: int
+    skipped: int
+    errors: int
+    errors_summary: Dict[str, int] = Field(default_factory=dict)
+    matched_samples: List[EnrichmentMatchSample] = Field(default_factory=list)
+    skipped_samples: List[EnrichmentSkipSample] = Field(default_factory=list)
+    errors_sample: List[ImportErrorDetail] = Field(default_factory=list)
+    duration_seconds: float
+    dry_run: bool
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "total_rows": 100,
+                "matched": 72,
+                "skipped": 25,
+                "errors": 3,
+                "errors_summary": {"missing_ean": 10, "not_found": 15, "processing_error": 3},
+                "matched_samples": [
+                    {"ean": "8001234567890", "updated_fields": ["title", "description"], "title": "Sample product"}
+                ],
+                "skipped_samples": [
+                    {"ean": "8009999999999", "reason": "not_found", "details": "EAN not in DB"}
+                ],
+                "errors_sample": [
+                    {"row_number": 15, "ean": "8001234567890", "reason": "processing_error", "details": "Invalid price"}
+                ],
+                "duration_seconds": 5.4,
+                "dry_run": False,
+                "timestamp": "2026-01-11T12:00:00"
+            }
+        }
