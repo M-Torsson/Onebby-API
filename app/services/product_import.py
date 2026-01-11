@@ -307,9 +307,19 @@ class GiochiMapper(SourceMapper):
     def __init__(self):
         super().__init__()
         self.source_name = "giochi"
+        self.header_row = 9  # Header starts at row 9
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        return normalize_ean(row.get("CODICE ART"))
+        # Read EAN directly from "EAN" column (column G, row 9 header)
+        ean = row.get("EAN")
+        if ean:
+            # Convert to string to preserve leading zeros
+            ean_str = str(ean).strip()
+            # Remove .0 suffix if pandas read it as float
+            if ean_str.endswith('.0'):
+                ean_str = ean_str[:-2]
+            return ean_str if len(ean_str) == 13 and ean_str.isdigit() else None
+        return None
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
         ean = self.get_ean(row)
@@ -359,42 +369,50 @@ class CartoleriaMapper(SourceMapper):
     def __init__(self):
         super().__init__()
         self.source_name = "cartoleria"
+        self.header_row = 4  # Header starts at row 4
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        # Column index 2 (3rd column) appears to be EAN/code
-        # Need to use column names from actual header
-        keys = list(row.keys())
-        if len(keys) >= 3:
-            return normalize_ean(row.get(keys[2]))
+        # Read EAN directly from "EAN" column (column 8, row 4 header)
+        ean = row.get("EAN")
+        if ean:
+            # Convert to string to preserve leading zeros
+            ean_str = str(ean).strip()
+            # Remove .0 suffix if pandas read it as float
+            if ean_str.endswith('.0'):
+                ean_str = ean_str[:-2]
+            return ean_str if len(ean_str) == 13 and ean_str.isdigit() else None
         return None
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
-        keys = list(row.keys())
-        if len(keys) < 4:
-            return None
-        
         ean = self.get_ean(row)
         if not ean:
             return None
         
-        # Column 3 (index 3) is title
-        title = row.get(keys[3]) if len(keys) > 3 else None
+        # Extract title from "DESCRIZIONE" column
+        title = row.get("DESCRIZIONE")
         if not title or not str(title).strip():
             return None
         
-        # Column 4 (index 4) is stock
-        stock = row.get(keys[4]) if len(keys) > 4 else None
+        # Extract stock from "Disp."
+        stock = row.get("Disp.")
         try:
-            stock_value = int(stock) if stock else 0
+            stock_value = int(float(stock)) if stock else 0
         except (ValueError, TypeError):
             stock_value = 0
         
-        # Column 1 (index 1) is brand
-        brand = row.get(keys[1]) if len(keys) > 1 else None
+        # Extract price from "prezzo iva esclusa"
+        price = row.get("prezzo iva esclusa")
+        try:
+            price_value = float(price) if price else None
+        except (ValueError, TypeError):
+            price_value = None
+        
+        # Extract brand from "MARCA"
+        brand = row.get("MARCA")
         brand_name = str(brand).strip() if brand and str(brand).strip() else None
         
-        # Column 0 (index 0) is category
-        category = row.get(keys[0]) if len(keys) > 0 else None
+        # Extract category from "CATEGORIA"
+        category = row.get("CATEGORIA")
         category_path = []
         if category and str(category).strip():
             parts = str(category).split('/')
@@ -403,7 +421,7 @@ class CartoleriaMapper(SourceMapper):
         return {
             "ean": ean,
             "title": str(title).strip(),
-            "price": None,
+            "price": price_value,
             "stock": stock_value,
             "brand_name": brand_name,
             "category_path": category_path if category_path else ["Cartoleria"],
@@ -420,48 +438,50 @@ class AccessoriMapper(SourceMapper):
     def __init__(self):
         super().__init__()
         self.source_name = "accessori"
+        self.header_row = 6  # Header starts at row 6
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        # Column index 2 (3rd column) appears to be EAN/code
-        keys = list(row.keys())
-        if len(keys) >= 3:
-            return normalize_ean(row.get(keys[2]))
+        # Read EAN directly from "EAN" column (column 7, row 6 header)
+        ean = row.get("EAN")
+        if ean:
+            # Convert to string to preserve leading zeros
+            ean_str = str(ean).strip()
+            # Remove .0 suffix if pandas read it as float
+            if ean_str.endswith('.0'):
+                ean_str = ean_str[:-2]
+            return ean_str if len(ean_str) == 13 and ean_str.isdigit() else None
         return None
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
-        keys = list(row.keys())
-        if len(keys) < 4:
-            return None
-        
         ean = self.get_ean(row)
         if not ean:
             return None
         
-        # Column 3 (index 3) is title
-        title = row.get(keys[3]) if len(keys) > 3 else None
+        # Extract title from "MODELLO " column (note the space)
+        title = row.get("MODELLO ") or row.get("MODELLO")
         if not title or not str(title).strip():
             return None
         
-        # Column 4 (index 4) is stock
-        stock = row.get(keys[4]) if len(keys) > 4 else None
+        # Extract stock from "DISPON."
+        stock = row.get("DISPON.")
         try:
-            stock_value = int(stock) if stock else 0
+            stock_value = int(float(stock)) if stock else 0
         except (ValueError, TypeError):
             stock_value = 0
         
-        # Column 5 (index 5) might be price
-        price = row.get(keys[5]) if len(keys) > 5 else None
+        # Extract price from "prezzo         Iva  esclusa" (with spaces)
+        price = row.get("prezzo         Iva  esclusa") or row.get("prezzo Iva esclusa")
         try:
             price_value = float(price) if price else None
         except (ValueError, TypeError):
             price_value = None
         
-        # Column 1 (index 1) is brand
-        brand = row.get(keys[1]) if len(keys) > 1 else None
+        # Extract brand from "MARCA"
+        brand = row.get("MARCA")
         brand_name = str(brand).strip() if brand and str(brand).strip() else None
         
-        # Column 0 (index 0) is category
-        category = row.get(keys[0]) if len(keys) > 0 else None
+        # Extract category from "ACCESSORI TELEFONIA"
+        category = row.get("ACCESSORI TELEFONIA")
         category_path = []
         if category and str(category).strip():
             parts = str(category).split('/')
