@@ -29,6 +29,7 @@ class SourceMapper:
     
     def __init__(self):
         self.source_name = "unknown"
+        self.header_row = 1  # Default: first row is header
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
         """
@@ -228,6 +229,7 @@ class TelefoniaMapper(SourceMapper):
     def __init__(self):
         super().__init__()
         self.source_name = "telefonia"
+        self.header_row = 7  # Header starts at row 7
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
         # Read EAN directly from "EAN" column (column H)
@@ -507,14 +509,18 @@ class ProductImportService:
         wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
         ws = wb.active
         
-        # Get headers from first row
+        # Get header row from mapper configuration
+        header_row = self.mapper.header_row
+        
+        # Get headers from specified row
         headers = []
-        for cell in next(ws.iter_rows(min_row=1, max_row=1)):
+        for cell in next(ws.iter_rows(min_row=header_row, max_row=header_row)):
             headers.append(cell.value)
         
-        # Read data rows
+        # Read data rows (starting from row after header)
         rows = []
-        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        data_start_row = header_row + 1
+        for row_idx, row in enumerate(ws.iter_rows(min_row=data_start_row, values_only=True), start=data_start_row):
             row_dict = {}
             for idx, value in enumerate(row):
                 if idx < len(headers) and headers[idx]:
