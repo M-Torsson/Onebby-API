@@ -5,6 +5,7 @@ Handles upsert logic and database operations for product imports
 from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import create_engine
 from slugify import slugify
 
 from app.models.product import (
@@ -18,6 +19,7 @@ from app.models.product import (
 from app.models.brand import Brand
 from app.models.category import Category, CategoryTranslation
 from app.models.tax_class import TaxClass
+from app.db.session import SessionLocal
 
 
 class ManualProductSkip(Exception):
@@ -47,7 +49,10 @@ def _clean_ean(raw: Any) -> Optional[str]:
 
 
 def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
-    """Get existing brand or create new one by name (with slug conflict handling)"""
+    """
+    Get existing brand or create new one by name (with slug conflict handling)
+    Uses independent transaction to ensure brand persists even if parent transaction fails
+    """
     if not brand_name:
         return None
     
@@ -68,61 +73,62 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
     if existing:
         return existing
     
-    # Try to create new brand with nested transaction (SAVEPOINT)
-    # This ensures brand is committed even if parent transaction fails
-    attempt = 0
-    max_attempts = 10
-    
-    while attempt < max_attempts:
-        slug = base_slug if attempt == 0 else f"{base_slug}-{attempt}"
+    # Create brand in separate session to ensure it commits independently
+    # This prevents brand from being rolled back when product transaction fails
+    brand_session = SessionLocal()
+    try:
+        attempt = 0
+        max_attempts = 10
         
-        # Check if slug exists before trying to create
-        existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
-        if existing_with_slug:
-            return existing_with_slug
-        
-        # Use nested transaction (SAVEPOINT) to isolate brand creation
-        try:
-            # Begin nested transaction
-            nested = db.begin_nested()
+        while attempt < max_attempts:
+            slug = base_slug if attempt == 0 else f"{base_slug}-{attempt}"
             
+            # Check if slug exists in separate session
+            existing_with_slug = brand_session.query(Brand).filter(Brand.slug == slug).first()
+            if existing_with_slug:
+                brand_id = existing_with_slug.id
+                brand_session.close()
+                # Return brand from original session
+                return db.query(Brand).filter(Brand.id == brand_id).first()
+            
+            # Try to create
             try:
-                brand = Brand(
+                new_brand = Brand(
                     name=brand_name,
                     slug=slug,
                     is_active=True,
                     sort_order=0
                 )
-                db.add(brand)
-                db.flush()
+                brand_session.add(new_brand)
+                brand_session.commit()
                 
-                # Commit the nested transaction (SAVEPOINT)
-                nested.commit()
+                brand_id = new_brand.id
+                brand_session.close()
                 
-                # Re-query to get fresh instance attached to session
-                brand = db.query(Brand).filter(Brand.id == brand.id).first()
-                return brand
+                # Return brand from original session
+                return db.query(Brand).filter(Brand.id == brand_id).first()
                 
             except IntegrityError:
-                # Rollback only the nested transaction
-                nested.rollback()
+                brand_session.rollback()
                 
                 # Re-query to find the existing brand with this slug
-                existing_with_slug = db.query(Brand).filter(Brand.slug == slug).first()
+                existing_with_slug = brand_session.query(Brand).filter(Brand.slug == slug).first()
                 if existing_with_slug:
-                    return existing_with_slug
+                    brand_id = existing_with_slug.id
+                    brand_session.close()
+                    return db.query(Brand).filter(Brand.id == brand_id).first()
                 
-                # If still not found, try next suffix
+                # Try next suffix
                 attempt += 1
                 continue
-                
-        except Exception:
-            # If nested transaction fails entirely, try next suffix
-            attempt += 1
-            continue
-    
-    # After max attempts, return None
-    return None
+        
+        brand_session.close()
+        return None
+        
+    except Exception:
+        brand_session.rollback()
+        brand_session.close()
+        return None
 
 
 def get_or_create_uncategorized(db: Session) -> Category:
