@@ -222,6 +222,254 @@ class DixeMapper(SourceMapper):
         }
 
 
+class TelefoniaMapper(SourceMapper):
+    """Mapper for Listino Telefonia web.xlsx"""
+    
+    def __init__(self):
+        super().__init__()
+        self.source_name = "telefonia"
+    
+    def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
+        return normalize_ean(row.get("cod. art"))
+    
+    def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
+        ean = self.get_ean(row)
+        if not ean:
+            return None
+        
+        # Extract title from "TELEFONI CELLULARI" column
+        title = row.get("TELEFONI CELLULARI")
+        if not title or not str(title).strip():
+            return None
+        
+        # Extract price from "PREZZO REVERSE CHARGE"
+        price = row.get("PREZZO REVERSE CHARGE")
+        try:
+            price_value = float(price) if price else None
+        except (ValueError, TypeError):
+            price_value = None
+        
+        # Extract stock from "DISP"
+        stock = row.get("DISP")
+        try:
+            stock_value = int(stock) if stock else 0
+        except (ValueError, TypeError):
+            stock_value = 0
+        
+        # Extract brand from "MARCA"
+        brand = row.get("MARCA")
+        brand_name = str(brand).strip() if brand and str(brand).strip() else None
+        
+        return {
+            "ean": ean,
+            "title": str(title).strip(),
+            "price": price_value,
+            "stock": stock_value,
+            "brand_name": brand_name,
+            "category_path": ["Telefonia"],
+            "description": None,
+            "image_urls": [],
+            "source": self.source_name,
+            "row_number": row_number
+        }
+
+
+class InformaticaMapper(SourceMapper):
+    """Mapper for Listino INFORMATICA web.xlsx"""
+    
+    def __init__(self):
+        super().__init__()
+        self.source_name = "informatica"
+    
+    def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
+        # Need to check actual structure - seems complex
+        return None
+    
+    def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
+        # TODO: Complex structure - needs manual inspection
+        return None
+
+
+class GiochiMapper(SourceMapper):
+    """Mapper for Listino GIOCHI.xlsx"""
+    
+    def __init__(self):
+        super().__init__()
+        self.source_name = "giochi"
+    
+    def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
+        return normalize_ean(row.get("CODICE ART"))
+    
+    def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
+        ean = self.get_ean(row)
+        if not ean:
+            return None
+        
+        # Extract title from "CONSOLE" column
+        title = row.get("CONSOLE")
+        if not title or not str(title).strip():
+            return None
+        
+        # Extract stock from "DISP."
+        stock = row.get("DISP.")
+        try:
+            stock_value = int(stock) if stock else 0
+        except (ValueError, TypeError):
+            stock_value = 0
+        
+        # Extract brand from "MARCA"
+        brand = row.get("MARCA")
+        brand_name = str(brand).strip() if brand and str(brand).strip() else None
+        
+        # Extract category from "CATEGORIA"
+        category = row.get("CATEGORIA")
+        category_path = []
+        if category and str(category).strip():
+            parts = str(category).split('/')
+            category_path = [p.strip() for p in parts if p.strip()]
+        
+        return {
+            "ean": ean,
+            "title": str(title).strip(),
+            "price": None,  # No price column
+            "stock": stock_value,
+            "brand_name": brand_name,
+            "category_path": category_path if category_path else ["Giochi"],
+            "description": None,
+            "image_urls": [],
+            "source": self.source_name,
+            "row_number": row_number
+        }
+
+
+class CartoleriaMapper(SourceMapper):
+    """Mapper for Listino Cartoleria.xlsx"""
+    
+    def __init__(self):
+        super().__init__()
+        self.source_name = "cartoleria"
+    
+    def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
+        # Column index 2 (3rd column) appears to be EAN/code
+        # Need to use column names from actual header
+        keys = list(row.keys())
+        if len(keys) >= 3:
+            return normalize_ean(row.get(keys[2]))
+        return None
+    
+    def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
+        keys = list(row.keys())
+        if len(keys) < 4:
+            return None
+        
+        ean = self.get_ean(row)
+        if not ean:
+            return None
+        
+        # Column 3 (index 3) is title
+        title = row.get(keys[3]) if len(keys) > 3 else None
+        if not title or not str(title).strip():
+            return None
+        
+        # Column 4 (index 4) is stock
+        stock = row.get(keys[4]) if len(keys) > 4 else None
+        try:
+            stock_value = int(stock) if stock else 0
+        except (ValueError, TypeError):
+            stock_value = 0
+        
+        # Column 1 (index 1) is brand
+        brand = row.get(keys[1]) if len(keys) > 1 else None
+        brand_name = str(brand).strip() if brand and str(brand).strip() else None
+        
+        # Column 0 (index 0) is category
+        category = row.get(keys[0]) if len(keys) > 0 else None
+        category_path = []
+        if category and str(category).strip():
+            parts = str(category).split('/')
+            category_path = [p.strip() for p in parts if p.strip()]
+        
+        return {
+            "ean": ean,
+            "title": str(title).strip(),
+            "price": None,
+            "stock": stock_value,
+            "brand_name": brand_name,
+            "category_path": category_path if category_path else ["Cartoleria"],
+            "description": None,
+            "image_urls": [],
+            "source": self.source_name,
+            "row_number": row_number
+        }
+
+
+class AccessoriMapper(SourceMapper):
+    """Mapper for Listino ACCESSORI telefonia.xlsx"""
+    
+    def __init__(self):
+        super().__init__()
+        self.source_name = "accessori"
+    
+    def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
+        # Column index 2 (3rd column) appears to be EAN/code
+        keys = list(row.keys())
+        if len(keys) >= 3:
+            return normalize_ean(row.get(keys[2]))
+        return None
+    
+    def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
+        keys = list(row.keys())
+        if len(keys) < 4:
+            return None
+        
+        ean = self.get_ean(row)
+        if not ean:
+            return None
+        
+        # Column 3 (index 3) is title
+        title = row.get(keys[3]) if len(keys) > 3 else None
+        if not title or not str(title).strip():
+            return None
+        
+        # Column 4 (index 4) is stock
+        stock = row.get(keys[4]) if len(keys) > 4 else None
+        try:
+            stock_value = int(stock) if stock else 0
+        except (ValueError, TypeError):
+            stock_value = 0
+        
+        # Column 5 (index 5) might be price
+        price = row.get(keys[5]) if len(keys) > 5 else None
+        try:
+            price_value = float(price) if price else None
+        except (ValueError, TypeError):
+            price_value = None
+        
+        # Column 1 (index 1) is brand
+        brand = row.get(keys[1]) if len(keys) > 1 else None
+        brand_name = str(brand).strip() if brand and str(brand).strip() else None
+        
+        # Column 0 (index 0) is category
+        category = row.get(keys[0]) if len(keys) > 0 else None
+        category_path = []
+        if category and str(category).strip():
+            parts = str(category).split('/')
+            category_path = [p.strip() for p in parts if p.strip()]
+        
+        return {
+            "ean": ean,
+            "title": str(title).strip(),
+            "price": price_value,
+            "stock": stock_value,
+            "brand_name": brand_name,
+            "category_path": category_path if category_path else ["Accessori Telefonia"],
+            "description": None,
+            "image_urls": [],
+            "source": self.source_name,
+            "row_number": row_number
+        }
+
+
 class ProductImportService:
     """Service for importing products from Excel files"""
     
@@ -229,6 +477,11 @@ class ProductImportService:
         "effezzeta": EffezzetaMapper,
         "erregame": ErregameMapper,
         "dixe": DixeMapper,
+        "telefonia": TelefoniaMapper,
+        "informatica": InformaticaMapper,
+        "giochi": GiochiMapper,
+        "cartoleria": CartoleriaMapper,
+        "accessori": AccessoriMapper,
     }
     
     CHUNK_SIZE = 300

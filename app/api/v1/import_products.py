@@ -234,6 +234,11 @@ async def import_products(
             "effezzeta": "Listino-prodotti.xlsx",
             "erregame": "erregame_organized.xlsx",
             "dixe": "Dixe_organized.xlsx",
+            "telefonia": "Listino Telefonia web.xlsx",
+            "informatica": "Listino INFORMATICA web.xlsx",
+            "giochi": "Listino GIOCHI.xlsx",
+            "cartoleria": "Listino Cartoleria.xlsx",
+            "accessori": "Listino ACCESSORI telefonia.xlsx",
         }
 
         resolved_name = file_mapping.get(source)
