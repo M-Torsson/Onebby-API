@@ -42,7 +42,7 @@ COMMERCE_ALLOWED_FILES = set(ENRICHMENT_DEFAULTS.values())
 
 @router.post("/import/products", response_model=ImportReport, status_code=status.HTTP_200_OK)
 async def import_products(
-    source: Literal["effezzeta", "erregame", "dixe", "commerce_clarity"],
+    source: Literal["effezzeta", "erregame", "dixe", "telefonia", "informatica", "giochi", "cartoleria", "accessori", "commerce_clarity"],
     filename: Optional[str] = None,
     dry_run: bool = False,
     verbose_errors: bool = False,
