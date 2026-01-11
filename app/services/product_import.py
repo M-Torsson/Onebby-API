@@ -230,7 +230,16 @@ class TelefoniaMapper(SourceMapper):
         self.source_name = "telefonia"
     
     def get_ean(self, row: Dict[str, Any]) -> Optional[str]:
-        return normalize_ean(row.get("cod. art"))
+        # Read EAN directly from "EAN" column (column H)
+        ean = row.get("EAN")
+        if ean:
+            # Convert to string to preserve leading zeros
+            ean_str = str(ean).strip()
+            # Remove .0 suffix if pandas read it as float
+            if ean_str.endswith('.0'):
+                ean_str = ean_str[:-2]
+            return ean_str if len(ean_str) == 13 and ean_str.isdigit() else None
+        return None
     
     def map_row(self, row: Dict[str, Any], row_number: int) -> Optional[Dict[str, Any]]:
         ean = self.get_ean(row)
