@@ -55,23 +55,33 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
     if not brand_name:
         return None
     
-    # Try to find existing brand by name first
-    brand = db.query(Brand).filter(Brand.name == brand_name).first()
+    # Try to find existing brand by name first (case-insensitive)
+    brand = db.query(Brand).filter(Brand.name.ilike(brand_name)).first()
     if brand:
         return brand
     
     # Generate slug
     base_slug = slugify(brand_name)
-    slug = base_slug
     
-    # Try to find by slug (in case name differs slightly)
-    existing = db.query(Brand).filter(Brand.slug == slug).first()
+    # Try to find by slug first (in case name differs slightly)
+    existing = db.query(Brand).filter(Brand.slug == base_slug).first()
     if existing:
         return existing
     
-    # Create new brand with IntegrityError handling for slug conflicts
+    # Try to create new brand (no rollback, let caller handle it)
+    # Check for slug conflicts by trying with suffix
     attempt = 0
-    while attempt < 10:
+    max_attempts = 10
+    
+    while attempt < max_attempts:
+        slug = base_slug if attempt == 0 else f"{base_slug}-{attempt}"
+        
+        # Check if slug exists before trying to create
+        if db.query(Brand).filter(Brand.slug == slug).first():
+            attempt += 1
+            continue
+        
+        # Try to create
         try:
             brand = Brand(
                 name=brand_name,
@@ -82,24 +92,14 @@ def get_or_create_brand(db: Session, brand_name: str) -> Optional[Brand]:
             db.add(brand)
             db.flush()
             return brand
-        except IntegrityError as e:
-            db.rollback()
-            error_str = str(e).lower()
             
-            # If slug conflict, try with suffix
-            if "ix_brands_slug" in error_str or "duplicate" in error_str:
-                attempt += 1
-                slug = f"{base_slug}-{attempt}"
-                
-                # Check if this slug exists
-                existing = db.query(Brand).filter(Brand.slug == slug).first()
-                if existing:
-                    return existing
-            else:
-                # Other integrity error, give up
-                return None
+        except IntegrityError:
+            # Slug was created between check and insert (race condition)
+            # Try next suffix
+            attempt += 1
+            continue
     
-    # After 10 attempts, give up
+    # After max attempts, return None
     return None
 
 
