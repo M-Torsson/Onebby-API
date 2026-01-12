@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
@@ -715,7 +715,7 @@ async def deactivate_all_categories(
     dependencies=[Depends(verify_api_key)]
 )
 async def delete_categories_recursive(
-    category_ids: list[int],
+    category_ids: list[int] = Body(..., embed=True),
     db: Session = Depends(get_db)
 ):
     """
