@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
+from app.models.category import Category
 from app.schemas.category import (
     CategoryCreate,
     CategoryUpdate,
@@ -651,3 +652,59 @@ async def get_category_products(
             "resolved_lang": lang
         }
     }
+
+
+@router.post(
+    "/v1/categories/deactivate-all",
+    dependencies=[Depends(verify_api_key)]
+)
+async def deactivate_all_categories(
+    db: Session = Depends(get_db)
+):
+    """
+    Deactivate all active categories by setting is_active=False and adding [OLD] prefix
+    
+    **Requires API Key authentication**
+    
+    This endpoint:
+    - Sets is_active=False for all categories
+    - Adds [OLD] prefix to category names
+    - Adds old- prefix to slugs
+    - Does NOT delete any data
+    
+    Use this before importing new category tree structure.
+    """
+    try:
+        # Get all active categories
+        active_categories = db.query(Category).filter(Category.is_active == True).all()
+        count = len(active_categories)
+        
+        if count == 0:
+            return {
+                "success": True,
+                "message": "No active categories to deactivate",
+                "deactivated_count": 0
+            }
+        
+        # Deactivate all
+        for cat in active_categories:
+            cat.is_active = False
+            if not cat.name.startswith("[OLD] "):
+                cat.name = f"[OLD] {cat.name}"
+            if cat.slug and not cat.slug.startswith("old-"):
+                cat.slug = f"old-{cat.slug}"
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Successfully deactivated {count} categories",
+            "deactivated_count": count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to deactivate categories: {str(e)}"
+        )
