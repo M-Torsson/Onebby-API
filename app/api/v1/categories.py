@@ -708,3 +708,80 @@ async def deactivate_all_categories(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to deactivate categories: {str(e)}"
         )
+
+
+@router.delete(
+    "/admin/categories/recursive-delete",
+    dependencies=[Depends(verify_api_key)]
+)
+async def delete_categories_recursive(
+    category_ids: list[int],
+    db: Session = Depends(get_db)
+):
+    """
+    Delete categories and all their children/grandchildren recursively.
+    Deletes from bottom up (grandchildren -> children -> parents) to avoid foreign key issues.
+    
+    Request body: {"category_ids": [8159, 8167, ...]}
+    """
+    try:
+        deleted_ids = []
+        errors = []
+        
+        def get_all_descendants(cat_id):
+            """Recursively get all children and grandchildren"""
+            descendants = []
+            children = db.query(Category).filter(Category.parent_id == cat_id).all()
+            
+            for child in children:
+                # First get this child's descendants
+                child_descendants = get_all_descendants(child.id)
+                descendants.extend(child_descendants)
+                # Then add the child itself
+                descendants.append(child.id)
+            
+            return descendants
+        
+        # For each category_id, get all descendants
+        all_to_delete = set()
+        for cat_id in category_ids:
+            # Check if category exists
+            category = db.query(Category).filter(Category.id == cat_id).first()
+            if not category:
+                errors.append(f"Category {cat_id} not found")
+                continue
+            
+            # Get all descendants
+            descendants = get_all_descendants(cat_id)
+            all_to_delete.update(descendants)
+            # Add the parent itself
+            all_to_delete.add(cat_id)
+        
+        # Delete in reverse order (from leaves to roots)
+        # Since we collected from bottom-up, we can delete in the order we found them
+        all_to_delete_list = list(all_to_delete)
+        
+        for cat_id in all_to_delete_list:
+            try:
+                category = db.query(Category).filter(Category.id == cat_id).first()
+                if category:
+                    db.delete(category)
+                    deleted_ids.append(cat_id)
+            except Exception as e:
+                errors.append(f"Failed to delete {cat_id}: {str(e)}")
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "deleted_count": len(deleted_ids),
+            "deleted_ids": sorted(deleted_ids),
+            "errors": errors
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete categories: {str(e)}"
+        )
