@@ -37,13 +37,10 @@ def get_all_categories(
     limit: int = 100
 ) -> List[Category]:
     """Get all categories (main and children) with optional translation and pagination"""
-    # Enforce max depth=2 (parent + child only). Exclude grandchildren or deeper.
-    Parent = aliased(Category)
+    # Allow max depth=3 (parent + child + grandson). No filtering by depth.
     query = (
         db.query(Category)
-        .outerjoin(Parent, Category.parent_id == Parent.id)
         .options(joinedload(Category.children))
-        .filter(or_(Category.parent_id == None, Parent.parent_id == None))
     )
     
     if active_only:
@@ -88,9 +85,7 @@ def search_categories(
 
     like = f"%{q}%"
 
-    # Enforce max depth=2 (exclude grandchildren/deeper)
-    Parent = aliased(Category)
-
+    # Allow max depth=3 (parent + child + grandson). No filtering by depth.
     # Build an ID query first (stable ordering, distinct IDs)
     join_cond = (CategoryTranslation.category_id == Category.id)
     if lang:
@@ -98,9 +93,7 @@ def search_categories(
 
     ids_query = (
         db.query(Category.id)
-        .outerjoin(Parent, Category.parent_id == Parent.id)
         .outerjoin(CategoryTranslation, join_cond)
-        .filter(or_(Category.parent_id == None, Parent.parent_id == None))
     )
 
     if active_only:
@@ -244,9 +237,8 @@ def create_category(db: Session, category: CategoryCreate) -> Category:
         parent = get_category(db, category.parent_id)
         if not parent or not parent.is_active:
             raise ValueError("Parent category not found or not active")
-        # Max depth=2: parent must be a main category
-        if parent.parent_id is not None:
-            raise ValueError("Invalid parent_id: max depth is 2 (no grandchildren)")
+        # Allow max depth=3 (parent -> child -> grandson)
+        # Removed restriction: now allows grandchildren
     
     db_category = Category(
         name=category.name,
@@ -354,9 +346,8 @@ def update_category(db: Session, category_id: int, category: CategoryUpdate) -> 
             parent = get_category(db, new_parent_id)
             if not parent or not parent.is_active:
                 raise ValueError("Parent category not found or not active")
-            # Max depth=2: parent must be a main category
-            if parent.parent_id is not None:
-                raise ValueError("Invalid parent_id: max depth is 2 (no grandchildren)")
+            # Allow max depth=3 (parent -> child -> grandson)
+            # Removed restriction: now allows grandchildren
     
     # If name is updated and no slug provided, regenerate slug
     if "name" in update_data and "slug" not in update_data:
