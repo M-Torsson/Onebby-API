@@ -359,8 +359,7 @@ def get_all_products(
     brand_id: Optional[int] = None,
     active_only: bool = Query(True),
     lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Get all products with pagination and optional filters
@@ -373,7 +372,7 @@ def get_all_products(
     - **active_only**: Show only active products - default: true
     - **lang**: Language code (it, en, fr, de, ar) - default: it
     
-    Requires X-API-Key header for authentication
+    Public endpoint - No API Key required
     """
     # Get total count
     total = crud_product.count_products(
@@ -451,8 +450,7 @@ def get_product(
     product_id: int,
     lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
     include: Optional[str] = Query(None, regex="^options$"),
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Get product details by ID
@@ -461,7 +459,7 @@ def get_product(
     - **lang**: Language code (it, en, fr, de, ar) - default: it
     - **include**: Include additional data (options) - optional
     
-    Requires X-API-Key header for authentication
+    Public endpoint - No API Key required
     """
     product = crud_product.get_product(db, product_id, lang)
     if not product:
@@ -561,8 +559,7 @@ def delete_product(
 @router.get("/v1/products/{product_id}/stock")
 def get_product_stock(
     product_id: int,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Get product stock information by ID
