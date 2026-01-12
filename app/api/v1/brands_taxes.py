@@ -131,10 +131,9 @@ def get_brands(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(False),
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
-    """Get all brands with pagination - Admin endpoint"""
+    """Get all brands with pagination - Public access allowed"""
     # Get total count
     total = crud.count_brands(db, active_only=active_only)
     
@@ -162,10 +161,9 @@ def get_brands(
 @router.get("/admin/brands/{brand_id}", response_model=BrandResponse)
 def get_brand(
     brand_id: int,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
-    """Get brand by ID"""
+    """Get brand by ID - Public access allowed"""
     brand = crud.get_brand(db, brand_id)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
@@ -214,10 +212,9 @@ def get_tax_classes(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(False),
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
-    """Get all tax classes with pagination - Admin endpoint"""
+    """Get all tax classes with pagination - Public access allowed"""
     # Get total count
     total = crud.count_tax_classes(db, active_only=active_only)
     
@@ -245,10 +242,9 @@ def get_tax_classes(
 @router.get("/admin/tax-classes/{tax_class_id}", response_model=TaxClassResponse)
 def get_tax_class(
     tax_class_id: int,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
-    """Get tax class by ID"""
+    """Get tax class by ID - Public access allowed"""
     tax_class = crud.get_tax_class(db, tax_class_id)
     if not tax_class:
         raise HTTPException(status_code=404, detail="Tax class not found")
