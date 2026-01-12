@@ -710,7 +710,7 @@ async def deactivate_all_categories(
         )
 
 
-@router.delete(
+@router.post(
     "/admin/categories/recursive-delete",
     dependencies=[Depends(verify_api_key)]
 )
