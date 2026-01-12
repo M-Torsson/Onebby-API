@@ -641,3 +641,208 @@ def update_variant_stock(
         "stock_quantity": variant.stock_quantity,
         "updated_at": variant.updated_at
     }
+
+
+@router.post("/admin/products/process-duplicates-and-categorize")
+def process_duplicates_and_categorize(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Process all products:
+    1. Find and remove duplicates (by EAN, Reference, Name)
+    2. Classify products (electronics vs furniture)
+    3. Update electronics with new categories
+    4. Return detailed report
+    
+    Requires X-API-Key header for authentication
+    """
+    from collections import defaultdict
+    from sqlalchemy import func
+    
+    report = {
+        'total_products_initial': 0,
+        'duplicates_found': 0,
+        'duplicates_deleted': 0,
+        'total_products_final': 0,
+        'electronics_count': 0,
+        'furniture_count': 0,
+        'electronics_updated': 0,
+        'errors': []
+    }
+    
+    try:
+        # Step 1: Get all products
+        all_products = db.query(Product).all()
+        report['total_products_initial'] = len(all_products)
+        
+        # Step 2: Find duplicates
+        by_ean = defaultdict(list)
+        by_ref = defaultdict(list)
+        by_name = defaultdict(list)
+        
+        for product in all_products:
+            if product.ean:
+                by_ean[product.ean.strip()].append(product)
+            if product.reference:
+                by_ref[product.reference.strip()].append(product)
+            
+            # Get Italian translation for name comparison
+            translation = next((t for t in product.translations if t.lang == "it"), None)
+            if translation and translation.title:
+                by_name[translation.title.strip().lower()].append(product)
+        
+        # Find duplicate groups
+        duplicate_groups = []
+        seen_ids = set()
+        
+        for ean, products in by_ean.items():
+            if len(products) > 1:
+                ids = tuple(sorted(p.id for p in products))
+                if ids not in seen_ids:
+                    duplicate_groups.append(products)
+                    seen_ids.add(ids)
+        
+        for ref, products in by_ref.items():
+            if len(products) > 1:
+                ids = tuple(sorted(p.id for p in products))
+                if ids not in seen_ids:
+                    duplicate_groups.append(products)
+                    seen_ids.add(ids)
+        
+        for name, products in by_name.items():
+            if len(products) > 1:
+                ids = tuple(sorted(p.id for p in products))
+                if ids not in seen_ids:
+                    duplicate_groups.append(products)
+                    seen_ids.add(ids)
+        
+        report['duplicates_found'] = len(duplicate_groups)
+        
+        # Step 3: Remove duplicates (keep best one)
+        def score_product(p):
+            score = 0
+            score += len(p.images) * 10
+            translation = next((t for t in p.translations if t.lang == "it"), None)
+            if translation:
+                score += len(translation.simple_description or '') / 100
+            score += len(p.features) * 5
+            score += len(p.attributes) * 5
+            return score
+        
+        deleted_ids = []
+        for group in duplicate_groups:
+            # Keep the best, delete others
+            best = max(group, key=score_product)
+            to_delete = [p for p in group if p.id != best.id]
+            
+            for product in to_delete:
+                try:
+                    db.delete(product)
+                    deleted_ids.append(product.id)
+                except Exception as e:
+                    report['errors'].append(f"Failed to delete product {product.id}: {str(e)}")
+        
+        db.commit()
+        report['duplicates_deleted'] = len(deleted_ids)
+        
+        # Step 4: Re-query products after deletion
+        all_products = db.query(Product).all()
+        report['total_products_final'] = len(all_products)
+        
+        # Step 5: Classify products
+        electronics_keywords = [
+            'lavatrice', 'frigorifero', 'forno', 'microonde', 'lavastoviglie',
+            'congelatore', 'condizionatore', 'tv', 'televisore', 'monitor',
+            'computer', 'notebook', 'tablet', 'smartphone', 'cellulare',
+            'fotocamera', 'stampante', 'scanner', 'router', 'modem',
+            'cuffie', 'altoparlante', 'soundbar', 'lettore', 'decoder',
+            'asciugatrice', 'aspirapolvere', 'ventilatore', 'stufa',
+            'climatizzatore', 'deumidificatore', 'purificatore', 'cappa'
+        ]
+        
+        furniture_keywords = [
+            'sedia', 'tavolo', 'letto', 'armadio', 'mobile', 'porta',
+            'divano', 'poltrona', 'scaffale', 'libreria', 'consolle',
+            'comodino', 'cassettiera', 'guardaroba', 'parete', 'soggiorno',
+            'pensile', 'anta', 'guanciale', 'materasso', 'rete'
+        ]
+        
+        electronics = []
+        furniture = []
+        
+        for product in all_products:
+            translation = next((t for t in product.translations if t.lang == "it"), None)
+            if not translation:
+                continue
+            
+            text = f"{translation.title or ''} {translation.simple_description or ''}".lower()
+            
+            is_electronics = any(kw in text for kw in electronics_keywords)
+            is_furniture = any(kw in text for kw in furniture_keywords)
+            
+            if is_electronics and not is_furniture:
+                electronics.append(product)
+            elif is_furniture:
+                furniture.append(product)
+        
+        report['electronics_count'] = len(electronics)
+        report['furniture_count'] = len(furniture)
+        
+        # Step 6: Get new categories
+        from app.models.category import Category
+        new_categories = db.query(Category).filter(Category.is_active == True).all()
+        
+        # Create mapping from old category names to new category IDs
+        category_mapping = {}
+        for new_cat in new_categories:
+            cat_name_lower = new_cat.name.lower()
+            category_mapping[cat_name_lower] = new_cat.id
+        
+        # Step 7: Update electronics only
+        updated_count = 0
+        for product in electronics:
+            try:
+                old_categories = product.categories
+                if not old_categories:
+                    continue
+                
+                # Try to map old category to new one
+                new_cat_ids = []
+                for old_cat in old_categories:
+                    old_name_lower = old_cat.name.lower()
+                    
+                    # Try exact match
+                    if old_name_lower in category_mapping:
+                        new_cat_ids.append(category_mapping[old_name_lower])
+                    else:
+                        # Try partial match
+                        for new_name, new_id in category_mapping.items():
+                            if old_name_lower in new_name or new_name in old_name_lower:
+                                new_cat_ids.append(new_id)
+                                break
+                
+                if new_cat_ids:
+                    # Clear old categories and add new ones
+                    product.categories.clear()
+                    for cat_id in new_cat_ids:
+                        new_cat = db.query(Category).get(cat_id)
+                        if new_cat:
+                            product.categories.append(new_cat)
+                    updated_count += 1
+                    
+            except Exception as e:
+                report['errors'].append(f"Failed to update product {product.id}: {str(e)}")
+        
+        db.commit()
+        report['electronics_updated'] = updated_count
+        
+        return {
+            "success": True,
+            "message": "Processing completed",
+            "report": report
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
