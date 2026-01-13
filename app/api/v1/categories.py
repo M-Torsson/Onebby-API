@@ -437,8 +437,7 @@ async def get_category_subcategories(
             "parent_id": grandchild.parent_id,
             "sort_order": grandchild.sort_order,
             "is_active": grandchild.is_active,
-            "has_children": grandchild.has_children,
-            "product_count": grandchild.product_count
+            "has_children": grandchild.has_children
         })
     
     return {
