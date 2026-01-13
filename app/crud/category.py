@@ -220,6 +220,42 @@ def get_category_children(
     return children
 
 
+def get_category_grandchildren(
+    db: Session, 
+    parent_id: int, 
+    lang: Optional[str] = None
+) -> List[Category]:
+    """Get all grandchildren (3rd level) categories of a parent category"""
+    # Get all children of the parent
+    children = db.query(Category).filter(
+        Category.parent_id == parent_id,
+        Category.is_active == True
+    ).all()
+    
+    # Get all grandchildren (children of children)
+    grandchildren = []
+    for child in children:
+        child_grandchildren = db.query(Category).filter(
+            Category.parent_id == child.id,
+            Category.is_active == True
+        ).order_by(Category.sort_order).all()
+        grandchildren.extend(child_grandchildren)
+    
+    # If language is specified, load translated names
+    if lang and grandchildren:
+        for grandchild in grandchildren:
+            translation = db.query(CategoryTranslation).filter(
+                CategoryTranslation.category_id == grandchild.id,
+                CategoryTranslation.lang == lang
+            ).first()
+            
+            if translation:
+                grandchild.name = translation.name
+                grandchild.slug = translation.slug
+    
+    return grandchildren
+
+
 def create_category(db: Session, category: CategoryCreate) -> Category:
     """Create a new category"""
     # Generate slug if not provided

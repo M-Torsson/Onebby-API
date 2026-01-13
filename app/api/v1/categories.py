@@ -388,6 +388,70 @@ async def get_category_children(
     }
 
 
+@router.get(
+    "/v1/categories/{category_id}/subcategories",
+    response_model=CategoryChildListResponse
+)
+async def get_category_subcategories(
+    category_id: int,
+    lang: Optional[str] = Query(None, description="Language code (e.g., 'it', 'en', 'ar')"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all grandchildren (subcategories) of a parent category
+    
+    Returns all 3rd level categories under the specified parent category.
+    This endpoint fetches all children of the parent, then returns their children (grandchildren).
+    
+    - **category_id**: ID of the parent category
+    - **lang**: Language code for translated names (optional)
+    
+    Example:
+    - GET /v1/categories/8155/subcategories
+    - Returns all grandchildren under "Elettrodomestici cucina"
+    """
+    # Validate parent category exists and is active
+    parent = db.query(Category).filter(
+        Category.id == category_id,
+        Category.is_active == True
+    ).first()
+    
+    if not parent:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Parent category with ID {category_id} not found or not active"
+        )
+    
+    # Get all grandchildren using CRUD function
+    grandchildren = crud_category.get_category_grandchildren(db, category_id, lang)
+    
+    # Convert to response format
+    grandchildren_data = []
+    for grandchild in grandchildren:
+        grandchildren_data.append({
+            "id": grandchild.id,
+            "name": grandchild.name,
+            "slug": grandchild.slug,
+            "image": grandchild.image,
+            "icon": grandchild.icon,
+            "parent_id": grandchild.parent_id,
+            "sort_order": grandchild.sort_order,
+            "is_active": grandchild.is_active,
+            "has_children": grandchild.has_children,
+            "product_count": grandchild.product_count
+        })
+    
+    return {
+        "data": grandchildren_data,
+        "meta": {
+            "parent_id": category_id,
+            "requested_lang": lang,
+            "resolved_lang": lang,
+            "total_subcategories": len(grandchildren_data)
+        }
+    }
+
+
 @router.put(
     "/v1/categories/{category_id}",
     response_model=CategoryCreateResponse
