@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Header, File, UploadFile,
 from typing import List, Optional
 import cloudinary
 import cloudinary.uploader
+import cloudinary.utils
+import time
+import hashlib
 from app.core.config import settings
 
 router = APIRouter()
@@ -41,6 +44,45 @@ def validate_image(file: UploadFile):
         )
     
     return True
+
+
+@router.post("/admin/upload/signature")
+async def generate_upload_signature(
+    folder: str = Form("categories"),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Generate Cloudinary upload signature for client-side uploads
+    
+    - **folder**: Folder name in Cloudinary (e.g., categories, products, brands)
+    
+    Returns timestamp, signature, api_key, and cloud_name for direct upload
+    """
+    try:
+        timestamp = int(time.time())
+        
+        # Parameters to sign
+        params_to_sign = {
+            "timestamp": timestamp,
+            "folder": f"onebby/{folder}"
+        }
+        
+        # Generate signature
+        signature = cloudinary.utils.api_sign_request(
+            params_to_sign,
+            settings.CLOUDINARY_API_SECRET
+        )
+        
+        return {
+            "signature": signature,
+            "timestamp": timestamp,
+            "api_key": settings.CLOUDINARY_API_KEY,
+            "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
+            "folder": f"onebby/{folder}"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate signature: {str(e)}")
 
 
 @router.post("/admin/upload/image")
