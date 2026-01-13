@@ -196,11 +196,10 @@ def get_category_children(
     lang: Optional[str] = None
 ) -> List[Category]:
     """Get children categories of a parent category"""
-    # Enforce max depth=2: if parent is itself a child, it cannot have children.
-    parent = db.query(Category).filter(Category.id == parent_id).first()
-    if parent and parent.parent_id is not None:
-        return []
-
+    # Allow 3-level hierarchy as per prezzoforte_category_tree.xlsx:
+    # Parent (level 1) → Child (level 2) → Grandson (level 3)
+    # No depth limit enforced - let the tree structure be flexible
+    
     children = db.query(Category).filter(
         Category.parent_id == parent_id,
         Category.is_active == True
