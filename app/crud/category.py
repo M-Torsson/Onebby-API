@@ -144,13 +144,8 @@ def search_categories(
 
 
 def count_all_categories(db: Session, active_only: bool = True) -> int:
-    """Count total categories"""
-    Parent = aliased(Category)
-    query = (
-        db.query(Category)
-        .outerjoin(Parent, Category.parent_id == Parent.id)
-        .filter(or_(Category.parent_id == None, Parent.parent_id == None))
-    )
+    """Count total categories (all levels, no depth restriction)"""
+    query = db.query(Category)
     
     if active_only:
         query = query.filter(Category.is_active == True)
