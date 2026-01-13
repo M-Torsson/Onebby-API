@@ -351,17 +351,8 @@ async def get_category_children(
             detail="Parent category is not active"
         )
 
-    # Enforce max depth=2: children of a child category are always empty
-    if parent.parent_id is not None:
-        return {
-            "data": [],
-            "meta": {
-                "parent_id": category_id,
-                "requested_lang": lang,
-                "resolved_lang": lang,
-                "note": "Max depth is 2 (no grandchildren)"
-            }
-        }
+    # Note: Removed max depth limit to support 3-level hierarchy (Parent -> Child -> Grandson)
+    # as required by prezzoforte_category_tree.xlsx
     
     # Validate language
     supported_langs = ["it", "en", "fr", "de", "ar"]
