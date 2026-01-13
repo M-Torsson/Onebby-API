@@ -390,7 +390,7 @@ async def get_category_children(
 
 @router.get(
     "/v1/categories/{category_id}/subcategories",
-    response_model=CategoryChildListResponse
+    response_model=CategoryChildrenListResponse
 )
 async def get_category_subcategories(
     category_id: int,
