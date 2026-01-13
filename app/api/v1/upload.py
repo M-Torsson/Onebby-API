@@ -46,7 +46,7 @@ def validate_image(file: UploadFile):
     return True
 
 
-@router.post("/admin/upload/signature")
+@router.post("/signature")
 async def generate_upload_signature(
     folder: str = Form("categories"),
     api_key: str = Depends(verify_api_key)

@@ -19,7 +19,7 @@ api_router.include_router(brands_taxes.router, tags=["brands-taxes"])
 api_router.include_router(products.router, tags=["products"])
 
 # Include upload routes
-api_router.include_router(upload.router, tags=["upload"])
+api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 
 # Include import routes
 api_router.include_router(import_products.router, tags=["import"])
