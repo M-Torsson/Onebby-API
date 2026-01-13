@@ -94,10 +94,12 @@ class CategoryCreateResponse(BaseModel):
 
 
 class CategoryMainResponse(BaseModel):
-    """Main category response schema (without image/icon)"""
+    """Main category response schema"""
     id: int
     name: str
     slug: Optional[str]
+    image: Optional[str]
+    icon: Optional[str]
     sort_order: int
     is_active: bool
     parent_id: Optional[int]
