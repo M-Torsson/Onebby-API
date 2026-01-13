@@ -398,17 +398,18 @@ async def get_category_subcategories(
     db: Session = Depends(get_db)
 ):
     """
-    Get all grandchildren (subcategories) of a parent category
+    Get all subcategories (children) of a category
     
-    Returns all 3rd level categories under the specified parent category.
-    This endpoint fetches all children of the parent, then returns their children (grandchildren).
+    Returns all direct children under the specified category.
+    Works for any category level (parent, child, or grandchild).
+    Same functionality as /children endpoint.
     
-    - **category_id**: ID of the parent category
+    - **category_id**: ID of the category
     - **lang**: Language code for translated names (optional)
     
     Example:
     - GET /v1/categories/8155/subcategories
-    - Returns all grandchildren under "Elettrodomestici cucina"
+    - Returns all children under the category
     """
     # Validate parent category exists and is active
     parent = db.query(Category).filter(
@@ -419,34 +420,34 @@ async def get_category_subcategories(
     if not parent:
         raise HTTPException(
             status_code=404,
-            detail=f"Parent category with ID {category_id} not found or not active"
+            detail=f"Category with ID {category_id} not found or not active"
         )
     
-    # Get all grandchildren using CRUD function
-    grandchildren = crud_category.get_category_grandchildren(db, category_id, lang)
+    # Get all children (subcategories) using CRUD function
+    subcategories = crud_category.get_category_grandchildren(db, category_id, lang)
     
     # Convert to response format
-    grandchildren_data = []
-    for grandchild in grandchildren:
-        grandchildren_data.append({
-            "id": grandchild.id,
-            "name": grandchild.name,
-            "slug": grandchild.slug,
-            "image": grandchild.image,
-            "icon": grandchild.icon,
-            "parent_id": grandchild.parent_id,
-            "sort_order": grandchild.sort_order,
-            "is_active": grandchild.is_active,
-            "has_children": grandchild.has_children
+    subcategories_data = []
+    for subcategory in subcategories:
+        subcategories_data.append({
+            "id": subcategory.id,
+            "name": subcategory.name,
+            "slug": subcategory.slug,
+            "image": subcategory.image,
+            "icon": subcategory.icon,
+            "parent_id": subcategory.parent_id,
+            "sort_order": subcategory.sort_order,
+            "is_active": subcategory.is_active,
+            "has_children": subcategory.has_children
         })
     
     return {
-        "data": grandchildren_data,
+        "data": subcategories_data,
         "meta": {
             "parent_id": category_id,
             "requested_lang": lang,
             "resolved_lang": lang,
-            "total_subcategories": len(grandchildren_data)
+            "total_subcategories": len(subcategories_data)
         }
     }
 

@@ -225,35 +225,26 @@ def get_category_grandchildren(
     parent_id: int, 
     lang: Optional[str] = None
 ) -> List[Category]:
-    """Get all grandchildren (3rd level) categories of a parent category"""
-    # Get all children of the parent
+    """Get all subcategories (children) of a category - works for any level"""
+    # Just return direct children - same as get_category_children
     children = db.query(Category).filter(
         Category.parent_id == parent_id,
         Category.is_active == True
-    ).all()
-    
-    # Get all grandchildren (children of children)
-    grandchildren = []
-    for child in children:
-        child_grandchildren = db.query(Category).filter(
-            Category.parent_id == child.id,
-            Category.is_active == True
-        ).order_by(Category.sort_order).all()
-        grandchildren.extend(child_grandchildren)
+    ).order_by(Category.sort_order).all()
     
     # If language is specified, load translated names
-    if lang and grandchildren:
-        for grandchild in grandchildren:
+    if lang and children:
+        for child in children:
             translation = db.query(CategoryTranslation).filter(
-                CategoryTranslation.category_id == grandchild.id,
+                CategoryTranslation.category_id == child.id,
                 CategoryTranslation.lang == lang
             ).first()
             
             if translation:
-                grandchild.name = translation.name
-                grandchild.slug = translation.slug
+                child.name = translation.name
+                child.slug = translation.slug
     
-    return grandchildren
+    return children
 
 
 def create_category(db: Session, category: CategoryCreate) -> Category:
