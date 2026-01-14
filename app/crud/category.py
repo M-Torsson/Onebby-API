@@ -92,7 +92,7 @@ def search_categories(
         join_cond = and_(join_cond, CategoryTranslation.lang == lang)
 
     ids_query = (
-        db.query(Category.id)
+        db.query(Category.id, Category.parent_id, Category.sort_order)
         .outerjoin(CategoryTranslation, join_cond)
     )
 
