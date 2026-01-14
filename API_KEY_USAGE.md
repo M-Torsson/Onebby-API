@@ -25,7 +25,7 @@ async def get_users(
 
 **Headers:**
 ```
-X-API-Key: Onebby_API_Key_2025_!P9mK@7xL#4rT8nW$2qF5vB*3cH6jD9zY
+X-API-Key: OnebbyAPIKey2025P9mK7xL4rT8nW2qF5vB3cH6jD9zYaXbRcGdTeUf1MwNyQsV
 Content-Type: application/json
 Authorization: Bearer {your_jwt_token}
 ```
@@ -34,5 +34,5 @@ Authorization: Bearer {your_jwt_token}
 
 أضف في Environment Variables:
 ```
-X-API-KEY: Onebby_API_Key_2025_!P9mK@7xL#4rT8nW$2qF5vB*3cH6jD9zY
+X-API-KEY: OnebbyAPIKey2025P9mK7xL4rT8nW2qF5vB3cH6jD9zYaXbRcGdTeUf1MwNyQsV
 ```
