@@ -209,15 +209,6 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                     slug=cat_trans.slug
                 ))
     
-    # Build brand
-    brand = None
-    if product.brand:
-        brand = BrandSimple(
-            id=product.brand.id,
-            name=product.brand.name,
-            image=product.brand.image
-        )
-    
     # Build tax - with null safety
     tax = None
     if product.tax_class:
@@ -321,14 +312,12 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         is_active=product.is_active if product.is_active is not None else True,
         date_add=product.date_add,
         date_update=product.date_update,
-        brand=brand,
         tax=tax,
         price=price_response,
         stock=stock_response,
         categories=categories,
         condition=product.condition.value if product.condition else "new",
         title=translation.title or "",
-        sub_title=translation.sub_title or "",
         simple_description=strip_html_tags(translation.simple_description or ""),
         meta_description=translation.meta_description or "",
         images=images,

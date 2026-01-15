@@ -1,0 +1,834 @@
+{
+  "products": [
+    {
+      "id": 1001,
+      "reference": "HAIER-AC-9000",
+      "ean13": "8056379834721",
+      "is_active": true,
+      "date_add": "2026-01-15T10:30:00Z",
+      "date_update": null,
+      "brand": {
+        "id": 1,
+        "name": "Haier",
+        "image": "https://example.com/brands/haier.png"
+      },
+      "tax": {
+        "id": 16,
+        "name": "Standard VAT (22%)",
+        "rate": 22.0,
+        "included_in_price": false
+      },
+      "price": {
+        "list": 599.0,
+        "currency": "EUR",
+        "discounts": "0"
+      },
+      "stock": {
+        "status": "in_stock",
+        "quantity": 15
+      },
+      "categories": [],
+      "condition": "new",
+      "title": "Haier Smart Cool Condizionatore a Parete",
+      "sub_title": "Climatizzatore Inverter 9000 BTU",
+      "simple_description": "Condizionatore d'aria Haier Smart Cool con tecnologia inverter avanzata per un raffreddamento efficiente. Dotato di funzione Wi-Fi per controllo remoto tramite smartphone, modalità sleep silenziosa e filtro autopulente. Classe energetica A+++, ideale per ambienti fino a 25 mq. Design moderno e compatto che si adatta perfettamente a qualsiasi ambiente.",
+      "meta_description": "Condizionatore Haier Smart Cool 9000 BTU Inverter WiFi A+++",
+      "images": [],
+      "features": [
+        {
+          "name": "Potenza di raffreddamento",
+          "value": "9000 BTU/h"
+        },
+        {
+          "name": "Classe energetica",
+          "value": "A+++"
+        },
+        {
+          "name": "Tecnologia",
+          "value": "Inverter"
+        },
+        {
+          "name": "Livello rumore interno",
+          "value": "22 dB"
+        },
+        {
+          "name": "Superficie consigliata",
+          "value": "Fino a 25 mq"
+        },
+        {
+          "name": "Funzioni speciali",
+          "value": "Wi-Fi, Modalità Sleep, Autopulente"
+        },
+        {
+          "name": "Dimensioni unità interna",
+          "value": "79 x 29 x 21 cm"
+        },
+        {
+          "name": "Peso",
+          "value": "9 kg"
+        },
+        {
+          "name": "Gas refrigerante",
+          "value": "R32"
+        },
+        {
+          "name": "Consumo annuo",
+          "value": "165 kWh/anno"
+        }
+      ],
+      "attributes": [
+        {
+          "code": "color",
+          "name": "Colore",
+          "value": "Bianco"
+        },
+        {
+          "code": "warranty",
+          "name": "Garanzia",
+          "value": "2 anni"
+        },
+        {
+          "code": "origin",
+          "name": "Paese d'origine",
+          "value": "Cina"
+        },
+        {
+          "code": "installation",
+          "name": "Installazione",
+          "value": "Richiesta installazione professionale"
+        }
+      ],
+      "related_product_ids": [1004],
+      "variant_attributes": [
+        {
+          "code": "btu_capacity",
+          "label": "Capacità BTU",
+          "options": [
+            {
+              "value": "9000 BTU",
+              "label": "9000 Btu"
+            },
+            {
+              "value": "12000 BTU",
+              "label": "12000 Btu"
+            },
+            {
+              "value": "18000 BTU",
+              "label": "18000 Btu"
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": 10011,
+          "reference": "HAIER-AC-9000-V1",
+          "ean13": "8056379831999",
+          "is_active": true,
+          "attributes": {
+            "btu_capacity": "9000 BTU"
+          },
+          "price": {
+            "list": 599.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 15
+          },
+          "images": []
+        },
+        {
+          "id": 10012,
+          "reference": "HAIER-AC-12000-V2",
+          "ean13": "8056379832999",
+          "is_active": true,
+          "attributes": {
+            "btu_capacity": "12000 BTU"
+          },
+          "price": {
+            "list": 749.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 10
+          },
+          "images": []
+        },
+        {
+          "id": 10013,
+          "reference": "HAIER-AC-18000-V3",
+          "ean13": "8056379833999",
+          "is_active": true,
+          "attributes": {
+            "btu_capacity": "18000 BTU"
+          },
+          "price": {
+            "list": 949.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 8
+          },
+          "images": []
+        }
+      ],
+      "options": null
+    },
+    {
+      "id": 1002,
+      "reference": "LG-WM-F4V5VYP2T",
+      "ean13": "8806098671298",
+      "is_active": true,
+      "date_add": "2026-01-15T10:35:00Z",
+      "date_update": null,
+      "brand": {
+        "id": 2,
+        "name": "LG",
+        "image": "https://example.com/brands/lg.png"
+      },
+      "tax": {
+        "id": 16,
+        "name": "Standard VAT (22%)",
+        "rate": 22.0,
+        "included_in_price": false
+      },
+      "price": {
+        "list": 449.0,
+        "currency": "EUR",
+        "discounts": "0"
+      },
+      "stock": {
+        "status": "in_stock",
+        "quantity": 20
+      },
+      "categories": [],
+      "condition": "new",
+      "title": "Lavatrice LG Carica Frontale 9 kg",
+      "sub_title": "Lavatrice con Intelligenza Artificiale AI DD",
+      "simple_description": "Lavatrice LG a carica frontale da 9 kg con tecnologia AI Direct Drive che rileva automaticamente il peso e il tessuto per ottimizzare i movimenti del cestello. Dotata di funzione Steam per igienizzare i capi, motore Inverter Direct Drive silenzioso e affidabile con garanzia 10 anni. Classe energetica A, 1400 giri/min, display LED e connettività Wi-Fi per controllo da smartphone tramite app ThinQ.",
+      "meta_description": "Lavatrice LG 9kg AI Direct Drive Steam WiFi A 1400rpm",
+      "images": [],
+      "features": [
+        {
+          "name": "Capacità di carico",
+          "value": "9 kg"
+        },
+        {
+          "name": "Classe energetica",
+          "value": "A"
+        },
+        {
+          "name": "Velocità centrifuga",
+          "value": "1400 giri/min"
+        },
+        {
+          "name": "Tecnologia lavaggio",
+          "value": "AI Direct Drive"
+        },
+        {
+          "name": "Livello rumore lavaggio",
+          "value": "52 dB"
+        },
+        {
+          "name": "Livello rumore centrifuga",
+          "value": "74 dB"
+        },
+        {
+          "name": "Programmi speciali",
+          "value": "Steam, Allergy Care, Quick Wash 30min"
+        },
+        {
+          "name": "Dimensioni (L x P x A)",
+          "value": "60 x 56 x 85 cm"
+        },
+        {
+          "name": "Peso",
+          "value": "66 kg"
+        },
+        {
+          "name": "Connettività",
+          "value": "Wi-Fi - App ThinQ"
+        },
+        {
+          "name": "Consumo acqua annuo",
+          "value": "9500 litri/anno"
+        },
+        {
+          "name": "Garanzia motore",
+          "value": "10 anni"
+        }
+      ],
+      "attributes": [
+        {
+          "code": "color",
+          "name": "Colore",
+          "value": "Bianco"
+        },
+        {
+          "code": "door_type",
+          "name": "Tipo porta",
+          "value": "Carica frontale"
+        },
+        {
+          "code": "warranty",
+          "name": "Garanzia",
+          "value": "2 anni + 10 anni motore"
+        },
+        {
+          "code": "origin",
+          "name": "Paese d'origine",
+          "value": "Corea del Sud"
+        }
+      ],
+      "related_product_ids": [1003, 1004],
+      "variant_attributes": [
+        {
+          "code": "capacity",
+          "label": "Capacità",
+          "options": [
+            {
+              "value": "7 kg",
+              "label": "7 Kg"
+            },
+            {
+              "value": "9 kg",
+              "label": "9 Kg"
+            },
+            {
+              "value": "11 kg",
+              "label": "11 Kg"
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": 10021,
+          "reference": "LG-WM-7KG",
+          "ean13": "88060986771G",
+          "is_active": true,
+          "attributes": {
+            "capacity": "7 kg"
+          },
+          "price": {
+            "list": 389.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 25
+          },
+          "images": []
+        },
+        {
+          "id": 10022,
+          "reference": "LG-WM-9KG",
+          "ean13": "88060986779KG",
+          "is_active": true,
+          "attributes": {
+            "capacity": "9 kg"
+          },
+          "price": {
+            "list": 449.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 20
+          },
+          "images": []
+        },
+        {
+          "id": 10023,
+          "reference": "LG-WM-11KG",
+          "ean13": "880609867011G",
+          "is_active": true,
+          "attributes": {
+            "capacity": "11 kg"
+          },
+          "price": {
+            "list": 549.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 12
+          },
+          "images": []
+        }
+      ],
+      "options": null
+    },
+    {
+      "id": 1003,
+      "reference": "SAMSUNG-TV-UE55CU7090",
+      "ean13": "8806094936766",
+      "is_active": true,
+      "date_add": "2026-01-15T10:40:00Z",
+      "date_update": null,
+      "brand": {
+        "id": 3,
+        "name": "Samsung",
+        "image": "https://example.com/brands/samsung.png"
+      },
+      "tax": {
+        "id": 16,
+        "name": "Standard VAT (22%)",
+        "rate": 22.0,
+        "included_in_price": false
+      },
+      "price": {
+        "list": 499.0,
+        "currency": "EUR",
+        "discounts": "0"
+      },
+      "stock": {
+        "status": "in_stock",
+        "quantity": 18
+      },
+      "categories": [],
+      "condition": "new",
+      "title": "TV Samsung 55 Pollici Crystal UHD 4K",
+      "sub_title": "Smart TV con Crystal Processor 4K e Tizen OS",
+      "simple_description": "Smart TV Samsung da 55 pollici con risoluzione Crystal UHD 4K per immagini nitide e dettagliate. Dotato di processore Crystal Processor 4K che ottimizza automaticamente colori e contrasto. Sistema operativo Tizen con accesso a tutte le app di streaming (Netflix, Prime Video, Disney+). Supporto HDR10+, modalità Gaming con input lag ridotto, AirPlay 2 e SmartThings. Audio Dolby Digital Plus con tecnologia Adaptive Sound che si adatta ai contenuti.",
+      "meta_description": "TV Samsung 55'' Crystal UHD 4K Smart TV HDR10+ Tizen",
+      "images": [],
+      "features": [
+        {
+          "name": "Dimensione schermo",
+          "value": "55 pollici (138 cm)"
+        },
+        {
+          "name": "Risoluzione",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "name": "Tipo pannello",
+          "value": "Crystal UHD LED"
+        },
+        {
+          "name": "Processore",
+          "value": "Crystal Processor 4K"
+        },
+        {
+          "name": "HDR",
+          "value": "HDR10+"
+        },
+        {
+          "name": "Frequenza aggiornamento",
+          "value": "50 Hz"
+        },
+        {
+          "name": "Sistema operativo",
+          "value": "Tizen OS"
+        },
+        {
+          "name": "Connettività",
+          "value": "WiFi 5, Bluetooth 5.2, Ethernet"
+        },
+        {
+          "name": "Porte HDMI",
+          "value": "3 porte HDMI 2.0"
+        },
+        {
+          "name": "Porte USB",
+          "value": "2 porte USB 2.0"
+        },
+        {
+          "name": "Audio",
+          "value": "Dolby Digital Plus, 20W (2 canali)"
+        },
+        {
+          "name": "Dimensioni con base",
+          "value": "123 x 78 x 25 cm"
+        },
+        {
+          "name": "Peso",
+          "value": "13.5 kg"
+        },
+        {
+          "name": "Consumo energetico",
+          "value": "Classe G (83 kWh/1000h)"
+        }
+      ],
+      "attributes": [
+        {
+          "code": "color",
+          "name": "Colore",
+          "value": "Nero"
+        },
+        {
+          "code": "smart_tv",
+          "name": "Smart TV",
+          "value": "Sì - Tizen OS"
+        },
+        {
+          "code": "warranty",
+          "name": "Garanzia",
+          "value": "2 anni"
+        },
+        {
+          "code": "origin",
+          "name": "Paese d'origine",
+          "value": "Corea del Sud"
+        },
+        {
+          "code": "vesa",
+          "name": "Supporto VESA",
+          "value": "200 x 200 mm"
+        }
+      ],
+      "related_product_ids": [1002],
+      "variant_attributes": [
+        {
+          "code": "screen_size",
+          "label": "Dimensione Schermo",
+          "options": [
+            {
+              "value": "43 pollici",
+              "label": "43 Pollici"
+            },
+            {
+              "value": "55 pollici",
+              "label": "55 Pollici"
+            },
+            {
+              "value": "65 pollici",
+              "label": "65 Pollici"
+            },
+            {
+              "value": "75 pollici",
+              "label": "75 Pollici"
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": 10031,
+          "reference": "SAMSUNG-TV-43",
+          "ean13": "880609493i43",
+          "is_active": true,
+          "attributes": {
+            "screen_size": "43 pollici"
+          },
+          "price": {
+            "list": 349.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 22
+          },
+          "images": []
+        },
+        {
+          "id": 10032,
+          "reference": "SAMSUNG-TV-55",
+          "ean13": "880609493i55",
+          "is_active": true,
+          "attributes": {
+            "screen_size": "55 pollici"
+          },
+          "price": {
+            "list": 499.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 18
+          },
+          "images": []
+        },
+        {
+          "id": 10033,
+          "reference": "SAMSUNG-TV-65",
+          "ean13": "880609493i65",
+          "is_active": true,
+          "attributes": {
+            "screen_size": "65 pollici"
+          },
+          "price": {
+            "list": 699.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 10
+          },
+          "images": []
+        },
+        {
+          "id": 10034,
+          "reference": "SAMSUNG-TV-75",
+          "ean13": "880609493i75",
+          "is_active": true,
+          "attributes": {
+            "screen_size": "75 pollici"
+          },
+          "price": {
+            "list": 949.0,
+            "currency": "EUR",
+            "discounts": "low_stock"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 5
+          },
+          "images": []
+        }
+      ],
+      "options": null
+    },
+    {
+      "id": 1004,
+      "reference": "HAIER-FRIDGE-HTR3619FNMP",
+      "ean13": "6901018167234",
+      "is_active": true,
+      "date_add": "2026-01-15T10:45:00Z",
+      "date_update": null,
+      "brand": {
+        "id": 1,
+        "name": "Haier",
+        "image": "https://example.com/brands/haier.png"
+      },
+      "tax": {
+        "id": 16,
+        "name": "Standard VAT (22%)",
+        "rate": 22.0,
+        "included_in_price": false
+      },
+      "price": {
+        "list": 599.0,
+        "currency": "EUR",
+        "discounts": "0"
+      },
+      "stock": {
+        "status": "in_stock",
+        "quantity": 12
+      },
+      "categories": [],
+      "condition": "new",
+      "title": "Haier Frigorifero 2 Porte 357 Litri",
+      "sub_title": "Frigorifero No Frost con Fresh Zone 0°C",
+      "simple_description": "Frigorifero combinato Haier da 357 litri con tecnologia Total No Frost che previene la formazione di ghiaccio. Dotato di zona Fresh Zone 0°C per conservare più a lungo carne e pesce, ripiani in vetro temperato regolabili, cassetti frutta e verdura ad alta umidità. Classe energetica F, sistema Multi Air Flow per distribuzione uniforme del freddo, display LED touch control esterno, illuminazione interna LED. Design elegante in acciaio inox antimpronta con maniglie integrate.",
+      "meta_description": "Frigorifero Haier 357L No Frost Fresh Zone 0°C Inox",
+      "images": [],
+      "features": [
+        {
+          "name": "Capacità totale",
+          "value": "357 litri"
+        },
+        {
+          "name": "Capacità frigo",
+          "value": "250 litri"
+        },
+        {
+          "name": "Capacità freezer",
+          "value": "107 litri"
+        },
+        {
+          "name": "Classe energetica",
+          "value": "F"
+        },
+        {
+          "name": "Tecnologia",
+          "value": "Total No Frost"
+        },
+        {
+          "name": "Zona speciale",
+          "value": "Fresh Zone 0°C"
+        },
+        {
+          "name": "Livello rumore",
+          "value": "39 dB"
+        },
+        {
+          "name": "Sistema raffreddamento",
+          "value": "Multi Air Flow"
+        },
+        {
+          "name": "Ripiani frigo",
+          "value": "4 ripiani in vetro temperato"
+        },
+        {
+          "name": "Cassetti freezer",
+          "value": "3 cassetti trasparenti"
+        },
+        {
+          "name": "Illuminazione",
+          "value": "LED"
+        },
+        {
+          "name": "Display",
+          "value": "Touch control LED esterno"
+        },
+        {
+          "name": "Dimensioni (L x P x A)",
+          "value": "70 x 67 x 190 cm"
+        },
+        {
+          "name": "Peso",
+          "value": "78 kg"
+        },
+        {
+          "name": "Consumo energetico",
+          "value": "278 kWh/anno"
+        }
+      ],
+      "attributes": [
+        {
+          "code": "color",
+          "name": "Colore",
+          "value": "Inox"
+        },
+        {
+          "code": "door_type",
+          "name": "Tipo porte",
+          "value": "2 porte (frigo sopra, freezer sotto)"
+        },
+        {
+          "code": "warranty",
+          "name": "Garanzia",
+          "value": "2 anni"
+        },
+        {
+          "code": "origin",
+          "name": "Paese d'origine",
+          "value": "Cina"
+        },
+        {
+          "code": "reversible_door",
+          "name": "Porta reversibile",
+          "value": "Sì"
+        }
+      ],
+      "related_product_ids": [1001, 1002],
+      "variant_attributes": [
+        {
+          "code": "capacity",
+          "label": "Capacità",
+          "options": [
+            {
+              "value": "357 litri",
+              "label": "357 Litri"
+            },
+            {
+              "value": "420 litri",
+              "label": "420 Litri"
+            }
+          ]
+        },
+        {
+          "code": "color",
+          "label": "Colore",
+          "options": [
+            {
+              "value": "Inox",
+              "label": "Inox"
+            },
+            {
+              "value": "Bianco",
+              "label": "Bianco"
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": 10041,
+          "reference": "HAIER-FRIDGE-357-INOX",
+          "ean13": "690101816INOX",
+          "is_active": true,
+          "attributes": {
+            "capacity": "357 litri",
+            "color": "Inox"
+          },
+          "price": {
+            "list": 599.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 12
+          },
+          "images": []
+        },
+        {
+          "id": 10042,
+          "reference": "HAIER-FRIDGE-357-WHITE",
+          "ean13": "690101816WHIT",
+          "is_active": true,
+          "attributes": {
+            "capacity": "357 litri",
+            "color": "Bianco"
+          },
+          "price": {
+            "list": 579.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 15
+          },
+          "images": []
+        },
+        {
+          "id": 10043,
+          "reference": "HAIER-FRIDGE-420-INOX",
+          "ean13": "690101816420X",
+          "is_active": true,
+          "attributes": {
+            "capacity": "420 litri",
+            "color": "Inox"
+          },
+          "price": {
+            "list": 749.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 8
+          },
+          "images": []
+        },
+        {
+          "id": 10044,
+          "reference": "HAIER-FRIDGE-420-WHITE",
+          "ean13": "690101816420W",
+          "is_active": true,
+          "attributes": {
+            "capacity": "420 litri",
+            "color": "Bianco"
+          },
+          "price": {
+            "list": 729.0,
+            "currency": "EUR",
+            "discounts": "0"
+          },
+          "stock": {
+            "status": "in_stock",
+            "quantity": 10
+          },
+          "images": []
+        }
+      ],
+      "options": null
+    }
+  ]
+}

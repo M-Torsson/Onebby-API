@@ -165,9 +165,6 @@ class ProductResponseFull(BaseModel):
     date_add: datetime
     date_update: Optional[datetime] = None
     
-    # Brand
-    brand: Optional[BrandSimple] = None
-    
     # Tax
     tax: TaxClassSimple
     
@@ -185,7 +182,6 @@ class ProductResponseFull(BaseModel):
     
     # Translations (language-specific)
     title: str
-    sub_title: Optional[str] = None
     simple_description: Optional[str] = None
     meta_description: Optional[str] = None
     
