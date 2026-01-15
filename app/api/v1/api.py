@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import health, users, categories, products, brands_taxes, upload, import_products
+from app.api.v1 import health, users, categories, products, brands_taxes, upload, import_products, discounts
 
 api_router = APIRouter()
 
@@ -17,6 +17,9 @@ api_router.include_router(brands_taxes.router, tags=["brands-taxes"])
 
 # Include products routes
 api_router.include_router(products.router, tags=["products"])
+
+# Include discounts routes
+api_router.include_router(discounts.router, tags=["discounts"])
 
 # Include upload routes
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
