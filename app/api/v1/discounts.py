@@ -66,8 +66,11 @@ def get_discount_campaigns(
     total_pages = (total + limit - 1) // limit
     current_page = (skip // limit) + 1
     
+    # Convert to response schemas
+    campaigns_data = [DiscountCampaignResponse.model_validate(c) for c in campaigns]
+    
     return {
-        "data": campaigns,
+        "data": campaigns_data,
         "meta": {
             "total": total,
             "skip": skip,
