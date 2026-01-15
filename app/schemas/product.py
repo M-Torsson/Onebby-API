@@ -158,8 +158,7 @@ class ProductResponseFull(BaseModel):
     
     # Basic info
     reference: str
-    ean: Optional[str] = None
-    ean13: Optional[str] = None  # legacy/backward compatibility
+    ean13: Optional[str] = None
     
     # Status
     is_active: bool
