@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.database import get_db
-from app.api.dependencies import verify_api_key
+from app.db.session import get_db
+from app.core.security.dependencies import verify_api_key
 from app.crud import discount_campaign as crud_campaign
 from app.schemas.discount_campaign import (
     DiscountCampaignCreate,
@@ -14,7 +14,7 @@ from app.schemas.discount_campaign import (
 router = APIRouter()
 
 
-@router.post("/admin/discounts", response_model=DiscountCampaignResponse, status_code=201)
+@router.post("/v1/discounts", response_model=DiscountCampaignResponse, status_code=201)
 def create_discount_campaign(
     campaign: DiscountCampaignCreate,
     db: Session = Depends(get_db),
@@ -43,7 +43,7 @@ def create_discount_campaign(
         raise HTTPException(status_code=500, detail=f"Error creating campaign: {str(e)}")
 
 
-@router.get("/admin/discounts", response_model=dict)
+@router.get("/v1/discounts", response_model=dict)
 def get_discount_campaigns(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
@@ -80,7 +80,7 @@ def get_discount_campaigns(
     }
 
 
-@router.get("/admin/discounts/{campaign_id}", response_model=DiscountCampaignResponse)
+@router.get("/v1/discounts/{campaign_id}", response_model=DiscountCampaignResponse)
 def get_discount_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
@@ -97,7 +97,7 @@ def get_discount_campaign(
     return campaign
 
 
-@router.put("/admin/discounts/{campaign_id}", response_model=DiscountCampaignResponse)
+@router.put("/v1/discounts/{campaign_id}", response_model=DiscountCampaignResponse)
 def update_discount_campaign(
     campaign_id: int,
     campaign_update: DiscountCampaignUpdate,
@@ -122,7 +122,7 @@ def update_discount_campaign(
         raise HTTPException(status_code=500, detail=f"Error updating campaign: {str(e)}")
 
 
-@router.delete("/admin/discounts/{campaign_id}", status_code=200)
+@router.delete("/v1/discounts/{campaign_id}", status_code=200)
 def delete_discount_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
@@ -146,7 +146,7 @@ def delete_discount_campaign(
     }
 
 
-@router.post("/admin/discounts/{campaign_id}/apply", response_model=ApplyCampaignResponse)
+@router.post("/v1/discounts/{campaign_id}/apply", response_model=ApplyCampaignResponse)
 def apply_discount_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
@@ -176,7 +176,7 @@ def apply_discount_campaign(
     )
 
 
-@router.post("/admin/discounts/{campaign_id}/remove", response_model=dict)
+@router.post("/v1/discounts/{campaign_id}/remove", response_model=dict)
 def remove_discount_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
