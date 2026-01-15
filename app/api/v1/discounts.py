@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db.session import get_db
-from app.core.security.dependencies import verify_api_key
+from app.core.security.api_key import verify_api_key
 from app.crud import discount_campaign as crud_campaign
 from app.schemas.discount_campaign import (
     DiscountCampaignCreate,
