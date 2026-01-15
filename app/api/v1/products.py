@@ -209,6 +209,15 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                     slug=cat_trans.slug
                 ))
     
+    # Build brand
+    brand = None
+    if product.brand:
+        brand = BrandSimple(
+            id=product.brand.id,
+            name=product.brand.name,
+            image=product.brand.image
+        )
+    
     # Build tax - with null safety
     tax = None
     if product.tax_class:
@@ -312,12 +321,14 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         is_active=product.is_active if product.is_active is not None else True,
         date_add=product.date_add,
         date_update=product.date_update,
+        brand=brand,
         tax=tax,
         price=price_response,
         stock=stock_response,
         categories=categories,
         condition=product.condition.value if product.condition else "new",
         title=translation.title or "",
+        sub_title=translation.sub_title or "",
         simple_description=strip_html_tags(translation.simple_description or ""),
         meta_description=translation.meta_description or "",
         images=images,
@@ -430,20 +441,61 @@ def get_all_products(
                 alt_text = next((alt.alt_text for alt in img.alt_texts if alt.lang == lang), "")
                 first_image = img.url
             
+            # Build tax
+            tax_data = None
+            if product.tax_class:
+                tax_data = {
+                    "id": product.tax_class.id,
+                    "name": product.tax_class.name,
+                    "rate": product.tax_class.rate,
+                    "included_in_price": product.tax_included_in_price
+                }
+            
+            # Calculate discount
+            discount_percentage = "0"
+            if product.discounts:
+                active_discounts = [d for d in product.discounts if d.is_active]
+                if active_discounts:
+                    disc = active_discounts[0]
+                    if disc.discount_type == "percentage":
+                        discount_percentage = f"{int(disc.discount_value)}%"
+                    elif disc.discount_type == "amount" and product.price_list and product.price_list > 0:
+                        percentage = (disc.discount_value / product.price_list) * 100
+                        discount_percentage = f"{int(percentage)}%"
+            
+            # Build features
+            features_list = []
+            if product.features:
+                for feat in product.features:
+                    feat_trans = next((t for t in feat.translations if t.lang == lang), None)
+                    if not feat_trans:
+                        feat_trans = next((t for t in feat.translations if t.lang == "it"), None)
+                    if feat_trans:
+                        features_list.append({
+                            "name": feat_trans.name,
+                            "value": feat_trans.value
+                        })
+            
             products_list.append({
                 "id": product.id,
                 "reference": product.reference,
                 "product_type": product.product_type.value,
                 "title": translation.title,
-                "sub_title": translation.sub_title,
-                "content": translation.simple_description,
-                "price": product.price_list,
-                "currency": product.currency,
+                "simple_description": strip_html_tags(translation.simple_description or ""),
                 "image": first_image,
-                "stock_status": product.stock_status.value,
                 "is_active": product.is_active,
-                "brand_id": product.brand_id,
-                "date_add": product.date_add
+                "date_add": product.date_add,
+                "tax": tax_data,
+                "price": {
+                    "list": product.price_list or 0.0,
+                    "currency": product.currency or "EUR",
+                    "discounts": discount_percentage
+                },
+                "stock": {
+                    "status": product.stock_status.value,
+                    "quantity": product.stock_quantity or 0
+                },
+                "features": features_list
             })
     
     # Calculate pagination metadata
