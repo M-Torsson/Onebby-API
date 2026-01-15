@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON, 
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
-from app.models.database import Base
+from app.db.session import Base
 
 
 class DiscountTypeEnum(str, enum.Enum):
