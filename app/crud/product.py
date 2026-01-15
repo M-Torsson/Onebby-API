@@ -262,7 +262,8 @@ def count_products(
     product_type: Optional[str] = None,
     category_id: Optional[int] = None,
     brand_id: Optional[int] = None,
-    active_only: bool = False
+    active_only: bool = False,
+    search: Optional[str] = None
 ) -> int:
     """Count total products with filters"""
     query = db.query(Product)
@@ -279,6 +280,13 @@ def count_products(
     if active_only:
         query = query.filter(Product.is_active == True)
     
+    if search:
+        # Search by ID or reference
+        if search.isdigit():
+            query = query.filter(Product.id == int(search))
+        else:
+            query = query.filter(Product.reference.ilike(f"%{search}%"))
+    
     return query.count()
 
 
@@ -289,7 +297,8 @@ def get_products(
     product_type: Optional[str] = None,
     category_id: Optional[int] = None,
     brand_id: Optional[int] = None,
-    active_only: bool = False
+    active_only: bool = False,
+    search: Optional[str] = None
 ) -> List[Product]:
     """Get all products with filters"""
     query = db.query(Product)
@@ -305,6 +314,13 @@ def get_products(
     
     if active_only:
         query = query.filter(Product.is_active == True)
+    
+    if search:
+        # Search by ID or reference
+        if search.isdigit():
+            query = query.filter(Product.id == int(search))
+        else:
+            query = query.filter(Product.reference.ilike(f"%{search}%"))
     
     return query.offset(skip).limit(limit).all()
 

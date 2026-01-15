@@ -385,6 +385,7 @@ def get_all_products(
     category_id: Optional[int] = None,
     brand_id: Optional[int] = None,
     active_only: bool = Query(True),
+    search: Optional[str] = Query(None),
     lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
     db: Session = Depends(get_db)
 ):
@@ -397,6 +398,7 @@ def get_all_products(
     - **category_id**: Filter by category ID
     - **brand_id**: Filter by brand ID
     - **active_only**: Show only active products - default: true
+    - **search**: Search by product ID or reference
     - **lang**: Language code (it, en, fr, de, ar) - default: it
     
     Public endpoint - No API Key required
@@ -407,7 +409,8 @@ def get_all_products(
         product_type=product_type,
         category_id=category_id,
         brand_id=brand_id,
-        active_only=active_only
+        active_only=active_only,
+        search=search
     )
     
     # Get products for current page
@@ -418,7 +421,8 @@ def get_all_products(
         product_type=product_type,
         category_id=category_id,
         brand_id=brand_id,
-        active_only=active_only
+        active_only=active_only,
+        search=search
     )
     
     # Build simple product list
