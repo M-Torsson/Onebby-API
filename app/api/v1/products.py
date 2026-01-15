@@ -148,17 +148,19 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                         ))
                 
                 # Calculate discounts
-                active_discounts = []
+                discount_percentage = "0"
                 if variant.discounts:
                     active_discounts = [d for d in variant.discounts if d.is_active]
-                discount_data = []
-                for disc in active_discounts:
-                    discount_data.append({
-                        "type": disc.discount_type,
-                        "value": disc.discount_value,
-                        "start_date": disc.start_date,
-                        "end_date": disc.end_date
-                    })
+                    if active_discounts:
+                        # Get the first active discount
+                        disc = active_discounts[0]
+                        if disc.discount_type == "percentage":
+                            discount_percentage = f"{int(disc.discount_value)}%"
+                        elif disc.discount_type == "amount":
+                            # Calculate percentage from amount
+                            if variant.price_list and variant.price_list > 0:
+                                percentage = (disc.discount_value / variant.price_list) * 100
+                                discount_percentage = f"{int(percentage)}%"
                 
                 variants.append(ProductVariantResponse(
                     id=variant.id,
@@ -169,7 +171,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                     price=PriceResponse(
                         list=variant.price_list or 0.0,
                         currency=variant.currency or "EUR",
-                        discounts=discount_data
+                        discounts=discount_percentage
                     ),
                     stock=StockResponse(
                         status=variant.stock_status.value if variant.stock_status else "out_of_stock",
@@ -272,10 +274,24 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         related_product_ids = [rp.id for rp in product.related_products]
     
     # Build price
+    discount_percentage = "0"
+    if product.discounts:
+        active_discounts = [d for d in product.discounts if d.is_active]
+        if active_discounts:
+            # Get the first active discount
+            disc = active_discounts[0]
+            if disc.discount_type == "percentage":
+                discount_percentage = f"{int(disc.discount_value)}%"
+            elif disc.discount_type == "amount":
+                # Calculate percentage from amount
+                if product.price_list and product.price_list > 0:
+                    percentage = (disc.discount_value / product.price_list) * 100
+                    discount_percentage = f"{int(percentage)}%"
+    
     price_response = PriceResponse(
         list=product.price_list or 0.0,
         currency=product.currency or "EUR",
-        discounts=[]  # Product-level discounts if needed
+        discounts=discount_percentage
     )
     
     # Build stock

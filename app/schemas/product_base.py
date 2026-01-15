@@ -181,7 +181,7 @@ class PriceResponse(BaseModel):
     """Price response"""
     list: float
     currency: str
-    discounts: List[Dict[str, Any]] = []
+    discounts: Optional[str] = "0"
 
     class Config:
         from_attributes = True
