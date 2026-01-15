@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
+import re
 from app.db.session import get_db
 from app.core.config import settings
 from app.schemas.product import (
@@ -27,6 +28,17 @@ def verify_api_key(x_api_key: str = Header(...)):
     if x_api_key != settings.API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return x_api_key
+
+
+def strip_html_tags(text: str) -> str:
+    """Remove HTML tags from text"""
+    if not text:
+        return ""
+    # Remove HTML tags
+    clean_text = re.sub(r'<[^>]+>', '', text)
+    # Replace multiple spaces/newlines with single space
+    clean_text = re.sub(r'\s+', ' ', clean_text)
+    return clean_text.strip()
 
 
 def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
@@ -317,7 +329,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         condition=product.condition.value if product.condition else "new",
         title=translation.title or "",
         sub_title=translation.sub_title or "",
-        simple_description=translation.simple_description or "",
+        simple_description=strip_html_tags(translation.simple_description or ""),
         meta_description=translation.meta_description or "",
         images=images,
         features=features,
