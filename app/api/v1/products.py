@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
@@ -315,7 +319,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
     # Build final response
     response_data = ProductResponseFull(
         id=product.id,
-        # product_type=product.product_type.value if product.product_type else "simple",  # مخفي مؤقتاً
+        # product_type=product.product_type.value if product.product_type else "simple",  #  
         reference=product.reference or "",
         ean13=product.ean or "",
         is_active=product.is_active if product.is_active is not None else True,

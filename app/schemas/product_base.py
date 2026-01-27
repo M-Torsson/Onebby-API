@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime

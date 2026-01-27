@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 import logging
 import sys
 from pathlib import Path

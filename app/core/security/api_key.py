@@ -1,8 +1,12 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from fastapi import Security, HTTPException, status
 from fastapi.security import APIKeyHeader
 from app.core.config import settings
 
-# API Key في الـ Header
+# API Key   Header
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
 
 

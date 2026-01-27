@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 """Add description to category translations
 
 Revision ID: dba48fca0ea5

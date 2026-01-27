@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 def test_root_endpoint(client):
     """Test root endpoint"""
     response = client.get("/")

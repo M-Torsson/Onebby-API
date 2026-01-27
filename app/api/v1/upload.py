@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from fastapi import APIRouter, Depends, HTTPException, Header, File, UploadFile, Form
 from typing import List, Optional
 import cloudinary

@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
@@ -154,7 +158,7 @@ class ProductUpdate(BaseModel):
 class ProductResponseFull(BaseModel):
     """Full product response (GET request)"""
     id: int
-    # product_type: str  # مخفي مؤقتاً - Hidden temporarily
+    # product_type: str  #   - Hidden temporarily
     
     # Basic info
     reference: str

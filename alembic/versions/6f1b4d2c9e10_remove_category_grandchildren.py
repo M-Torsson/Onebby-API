@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 """Remove category grandchildren (max depth=2)
 
 Revision ID: 6f1b4d2c9e10

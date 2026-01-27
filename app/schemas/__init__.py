@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from app.schemas.user import UserCreate, LoginRequest, UserResponse, Token
 from app.schemas.health import HealthResponse
 from app.schemas.category import (

@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from fastapi import APIRouter
 from app.api.v1 import health, users, categories, products, brands_taxes, upload, import_products, discounts
 

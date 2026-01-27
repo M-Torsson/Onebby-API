@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 """Product enrichment import (fill missing fields using EAN as key)."""
 from __future__ import annotations
 

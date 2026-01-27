@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

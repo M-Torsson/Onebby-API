@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from typing import Optional, List, Tuple
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session, joinedload, aliased
@@ -299,7 +303,6 @@ def create_default_translations(db: Session, category: Category):
                 # Italian is the source, use original name
                 translated_name = category.name
                 translated_slug = category.slug
-                print(f"   → {lang_code}: {translated_name} (original)")
             else:
                 # Translate to target language using GoogleTranslator
                 try:
@@ -307,10 +310,8 @@ def create_default_translations(db: Session, category: Category):
                         source='it',
                         target=target_lang
                     ).translate(category.name)
-                    print(f"   → {lang_code}: {translated_name} (translated)")
                 except Exception as trans_error:
                     # If translation fails, use original name
-                    print(f"   ⚠ {lang_code}: Translation failed, using original name - {trans_error}")
                     translated_name = category.name
                 
                 # For Arabic, keep the Arabic text in slug (don't transliterate)
@@ -332,7 +333,6 @@ def create_default_translations(db: Session, category: Category):
         
         except Exception as e:
             # Fallback to original name if translation fails
-            print(f"   ✗ {lang_code}: Error creating translation - {e}")
             translation = CategoryTranslation(
                 category_id=category.id,
                 lang=lang_code,
@@ -344,7 +344,6 @@ def create_default_translations(db: Session, category: Category):
             translations_created.append(f"{lang_code} (fallback)")
     
     db.commit()
-    print(f"   ✓ Total translations created: {len(translations_created)} - {', '.join(translations_created)}")
     
     # Reload category with translations
     db.refresh(category)

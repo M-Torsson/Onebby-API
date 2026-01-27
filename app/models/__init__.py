@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from app.models.user import User
 from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand

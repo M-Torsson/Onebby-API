@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session, joinedload
 from deep_translator import GoogleTranslator

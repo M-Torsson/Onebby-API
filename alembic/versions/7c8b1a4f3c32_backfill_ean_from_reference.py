@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 """Backfill EAN from reference and ensure index
 
 Revision ID: 7c8b1a4f3c32

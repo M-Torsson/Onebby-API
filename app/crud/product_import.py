@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 """
 Product Import CRUD Operations
 Handles upsert logic and database operations for product imports

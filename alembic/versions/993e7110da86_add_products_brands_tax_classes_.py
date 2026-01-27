@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 """Add products, brands, tax classes, variants, and all related tables
 
 Revision ID: 993e7110da86

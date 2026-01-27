@@ -1,3 +1,7 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List, Optional
