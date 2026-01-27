@@ -27,12 +27,12 @@ class Settings(BaseSettings):
     DB_POOL_PRE_PING: bool = True  # Test connections before using
     
     # Security Configuration
-    SECRET_KEY: str = "your-secret-key-here-change-in-production"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # API Key for additional security (optional)
-    API_KEY: str = "your-api-key-here-change-in-production"
+    API_KEY: str
     
     # Cloudinary Configuration (required for image uploads)
     CLOUDINARY_CLOUD_NAME: str
