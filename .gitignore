@@ -56,7 +56,7 @@ Thumbs.db
 
 # Test and utility scripts
 test_*.py
-check_*.py
+# check_*.py  # Commented out to allow check_credentials.py
 add_*.py
 delete_*.py
 fix_*.py
@@ -64,7 +64,7 @@ update_*.py
 move_*.py
 create_*.py
 import_*.py
-export_*.py
+# export_*.py  # Commented out to allow clean export_categories.py with env vars
 verify_*.py
 analyze_*.py
 compare_*.py
@@ -101,4 +101,19 @@ CATEGORY_FIX.md
 CATEGORIES_API.md
 API_KEY_USAGE.md
 API_CHANGELOG.md
+CLEANUP_STEPS.md
+GIT_COMMANDS.md
+SECURITY_NOTICE.md
+DEPLOYMENT_RENDER.md
+DEPLOY_NOW.md
+DUPLICATE_CATEGORIES_REPORT.md
+FINAL_SOLUTION.md
+FRONTEND_FAQ.md
+IMPORT_API.md
+IMPORT_QUICKSTART.md
+IMPORT_VERIFICATION.md
+PRODUCTS_API.md
+RENDER_DEPLOY_FIX.md
+RENDER_SETUP.md
+TEST_CATEGORY_README.md
 
