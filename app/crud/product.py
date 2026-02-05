@@ -556,14 +556,14 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
     
     # Handle variants update (for configurable products only)
     if "variants" in update_data:
-        if product.product_type != ProductType.CONFIGURABLE:
-            raise ValueError("Only configurable products can have variants")
-        
         variants_data = update_data.pop("variants")
-        # Delete existing variants
-        db.query(ProductVariant).filter(ProductVariant.parent_product_id == product_id).delete()
-        # Create new variants
-        create_product_variants(db, product, [v.dict() if hasattr(v, 'dict') else v for v in variants_data])
+        
+        # Only process variants for configurable products, ignore for others
+        if product.product_type == ProductType.CONFIGURABLE and variants_data:
+            # Delete existing variants
+            db.query(ProductVariant).filter(ProductVariant.parent_product_id == product_id).delete()
+            # Create new variants
+            create_product_variants(db, product, [v.dict() if hasattr(v, 'dict') else v for v in variants_data])
     
     # Update simple fields
     for field, value in update_data.items():
