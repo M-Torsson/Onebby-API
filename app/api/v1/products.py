@@ -4,7 +4,9 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional, Dict, Any
+from collections import defaultdict
 import re
 from app.db.session import get_db
 from app.core.config import settings
@@ -20,6 +22,8 @@ from app.schemas.product_base import (
 from app.schemas.brand_tax import BrandSimple, TaxClassSimple
 from app.crud import product as crud_product
 from app.models.product import Product
+from app.models.product_translation import ProductTranslation
+from app.models.category import Category
 
 
 router = APIRouter()
@@ -733,8 +737,6 @@ def process_duplicates_and_categorize(
     
     Requires X-API-Key header for authentication
     """
-    from collections import defaultdict
-    from sqlalchemy import func
     
     report = {
         'total_products_initial': 0,
@@ -866,7 +868,6 @@ def process_duplicates_and_categorize(
         report['furniture_count'] = len(furniture)
         
         # Step 6: Get new categories
-        from app.models.category import Category
         new_categories = db.query(Category).filter(Category.is_active == True).all()
         
         # Create mapping from old category names to new category IDs
@@ -922,3 +923,160 @@ def process_duplicates_and_categorize(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+@router.get("/admin/products/search-by-title")
+def search_products_by_title(
+    title: str = Query(..., min_length=1, description="Search term for product title"),
+    lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Search products by title (case-insensitive partial match)
+    
+    - **title**: Search term
+    - **lang**: Language code for translations - default: it
+    - **limit**: Maximum results - default: 20
+    
+    Requires X-API-Key header for authentication
+    """
+    
+    # Search in translations
+    translations = db.query(ProductTranslation).filter(
+        ProductTranslation.lang == lang,
+        ProductTranslation.title.ilike(f'%{title}%')
+    ).limit(limit).all()
+    
+    results = []
+    for trans in translations:
+        product = db.query(Product).filter(Product.id == trans.product_id).first()
+        if product:
+            results.append({
+                "id": product.id,
+                "reference": product.reference,
+                "ean": product.ean,
+                "title": trans.title,
+                "sub_title": trans.sub_title,
+                "is_active": product.is_active,
+                "stock_quantity": product.stock_quantity,
+                "stock_status": product.stock_status.value if product.stock_status else None,
+                "price_list": product.price_list,
+                "currency": product.currency,
+                "brand_id": product.brand_id,
+                "product_type": product.product_type.value if product.product_type else None
+            })
+    
+    return {
+        "total": len(results),
+        "search_term": title,
+        "lang": lang,
+        "results": results
+    }
+
+
+@router.get("/v1/products/search")
+def quick_search_products(
+    q: str = Query(..., min_length=1, description="Search term (ID, title, or reference)"),
+    lang: str = Query("it", regex="^(it|en|fr|de|ar)$"),
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db)
+):
+    """
+    Quick search for products by ID, title, or reference
+    
+    - **q**: Search term (product ID, title, or reference)
+    - **lang**: Language code for translations - default: it
+    - **limit**: Maximum results - default: 10
+    
+    Public endpoint - No API Key required
+    """
+    
+    results = []
+    search_type = None
+    
+    # Check if search term is a number (ID search)
+    if q.isdigit():
+        search_type = "id"
+        product = db.query(Product).filter(Product.id == int(q)).first()
+        if product:
+            translation = next((t for t in product.translations if t.lang == lang), None)
+            if not translation and product.translations:
+                translation = product.translations[0]
+            
+            if translation:
+                results.append({
+                    "id": product.id,
+                    "reference": product.reference,
+                    "ean": product.ean,
+                    "title": translation.title,
+                    "sub_title": translation.sub_title,
+                    "is_active": product.is_active,
+                    "stock_quantity": product.stock_quantity,
+                    "stock_status": product.stock_status.value if product.stock_status else None,
+                    "price_list": product.price_list,
+                    "currency": product.currency,
+                    "brand_id": product.brand_id,
+                    "product_type": product.product_type.value if product.product_type else None
+                })
+    else:
+        # Search by title
+        search_type = "title_or_reference"
+        translations = db.query(ProductTranslation).filter(
+            ProductTranslation.lang == lang,
+            ProductTranslation.title.ilike(f'%{q}%')
+        ).limit(limit).all()
+        
+        for trans in translations:
+            product = db.query(Product).filter(Product.id == trans.product_id).first()
+            if product:
+                results.append({
+                    "id": product.id,
+                    "reference": product.reference,
+                    "ean": product.ean,
+                    "title": trans.title,
+                    "sub_title": trans.sub_title,
+                    "is_active": product.is_active,
+                    "stock_quantity": product.stock_quantity,
+                    "stock_status": product.stock_status.value if product.stock_status else None,
+                    "price_list": product.price_list,
+                    "currency": product.currency,
+                    "brand_id": product.brand_id,
+                    "product_type": product.product_type.value if product.product_type else None
+                })
+        
+        # If no results from title search, search by reference
+        if not results:
+            products = db.query(Product).filter(
+                Product.reference.ilike(f'%{q}%')
+            ).limit(limit).all()
+            
+            for product in products:
+                translation = next((t for t in product.translations if t.lang == lang), None)
+                if not translation and product.translations:
+                    translation = product.translations[0]
+                
+                if translation:
+                    results.append({
+                        "id": product.id,
+                        "reference": product.reference,
+                        "ean": product.ean,
+                        "title": translation.title,
+                        "sub_title": translation.sub_title,
+                        "is_active": product.is_active,
+                        "stock_quantity": product.stock_quantity,
+                        "stock_status": product.stock_status.value if product.stock_status else None,
+                        "price_list": product.price_list,
+                        "currency": product.currency,
+                        "brand_id": product.brand_id,
+                        "product_type": product.product_type.value if product.product_type else None
+                    })
+    
+    return {
+        "total": len(results),
+        "search_term": q,
+        "search_type": search_type,
+        "lang": lang,
+        "results": results
+    }
