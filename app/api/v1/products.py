@@ -21,8 +21,7 @@ from app.schemas.product_base import (
 )
 from app.schemas.brand_tax import BrandSimple, TaxClassSimple
 from app.crud import product as crud_product
-from app.models.product import Product
-from app.models.product_translation import ProductTranslation
+from app.models.product import Product, ProductTranslation
 from app.models.category import Category
 
 
