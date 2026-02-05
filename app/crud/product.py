@@ -362,7 +362,7 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
     product = Product(
         product_type=product_data.product_type,
         reference=product_data.reference,
-        ean13=product_data.ean13,
+        ean=product_data.ean,
         is_active=product_data.is_active,
         condition=product_data.condition,
         brand_id=product_data.brand_id,
