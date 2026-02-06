@@ -8,6 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 from app.models.discount_campaign import DiscountCampaign, TargetTypeEnum
 from app.models.product import Product, ProductDiscount
+from app.models.category import Category
 from app.schemas.discount_campaign import DiscountCampaignCreate, DiscountCampaignUpdate
 
 
