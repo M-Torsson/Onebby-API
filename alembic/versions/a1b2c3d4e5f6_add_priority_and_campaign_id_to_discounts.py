@@ -5,7 +5,7 @@
 """add_priority_and_campaign_id_to_discounts
 
 Revision ID: a1b2c3d4e5f6
-Revises: 66552411929d
+Revises: f8d09aa8411a
 Create Date: 2026-02-06 00:00:00.000000
 
 """
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a1b2c3d4e5f6'
-down_revision: Union[str, None] = '66552411929d'
+down_revision: Union[str, None] = 'f8d09aa8411a'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
