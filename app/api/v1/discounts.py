@@ -35,11 +35,21 @@ def create_discount_campaign(
     - **start_date**: Start date (optional)
     - **end_date**: End date (optional)
     - **is_active**: Active status (default: true)
+    - **auto_apply**: Auto-apply to products after creation (default: true)
     
     Requires X-API-Key header for authentication
     """
     try:
+        # Create campaign
         db_campaign = crud_campaign.create_campaign(db, campaign)
+        
+        # Auto-apply if requested and campaign is active
+        if campaign.auto_apply and campaign.is_active:
+            apply_result = crud_campaign.apply_campaign_to_products(db, db_campaign.id)
+            if not apply_result.get("success"):
+                # Log warning but don't fail campaign creation
+                print(f"Warning: Failed to auto-apply campaign: {apply_result.get('message')}")
+        
         return db_campaign
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

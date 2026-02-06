@@ -37,6 +37,7 @@ class DiscountCampaignCreate(BaseModel):
     end_date: Optional[datetime] = None
     
     is_active: bool = True
+    auto_apply: bool = True  # Auto-apply campaign to products after creation
 
     @field_validator('discount_value')
     @classmethod

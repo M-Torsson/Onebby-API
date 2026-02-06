@@ -117,13 +117,27 @@ def apply_campaign_to_products(db: Session, campaign_id: int) -> dict:
         ).all()
     
     elif campaign.target_type == TargetTypeEnum.CATEGORY:
-        # Products in category
+        # Products in category (including all subcategories)
         if not campaign.target_ids or len(campaign.target_ids) == 0:
             return {"success": False, "message": "No target category specified"}
         
         category_id = campaign.target_ids[0]
+        
+        # Get all subcategories recursively
+        def get_all_subcategory_ids(cat_id, db_session):
+            """Recursively get all subcategory IDs"""
+            from app.models.category import Category
+            category_ids = [cat_id]
+            children = db_session.query(Category).filter(Category.parent_id == cat_id).all()
+            for child in children:
+                category_ids.extend(get_all_subcategory_ids(child.id, db_session))
+            return category_ids
+        
+        all_category_ids = get_all_subcategory_ids(category_id, db)
+        
+        # Get products from all categories (parent + all subcategories)
         products = db.query(Product).join(Product.categories).filter(
-            Product.categories.any(id=category_id),
+            Product.categories.any(Category.id.in_(all_category_ids)),
             Product.is_active == True
         ).all()
     
@@ -197,8 +211,22 @@ def remove_campaign_discounts(db: Session, campaign_id: int) -> dict:
         products = db.query(Product).filter(Product.id.in_(campaign.target_ids)).all()
     elif campaign.target_type == TargetTypeEnum.CATEGORY:
         category_id = campaign.target_ids[0]
+        
+        # Get all subcategories recursively
+        def get_all_subcategory_ids(cat_id, db_session):
+            """Recursively get all subcategory IDs"""
+            from app.models.category import Category
+            category_ids = [cat_id]
+            children = db_session.query(Category).filter(Category.parent_id == cat_id).all()
+            for child in children:
+                category_ids.extend(get_all_subcategory_ids(child.id, db_session))
+            return category_ids
+        
+        all_category_ids = get_all_subcategory_ids(category_id, db)
+        
+        # Get products from all categories (parent + all subcategories)
         products = db.query(Product).join(Product.categories).filter(
-            Product.categories.any(id=category_id)
+            Product.categories.any(Category.id.in_(all_category_ids))
         ).all()
     elif campaign.target_type == TargetTypeEnum.BRAND:
         brand_id = campaign.target_ids[0]
