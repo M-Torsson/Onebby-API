@@ -82,11 +82,17 @@ def update_campaign(
 
 
 def delete_campaign(db: Session, campaign_id: int) -> bool:
-    """Delete a campaign"""
+    """Delete a campaign and all its applied discounts"""
     db_campaign = get_campaign(db, campaign_id)
     if not db_campaign:
         return False
     
+    # First, delete all product discounts linked to this campaign
+    db.query(ProductDiscount).filter(
+        ProductDiscount.campaign_id == campaign_id
+    ).delete(synchronize_session=False)
+    
+    # Then delete the campaign itself
     db.delete(db_campaign)
     db.commit()
     return True

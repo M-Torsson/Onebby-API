@@ -148,8 +148,7 @@ def delete_discount_campaign(
     """
     Delete a discount campaign
     
-    Note: This will NOT remove discounts already applied to products.
-    Use POST /admin/discounts/{campaign_id}/remove first if needed.
+    This will automatically remove all discounts applied to products by this campaign.
     
     Requires X-API-Key header for authentication
     """
@@ -158,7 +157,7 @@ def delete_discount_campaign(
         raise HTTPException(status_code=404, detail="Campaign not found")
     
     return {
-        "message": "Campaign deleted successfully",
+        "message": "Campaign and all its applied discounts deleted successfully",
         "campaign_id": campaign_id
     }
 
