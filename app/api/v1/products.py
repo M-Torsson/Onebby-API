@@ -166,19 +166,22 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                             alt=alt_text
                         ))
                 
-                # Calculate discounts
+                # Calculate discounts - Get best discount based on priority
                 discount_percentage = "0"
                 if variant.discounts:
                     active_discounts = [d for d in variant.discounts if d.is_active]
                     if active_discounts:
-                        # Get the first active discount
-                        disc = active_discounts[0]
-                        if disc.discount_type == "percentage":
-                            discount_percentage = f"{int(disc.discount_value)}%"
-                        elif disc.discount_type == "amount":
+                        # Sort by priority (desc) then by discount_value (desc)
+                        # Higher priority wins, if equal priority then higher discount wins
+                        best_discount = max(active_discounts, 
+                                          key=lambda d: (d.priority, d.discount_value))
+                        
+                        if best_discount.discount_type == "percentage":
+                            discount_percentage = f"{int(best_discount.discount_value)}%"
+                        elif best_discount.discount_type == "amount":
                             # Calculate percentage from amount
                             if variant.price_list and variant.price_list > 0:
-                                percentage = (disc.discount_value / variant.price_list) * 100
+                                percentage = (best_discount.discount_value / variant.price_list) * 100
                                 discount_percentage = f"{int(percentage)}%"
                 
                 variants.append(ProductVariantResponse(
@@ -292,19 +295,22 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
     if product.related_products:
         related_product_ids = [rp.id for rp in product.related_products]
     
-    # Build price
+    # Build price - Get best discount based on priority
     discount_percentage = "0"
     if product.discounts:
         active_discounts = [d for d in product.discounts if d.is_active]
         if active_discounts:
-            # Get the first active discount
-            disc = active_discounts[0]
-            if disc.discount_type == "percentage":
-                discount_percentage = f"{int(disc.discount_value)}%"
-            elif disc.discount_type == "amount":
+            # Sort by priority (desc) then by discount_value (desc)
+            # Higher priority wins, if equal priority then higher discount wins
+            best_discount = max(active_discounts, 
+                              key=lambda d: (d.priority, d.discount_value))
+            
+            if best_discount.discount_type == "percentage":
+                discount_percentage = f"{int(best_discount.discount_value)}%"
+            elif best_discount.discount_type == "amount":
                 # Calculate percentage from amount
                 if product.price_list and product.price_list > 0:
-                    percentage = (disc.discount_value / product.price_list) * 100
+                    percentage = (best_discount.discount_value / product.price_list) * 100
                     discount_percentage = f"{int(percentage)}%"
     
     price_response = PriceResponse(

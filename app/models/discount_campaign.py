@@ -46,6 +46,9 @@ class DiscountCampaign(Base):
     # Status
     is_active = Column(Boolean, default=True)
     
+    # Priority (higher number = higher priority)
+    priority = Column(Integer, default=1, nullable=False)
+    
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

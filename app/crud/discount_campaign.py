@@ -155,28 +155,32 @@ def apply_campaign_to_products(db: Session, campaign_id: int) -> dict:
     if not products:
         return {"success": False, "message": "No products found matching criteria"}
     
-    # Apply discount to products
+    # Apply discount to products with priority handling
     products_updated = 0
     
     for product in products:
-        # Check if discount already exists for this product from this campaign
-        existing_discount = db.query(ProductDiscount).filter(
+        # Check if discount already exists for this specific campaign
+        existing_campaign_discount = db.query(ProductDiscount).filter(
             ProductDiscount.product_id == product.id,
+            ProductDiscount.campaign_id == campaign.id,
             ProductDiscount.is_active == True
         ).first()
         
-        if existing_discount:
-            # Update existing discount
-            existing_discount.discount_type = campaign.discount_type.value
-            existing_discount.discount_value = campaign.discount_value
-            existing_discount.start_date = campaign.start_date
-            existing_discount.end_date = campaign.end_date
+        if existing_campaign_discount:
+            # Update existing discount from same campaign
+            existing_campaign_discount.discount_type = campaign.discount_type.value
+            existing_campaign_discount.discount_value = campaign.discount_value
+            existing_campaign_discount.priority = campaign.priority
+            existing_campaign_discount.start_date = campaign.start_date
+            existing_campaign_discount.end_date = campaign.end_date
         else:
-            # Create new discount
+            # Create new discount (will coexist with other campaigns)
             new_discount = ProductDiscount(
                 product_id=product.id,
                 discount_type=campaign.discount_type.value,
                 discount_value=campaign.discount_value,
+                campaign_id=campaign.id,
+                priority=campaign.priority,
                 start_date=campaign.start_date,
                 end_date=campaign.end_date,
                 is_active=campaign.is_active

@@ -292,6 +292,10 @@ class ProductDiscount(Base):
     discount_type = Column(String(20), nullable=False)  # "percentage" or "fixed"
     discount_value = Column(Float, nullable=False)
     
+    # Campaign tracking
+    campaign_id = Column(Integer, ForeignKey("discount_campaigns.id", ondelete="SET NULL"), nullable=True)
+    priority = Column(Integer, default=1, nullable=False)
+    
     start_date = Column(DateTime(timezone=True), nullable=True)
     end_date = Column(DateTime(timezone=True), nullable=True)
     

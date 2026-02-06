@@ -38,6 +38,7 @@ class DiscountCampaignCreate(BaseModel):
     
     is_active: bool = True
     auto_apply: bool = True  # Auto-apply campaign to products after creation
+    priority: int = Field(default=1, ge=1, le=10)  # Priority level (1-10, higher = more important)
 
     @field_validator('discount_value')
     @classmethod
@@ -82,6 +83,7 @@ class DiscountCampaignUpdate(BaseModel):
     end_date: Optional[datetime] = None
     
     is_active: Optional[bool] = None
+    priority: Optional[int] = Field(None, ge=1, le=10)
 
 
 # ============= Response Schema =============
@@ -102,6 +104,7 @@ class DiscountCampaignResponse(BaseModel):
     end_date: Optional[datetime] = None
     
     is_active: bool
+    priority: int
     
     created_at: datetime
     updated_at: Optional[datetime] = None
