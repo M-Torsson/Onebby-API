@@ -464,16 +464,20 @@ def get_all_products(
                     "included_in_price": product.tax_included_in_price
                 }
             
-            # Calculate discount
+            # Calculate discount - Get best discount based on priority
             discount_percentage = "0"
             if product.discounts:
                 active_discounts = [d for d in product.discounts if d.is_active]
                 if active_discounts:
-                    disc = active_discounts[0]
-                    if disc.discount_type == "percentage":
-                        discount_percentage = f"{int(disc.discount_value)}%"
-                    elif disc.discount_type == "amount" and product.price_list and product.price_list > 0:
-                        percentage = (disc.discount_value / product.price_list) * 100
+                    # Sort by priority (desc) then by discount_value (desc)
+                    # Higher priority wins, if equal priority then higher discount wins
+                    best_discount = max(active_discounts, 
+                                      key=lambda d: (d.priority, d.discount_value))
+                    
+                    if best_discount.discount_type == "percentage":
+                        discount_percentage = f"{int(best_discount.discount_value)}%"
+                    elif best_discount.discount_type == "amount" and product.price_list and product.price_list > 0:
+                        percentage = (best_discount.discount_value / product.price_list) * 100
                         discount_percentage = f"{int(percentage)}%"
             
             # Build features
@@ -487,6 +491,20 @@ def get_all_products(
                         features_list.append({
                             "name": feat_trans.name,
                             "value": feat_trans.value
+                        })
+            
+            # Build attributes
+            attributes_list = []
+            if product.attributes:
+                for attr in product.attributes:
+                    attr_trans = next((t for t in attr.translations if t.lang == lang), None)
+                    if not attr_trans:
+                        attr_trans = next((t for t in attr.translations if t.lang == "it"), None)
+                    if attr_trans:
+                        attributes_list.append({
+                            "code": attr.code,
+                            "name": attr_trans.name,
+                            "value": attr_trans.value
                         })
             
             products_list.append({
@@ -508,7 +526,8 @@ def get_all_products(
                     "status": product.stock_status.value,
                     "quantity": product.stock_quantity or 0
                 },
-                "features": features_list
+                "features": features_list,
+                "attributes": attributes_list
             })
     
     # Calculate pagination metadata
