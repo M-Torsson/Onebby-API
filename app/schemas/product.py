@@ -175,10 +175,10 @@ class ProductResponseFull(BaseModel):
     is_active: bool
     date_add: datetime
     date_update: Optional[datetime] = None
-    Delivery
+    
+    # Delivery
     delivery_id: Optional[int] = None
     
-    # 
     # Brand
     brand: Optional[BrandSimple] = None
     
