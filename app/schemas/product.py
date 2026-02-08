@@ -16,6 +16,7 @@ from app.schemas.product_base import (
     PriceResponse, StockResponse, CategorySimple
 )
 from app.schemas.brand_tax import BrandSimple, TaxClassSimple
+from app.schemas.delivery import DeliverySimple
 
 
 # ============= Product Create Schema =============
@@ -35,6 +36,9 @@ class ProductCreate(BaseModel):
     
     # Brand
     brand_id: Optional[int] = None
+    
+    # Delivery
+    delivery_id: Optional[int] = None
     
     # Tax (optional - will use default tax class if not provided)
     tax: Optional[TaxInput] = None
@@ -110,6 +114,9 @@ class ProductUpdate(BaseModel):
     # Brand
     brand_id: Optional[int] = None
     
+    # Delivery
+    delivery_id: Optional[int] = None
+    
     # Tax
     tax_class_id: Optional[int] = None
     tax_included_in_price: Optional[bool] = None
@@ -168,7 +175,10 @@ class ProductResponseFull(BaseModel):
     is_active: bool
     date_add: datetime
     date_update: Optional[datetime] = None
+    Delivery
+    delivery_id: Optional[int] = None
     
+    # 
     # Brand
     brand: Optional[BrandSimple] = None
     

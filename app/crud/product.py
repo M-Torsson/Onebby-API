@@ -353,6 +353,13 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
         if not brand:
             raise ValueError("Brand not found")
     
+    # Validate delivery if provided
+    if product_data.delivery_id:
+        from app.models.delivery import Delivery
+        delivery = db.query(Delivery).filter(Delivery.id == product_data.delivery_id).first()
+        if not delivery:
+            raise ValueError("Delivery not found")
+    
     # Validate categories
     categories = db.query(Category).filter(Category.id.in_(product_data.categories)).all()
     if len(categories) != len(product_data.categories):
@@ -366,6 +373,7 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
         is_active=product_data.is_active,
         condition=product_data.condition,
         brand_id=product_data.brand_id,
+        delivery_id=product_data.delivery_id,
         tax_class_id=tax_class_id,
         tax_included_in_price=tax_included,
         price_list=product_data.price.list,
@@ -477,6 +485,13 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
         brand = db.query(Brand).filter(Brand.id == update_data["brand_id"]).first()
         if not brand:
             raise ValueError("Brand not found")
+    
+    # Handle delivery update
+    if "delivery_id" in update_data and update_data["delivery_id"]:
+        from app.models.delivery import Delivery
+        delivery = db.query(Delivery).filter(Delivery.id == update_data["delivery_id"]).first()
+        if not delivery:
+            raise ValueError("Delivery not found")
     
     # Handle translations update (replace all)
     if "translations" in update_data:

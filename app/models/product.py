@@ -90,6 +90,7 @@ class Product(Base):
     # Foreign keys
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
     tax_class_id = Column(Integer, ForeignKey("tax_classes.id"), nullable=False)
+    delivery_id = Column(Integer, ForeignKey("deliveries.id"), nullable=True)
     
     # Tax settings
     tax_included_in_price = Column(Boolean, default=True)
@@ -114,6 +115,7 @@ class Product(Base):
     # Relationships
     brand = relationship("Brand", back_populates="products")
     tax_class = relationship("TaxClass", back_populates="products")
+    delivery = relationship("Delivery", back_populates="products")
     categories = relationship("Category", secondary=product_categories, backref="products")
     translations = relationship("ProductTranslation", back_populates="product", cascade="all, delete-orphan")
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan", order_by="ProductImage.position")

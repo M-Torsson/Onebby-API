@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand
 from app.models.tax_class import TaxClass
+from app.models.delivery import Delivery, DeliveryTranslation
 from app.models.product import (
     Product, ProductTranslation, ProductImage, ProductImageAlt,
     ProductFeature, ProductFeatureTranslation,
@@ -21,6 +22,7 @@ __all__ = [
     "User",
     "Category", "CategoryTranslation",
     "Brand", "TaxClass",
+    "Delivery", "DeliveryTranslation",
     "Product", "ProductTranslation", "ProductImage", "ProductImageAlt",
     "ProductFeature", "ProductFeatureTranslation",
     "ProductAttribute", "ProductAttributeTranslation",
