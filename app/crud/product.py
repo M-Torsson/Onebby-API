@@ -240,11 +240,12 @@ def create_product_variants(db: Session, product: Product, variants_data: List[d
 
 def get_product(db: Session, product_id: int, lang: Optional[str] = None) -> Optional[Product]:
     """Get product by ID with all relationships"""
+    from app.models.delivery import Delivery
     product = db.query(Product).options(
         joinedload(Product.brand),
         joinedload(Product.tax_class),
         joinedload(Product.delivery),
-        joinedload(Product.categories),
+        joinedload(Product.categories).joinedload(Category.deliveries),
         joinedload(Product.translations),
         joinedload(Product.images).joinedload(ProductImage.alt_texts),
         joinedload(Product.features).joinedload(ProductFeature.translations),

@@ -231,6 +231,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
     # Build delivery
     delivery = None
     if product.delivery:
+        # Product has direct delivery assigned
         from app.schemas.delivery import DeliverySimple
         delivery = DeliverySimple(
             id=product.delivery.id,
@@ -238,6 +239,22 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
             days_to=product.delivery.days_to,
             is_free_delivery=product.delivery.is_free_delivery
         )
+    elif product.categories:
+        # Check if any category has a delivery assigned
+        from app.models.delivery import Delivery
+        for category in product.categories:
+            if category.deliveries:
+                # Use the first active delivery found for this category
+                active_delivery = next((d for d in category.deliveries if d.is_active), None)
+                if active_delivery:
+                    from app.schemas.delivery import DeliverySimple
+                    delivery = DeliverySimple(
+                        id=active_delivery.id,
+                        days_from=active_delivery.days_from,
+                        days_to=active_delivery.days_to,
+                        is_free_delivery=active_delivery.is_free_delivery
+                    )
+                    break  # Use first found delivery
     
     # Build tax - with null safety
     tax = None
