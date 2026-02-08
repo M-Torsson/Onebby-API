@@ -176,11 +176,11 @@ class ProductResponseFull(BaseModel):
     date_add: datetime
     date_update: Optional[datetime] = None
     
-    # Delivery
-    delivery_id: Optional[int] = None
-    
     # Brand
     brand: Optional[BrandSimple] = None
+    
+    # Delivery
+    delivery: Optional[DeliverySimple] = None
     
     # Tax
     tax: TaxClassSimple

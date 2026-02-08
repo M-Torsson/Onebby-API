@@ -228,6 +228,17 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
             image=product.brand.image
         )
     
+    # Build delivery
+    delivery = None
+    if product.delivery:
+        from app.schemas.delivery import DeliverySimple
+        delivery = DeliverySimple(
+            id=product.delivery.id,
+            days_from=product.delivery.days_from,
+            days_to=product.delivery.days_to,
+            is_free_delivery=product.delivery.is_free_delivery
+        )
+    
     # Build tax - with null safety
     tax = None
     if product.tax_class:
@@ -335,6 +346,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         date_add=product.date_add,
         date_update=product.date_update,
         brand=brand,
+        delivery=delivery,
         tax=tax,
         price=price_response,
         stock=stock_response,

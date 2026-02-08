@@ -243,6 +243,7 @@ def get_product(db: Session, product_id: int, lang: Optional[str] = None) -> Opt
     product = db.query(Product).options(
         joinedload(Product.brand),
         joinedload(Product.tax_class),
+        joinedload(Product.delivery),
         joinedload(Product.categories),
         joinedload(Product.translations),
         joinedload(Product.images).joinedload(ProductImage.alt_texts),
