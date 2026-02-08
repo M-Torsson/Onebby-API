@@ -137,7 +137,19 @@ def update_delivery(db: Session, delivery_id: int, delivery_data: DeliveryUpdate
 
 
 def delete_delivery(db: Session, delivery_id: int) -> bool:
-    """Delete a delivery option (soft delete by setting is_active to False)"""
+    """Permanently delete a delivery option"""
+    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+    if not delivery:
+        return False
+    
+    # Hard delete - permanently remove from database
+    db.delete(delivery)
+    db.commit()
+    return True
+
+
+def soft_delete_delivery(db: Session, delivery_id: int) -> bool:
+    """Soft delete a delivery option (set is_active to False)"""
     delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
     if not delivery:
         return False
@@ -146,17 +158,5 @@ def delete_delivery(db: Session, delivery_id: int) -> bool:
     delivery.is_active = False
     delivery.updated_at = datetime.utcnow()
     
-    db.commit()
-    return True
-
-
-def hard_delete_delivery(db: Session, delivery_id: int) -> bool:
-    """Permanently delete a delivery option"""
-    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
-    if not delivery:
-        return False
-    
-    # Hard delete - permanently remove from database
-    db.delete(delivery)
     db.commit()
     return True

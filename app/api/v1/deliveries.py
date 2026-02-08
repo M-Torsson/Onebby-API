@@ -207,18 +207,18 @@ def update_delivery(
 @router.delete("/admin/deliveries/{delivery_id}", response_model=dict)
 def delete_delivery(
     delivery_id: int,
-    hard_delete: bool = Query(False, description="Permanently delete the delivery"),
+    soft_delete: bool = Query(False, description="Soft delete (deactivate) instead of permanent deletion"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Delete a delivery option (soft delete by default, set hard_delete=true for permanent deletion)
+    Delete a delivery option (permanent deletion by default, set soft_delete=true to only deactivate)
     
     Requires X-API-Key header for authentication
     """
     try:
-        if hard_delete:
-            success = crud_delivery.hard_delete_delivery(db, delivery_id)
+        if soft_delete:
+            success = crud_delivery.soft_delete_delivery(db, delivery_id)
         else:
             success = crud_delivery.delete_delivery(db, delivery_id)
         
@@ -226,8 +226,8 @@ def delete_delivery(
             raise HTTPException(status_code=404, detail="Delivery not found")
         
         return {
-            "message": "Delivery deleted successfully" if hard_delete else "Delivery deactivated successfully",
-            "deleted": hard_delete
+            "message": "Delivery deactivated successfully" if soft_delete else "Delivery deleted successfully",
+            "deleted": not soft_delete
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting delivery: {str(e)}")
