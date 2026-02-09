@@ -264,7 +264,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         warranty = WarrantySimple(
             id=product.warranty.id,
             title=product.warranty.title,
-            price=product.warranty.price,
+            price=round(product.warranty.price / 100, 2),
             image=product.warranty.image
         )
     elif product.categories:
@@ -279,7 +279,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                     warranty = WarrantySimple(
                         id=active_warranty.id,
                         title=active_warranty.title,
-                        price=active_warranty.price,
+                        price=round(active_warranty.price / 100, 2),
                         image=active_warranty.image
                     )
                     break  # Use first found warranty
