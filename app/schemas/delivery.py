@@ -24,6 +24,27 @@ class DeliveryTranslationResponse(DeliveryTranslationInput):
         from_attributes = True
 
 
+# ============= Delivery Option Schemas =============
+
+class DeliveryOptionInput(BaseModel):
+    """Delivery option input"""
+    icon: Optional[str] = None
+    details: Optional[str] = None
+    price: float = Field(default=0, ge=0)
+
+
+class DeliveryOptionResponse(BaseModel):
+    """Delivery option response"""
+    id: int
+    icon: Optional[str] = None
+    details: Optional[str] = None
+    price: float
+    position: int
+
+    class Config:
+        from_attributes = True
+
+
 # ============= Delivery Schemas =============
 
 class DeliveryCreate(BaseModel):
@@ -36,6 +57,7 @@ class DeliveryCreate(BaseModel):
     is_active: bool = True
     categories: List[int] = Field(default_factory=list)
     translations: List[DeliveryTranslationInput] = Field(default_factory=list)
+    options: List[DeliveryOptionInput] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -50,6 +72,7 @@ class DeliveryUpdate(BaseModel):
     is_free_delivery: Optional[bool] = None
     is_active: Optional[bool] = None
     categories: Optional[List[int]] = None
+    options: Optional[List[DeliveryOptionInput]] = None
     translations: Optional[List[DeliveryTranslationInput]] = None
 
     class Config:
@@ -70,6 +93,7 @@ class DeliveryResponse(BaseModel):
     
     # Related data
     categories: List[int] = Field(default_factory=list)
+    options: List[DeliveryOptionResponse] = Field(default_factory=list)
     translations: List[DeliveryTranslationResponse] = Field(default_factory=list)
 
     class Config:

@@ -6,7 +6,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 
-from app.models.delivery import Delivery, DeliveryTranslation
+from app.models.delivery import Delivery, DeliveryTranslation, DeliveryOption
 from app.models.category import Category
 from app.schemas.delivery import DeliveryCreate, DeliveryUpdate
 
@@ -26,13 +26,28 @@ def create_delivery_translations(db: Session, delivery: Delivery, translations_d
     db.commit()
 
 
+def create_delivery_options(db: Session, delivery: Delivery, options_data: List[dict]):
+    """Create delivery options"""
+    for idx, option_data in enumerate(options_data):
+        option = DeliveryOption(
+            delivery_id=delivery.id,
+            icon=option_data.get("icon"),
+            details=option_data.get("details"),
+            price=option_data.get("price", 0),
+            position=idx + 1
+        )
+        db.add(option)
+    db.commit()
+
+
 # ============= Main CRUD Functions =============
 
 def get_delivery(db: Session, delivery_id: int) -> Optional[Delivery]:
     """Get delivery by ID with all relationships"""
     return db.query(Delivery).options(
         joinedload(Delivery.categories),
-        joinedload(Delivery.translations)
+        joinedload(Delivery.translations),
+        joinedload(Delivery.options)
     ).filter(Delivery.id == delivery_id).first()
 
 
@@ -45,7 +60,8 @@ def get_deliveries(
     """Get all deliveries with filters"""
     query = db.query(Delivery).options(
         joinedload(Delivery.categories),
-        joinedload(Delivery.translations)
+        joinedload(Delivery.translations),
+        joinedload(Delivery.options)
     )
     
     if active_only:
@@ -93,6 +109,10 @@ def create_delivery(db: Session, delivery_data: DeliveryCreate) -> Delivery:
     # Create translations
     if delivery_data.translations:
         create_delivery_translations(db, delivery, [t.dict() for t in delivery_data.translations])
+    # Create options
+    if delivery_data.options:
+        create_delivery_options(db, delivery, [o.dict() for o in delivery_data.options])
+    
     
     db.commit()
     db.refresh(delivery)
@@ -143,6 +163,14 @@ def update_delivery(db: Session, delivery_id: int, delivery_data: DeliveryUpdate
         db.query(DeliveryTranslation).filter(DeliveryTranslation.delivery_id == delivery_id).delete()
         # Create new translations
         create_delivery_translations(db, delivery, [t.dict() if hasattr(t, 'dict') else t for t in translations_data])
+    
+    # Handle options update (replace all)
+    if "options" in update_data:
+        options_data = update_data.pop("options")
+        # Delete existing options
+        db.query(DeliveryOption).filter(DeliveryOption.delivery_id == delivery_id).delete()
+        # Create new options
+        create_delivery_options(db, delivery, [o.dict() if hasattr(o, 'dict') else o for o in options_data])
     
     # Update simple fields
     for field, value in update_data.items():

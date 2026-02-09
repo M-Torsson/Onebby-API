@@ -47,6 +47,25 @@ class Delivery(Base):
     categories = relationship("Category", secondary=delivery_categories, backref="deliveries")
     products = relationship("Product", back_populates="delivery")
     translations = relationship("DeliveryTranslation", back_populates="delivery", cascade="all, delete-orphan")
+    options = relationship("DeliveryOption", back_populates="delivery", cascade="all, delete-orphan", order_by="DeliveryOption.position")
+
+
+class DeliveryOption(Base):
+    """Delivery options (like: standard, express, with installation)"""
+    __tablename__ = "delivery_options"
+
+    id = Column(Integer, primary_key=True, index=True)
+    delivery_id = Column(Integer, ForeignKey("deliveries.id", ondelete="CASCADE"), nullable=False)
+    
+    icon = Column(String(500), nullable=True)
+    details = Column(Text, nullable=True)
+    price = Column(Float, nullable=False, default=0)
+    position = Column(Integer, nullable=False, default=1)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    delivery = relationship("Delivery", back_populates="options")
 
 
 class DeliveryTranslation(Base):
