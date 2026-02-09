@@ -57,7 +57,7 @@ class DeliveryOption(Base):
     id = Column(Integer, primary_key=True, index=True)
     delivery_id = Column(Integer, ForeignKey("deliveries.id", ondelete="CASCADE"), nullable=False)
     
-    icon = Column(String(500), nullable=True)
+    icon = Column(Text, nullable=True)
     details = Column(Text, nullable=True)
     price = Column(Float, nullable=False, default=0)
     position = Column(Integer, nullable=False, default=1)
