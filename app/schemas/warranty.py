@@ -2,7 +2,7 @@
 # © 2026 Muthana. All rights reserved.
 # Unauthorized copying or distribution is prohibited.
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, computed_field
 from typing import Optional, List
 from datetime import datetime
 
@@ -103,8 +103,15 @@ class WarrantySimple(BaseModel):
     """Simple warranty info for product response"""
     id: int
     title: str
-    price: int
+    price_cents: int = Field(..., alias='price', exclude=True)
     image: Optional[str] = None
+
+    @computed_field
+    @property
+    def price(self) -> float:
+        """Convert price from cents to euros"""
+        return round(self.price_cents / 100, 2)
 
     class Config:
         from_attributes = True
+        populate_by_name = True
