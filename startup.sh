@@ -2,7 +2,7 @@
 
 # Run database migrations
 echo "Running database migrations..."
-# python -m alembic upgrade head  # Temporarily disabled due to multiple heads
+python -m alembic upgrade head
 
 # Start the application
 echo "Starting application..."
