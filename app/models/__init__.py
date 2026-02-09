@@ -7,6 +7,7 @@ from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand
 from app.models.tax_class import TaxClass
 from app.models.delivery import Delivery, DeliveryTranslation, DeliveryOption
+from app.models.warranty import Warranty, WarrantyTranslation, WarrantyFeature
 from app.models.product import (
     Product, ProductTranslation, ProductImage, ProductImageAlt,
     ProductFeature, ProductFeatureTranslation,
@@ -23,6 +24,7 @@ __all__ = [
     "Category", "CategoryTranslation",
     "Brand", "TaxClass",
     "Delivery", "DeliveryTranslation",
+    "Warranty", "WarrantyTranslation", "WarrantyFeature",
     "Product", "ProductTranslation", "ProductImage", "ProductImageAlt",
     "ProductFeature", "ProductFeatureTranslation",
     "ProductAttribute", "ProductAttributeTranslation",
