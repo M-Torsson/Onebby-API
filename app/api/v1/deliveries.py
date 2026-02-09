@@ -58,6 +58,15 @@ def create_delivery(
                         "option_note": t.option_note
                     } for t in db_delivery.translations
                 ],
+                "options": [
+                    {
+                        "id": o.id,
+                        "icon": o.icon,
+                        "details": o.details,
+                        "price": o.price,
+                        "position": o.position
+                    } for o in db_delivery.options
+                ],
                 "created_at": db_delivery.created_at,
                 "updated_at": db_delivery.updated_at
             }
@@ -103,6 +112,15 @@ def get_deliveries(
                             "note": t.note,
                             "option_note": t.option_note
                         } for t in d.translations
+                    ],
+                    "options": [
+                        {
+                            "id": o.id,
+                            "icon": o.icon,
+                            "details": o.details,
+                            "price": o.price,
+                            "position": o.position
+                        } for o in d.options
                     ],
                     "created_at": d.created_at,
                     "updated_at": d.updated_at
@@ -152,6 +170,15 @@ def get_delivery(
                     "option_note": t.option_note
                 } for t in delivery.translations
             ],
+            "options": [
+                {
+                    "id": o.id,
+                    "icon": o.icon,
+                    "details": o.details,
+                    "price": o.price,
+                    "position": o.position
+                } for o in delivery.options
+            ],
             "created_at": delivery.created_at,
             "updated_at": delivery.updated_at
         }
@@ -193,6 +220,15 @@ def update_delivery(
                         "note": t.note,
                         "option_note": t.option_note
                     } for t in db_delivery.translations
+                ],
+                "options": [
+                    {
+                        "id": o.id,
+                        "icon": o.icon,
+                        "details": o.details,
+                        "price": o.price,
+                        "position": o.position
+                    } for o in db_delivery.options
                 ],
                 "created_at": db_delivery.created_at,
                 "updated_at": db_delivery.updated_at
