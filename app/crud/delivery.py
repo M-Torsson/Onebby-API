@@ -115,7 +115,10 @@ def update_delivery(db: Session, delivery_id: int, delivery_data: DeliveryUpdate
         categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
         if len(categories) != len(category_ids):
             raise ValueError("One or more categories not found")
-        delivery.categories = categories
+        # Clear existing categories and add new ones
+        delivery.categories.clear()
+        db.flush()  # Ensure the clear is committed
+        delivery.categories.extend(categories)
     
     # Handle translations update (replace all)
     if "translations" in update_data:
