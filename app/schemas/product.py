@@ -17,6 +17,7 @@ from app.schemas.product_base import (
 )
 from app.schemas.brand_tax import BrandSimple, TaxClassSimple
 from app.schemas.delivery import DeliverySimple
+from app.schemas.warranty import WarrantySimple
 
 
 # ============= Product Create Schema =============
@@ -181,6 +182,9 @@ class ProductResponseFull(BaseModel):
     
     # Delivery
     delivery: Optional[DeliverySimple] = None
+    
+    # Warranty
+    warranty: Optional['WarrantySimple'] = None
     
     # Tax
     tax: TaxClassSimple

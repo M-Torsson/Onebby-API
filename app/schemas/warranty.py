@@ -97,3 +97,14 @@ class WarrantyResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class WarrantySimple(BaseModel):
+    """Simple warranty info for product response"""
+    id: int
+    title: str
+    price: int
+    image: Optional[str] = None
+
+    class Config:
+        from_attributes = True

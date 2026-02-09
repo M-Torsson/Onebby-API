@@ -256,6 +256,34 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
                     )
                     break  # Use first found delivery
     
+    # Build warranty
+    warranty = None
+    if product.warranty:
+        # Product has direct warranty assigned
+        from app.schemas.warranty import WarrantySimple
+        warranty = WarrantySimple(
+            id=product.warranty.id,
+            title=product.warranty.title,
+            price=product.warranty.price,
+            image=product.warranty.image
+        )
+    elif product.categories:
+        # Check if any category has a warranty assigned
+        from app.models.warranty import Warranty
+        for category in product.categories:
+            if category.warranties:
+                # Use the first active warranty found for this category
+                active_warranty = next((w for w in category.warranties if w.is_active), None)
+                if active_warranty:
+                    from app.schemas.warranty import WarrantySimple
+                    warranty = WarrantySimple(
+                        id=active_warranty.id,
+                        title=active_warranty.title,
+                        price=active_warranty.price,
+                        image=active_warranty.image
+                    )
+                    break  # Use first found warranty
+    
     # Build tax - with null safety
     tax = None
     if product.tax_class:
@@ -364,6 +392,7 @@ def build_product_response(product: Product, lang: str) -> Dict[str, Any]:
         date_update=product.date_update,
         brand=brand,
         delivery=delivery,
+        warranty=warranty,
         tax=tax,
         price=price_response,
         stock=stock_response,
