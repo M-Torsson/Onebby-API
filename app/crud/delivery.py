@@ -6,12 +6,42 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 
-from app.models.delivery import Delivery, DeliveryTranslation, DeliveryOption
+from app.models.delivery import Delivery, DeliveryTranslation, DeliveryOption, delivery_categories
 from app.models.category import Category
 from app.schemas.delivery import DeliveryCreate, DeliveryUpdate
 
 
 # ============= Helper Functions =============
+
+def check_categories_in_use(db: Session, category_ids: List[int], exclude_delivery_id: Optional[int] = None) -> Optional[str]:
+    """
+    Check if any of the given categories are already assigned to another delivery.
+    Returns error message in English if categories are in use, None otherwise.
+    """
+    if not category_ids:
+        return None
+    
+    # Query for categories that are already in use
+    query = db.query(delivery_categories.c.category_id, Delivery.id).join(
+        Delivery, delivery_categories.c.delivery_id == Delivery.id
+    ).filter(delivery_categories.c.category_id.in_(category_ids))
+    
+    # Exclude current delivery if updating
+    if exclude_delivery_id:
+        query = query.filter(Delivery.id != exclude_delivery_id)
+    
+    used_categories = query.all()
+    
+    if used_categories:
+        # Get category names for error message
+        used_cat_ids = [cat_id for cat_id, _ in used_categories]
+        categories = db.query(Category).filter(Category.id.in_(used_cat_ids)).all()
+        cat_names = [cat.name for cat in categories]
+        
+        return f"The following categories are already assigned to another delivery: {', '.join(cat_names)}"
+    
+    return None
+
 
 def create_delivery_translations(db: Session, delivery: Delivery, translations_data: List[dict]):
     """Create delivery translations"""
@@ -85,9 +115,15 @@ def create_delivery(db: Session, delivery_data: DeliveryCreate) -> Delivery:
     
     # Validate categories if provided
     if delivery_data.categories:
+        # Check if categories exist
         categories = db.query(Category).filter(Category.id.in_(delivery_data.categories)).all()
         if len(categories) != len(delivery_data.categories):
             raise ValueError("One or more categories not found")
+        
+        # Check if categories are already in use by another delivery
+        error_msg = check_categories_in_use(db, delivery_data.categories)
+        if error_msg:
+            raise ValueError(error_msg)
     
     # Create delivery
     delivery = Delivery(
@@ -132,8 +168,19 @@ def update_delivery(db: Session, delivery_id: int, delivery_data: DeliveryUpdate
     if "categories" in update_data:
         category_ids = update_data.pop("categories")
         
+        # Validate and check if categories are in use by another delivery
+        if category_ids:
+            # Check if categories exist
+            categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
+            if len(categories) != len(category_ids):
+                raise ValueError("One or more categories not found")
+            
+            # Check if categories are already in use by another delivery (exclude current delivery)
+            error_msg = check_categories_in_use(db, category_ids, exclude_delivery_id=delivery_id)
+            if error_msg:
+                raise ValueError(error_msg)
+        
         # Delete existing category associations directly from the association table
-        from app.models.delivery import delivery_categories
         db.execute(
             delivery_categories.delete().where(
                 delivery_categories.c.delivery_id == delivery_id
@@ -141,13 +188,8 @@ def update_delivery(db: Session, delivery_id: int, delivery_data: DeliveryUpdate
         )
         db.flush()
         
-        # Validate and add new categories
+        # Insert new associations directly
         if category_ids:
-            categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
-            if len(categories) != len(category_ids):
-                raise ValueError("One or more categories not found")
-            
-            # Insert new associations directly
             for cat_id in category_ids:
                 db.execute(
                     delivery_categories.insert().values(
