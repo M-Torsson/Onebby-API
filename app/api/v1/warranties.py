@@ -243,27 +243,26 @@ def update_warranty(
 @router.delete("/admin/warranties/{warranty_id}", response_model=dict)
 def delete_warranty(
     warranty_id: int,
-    soft_delete: bool = Query(False, description="Soft delete (deactivate) instead of permanent deletion"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Delete a warranty option (permanent deletion by default, set soft_delete=true to only deactivate)
+    Delete a warranty option permanently from database
+    
+    This endpoint performs a HARD DELETE - the warranty will be permanently removed.
+    To deactivate instead, use PUT endpoint with is_active: false
     
     Requires X-API-Key header for authentication
     """
     try:
-        if soft_delete:
-            success = crud_warranty.soft_delete_warranty(db, warranty_id)
-        else:
-            success = crud_warranty.delete_warranty(db, warranty_id)
+        success = crud_warranty.delete_warranty(db, warranty_id)
         
         if not success:
             raise HTTPException(status_code=404, detail="Warranty not found")
         
         return {
-            "message": "Warranty deactivated successfully" if soft_delete else "Warranty deleted successfully",
-            "deleted": not soft_delete
+            "message": "Warranty deleted permanently",
+            "deleted": True
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting warranty: {str(e)}")
