@@ -108,17 +108,33 @@ def update_delivery(db: Session, delivery_id: int, delivery_data: DeliveryUpdate
     
     update_data = delivery_data.model_dump(exclude_unset=True)
     
-    # Handle categories update
+    # Handle categories update - MUST CLEAR FIRST
     if "categories" in update_data:
         category_ids = update_data.pop("categories")
-        # Validate all categories exist
-        categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
-        if len(categories) != len(category_ids):
-            raise ValueError("One or more categories not found")
-        # Clear existing categories and add new ones
-        delivery.categories.clear()
-        db.flush()  # Ensure the clear is committed
-        delivery.categories.extend(categories)
+        
+        # Delete existing category associations directly from the association table
+        from app.models.delivery import delivery_categories
+        db.execute(
+            delivery_categories.delete().where(
+                delivery_categories.c.delivery_id == delivery_id
+            )
+        )
+        db.flush()
+        
+        # Validate and add new categories
+        if category_ids:
+            categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
+            if len(categories) != len(category_ids):
+                raise ValueError("One or more categories not found")
+            
+            # Insert new associations directly
+            for cat_id in category_ids:
+                db.execute(
+                    delivery_categories.insert().values(
+                        delivery_id=delivery_id,
+                        category_id=cat_id
+                    )
+                )
     
     # Handle translations update (replace all)
     if "translations" in update_data:
