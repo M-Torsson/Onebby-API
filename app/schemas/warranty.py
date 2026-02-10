@@ -51,20 +51,12 @@ class WarrantyCreate(BaseModel):
     title: str = Field(..., max_length=255)
     subtitle: Optional[str] = Field(None, max_length=500)
     meta_description: Optional[str] = None
-    price: float = Field(..., ge=0, description="Price in euros (e.g., 89.90)")
+    price: int = Field(..., ge=0, description="Price in cents (e.g., 8990 for 89.90€)")
     image: Optional[str] = None
     is_active: bool = True
     categories: List[int] = Field(default_factory=list)
     translations: List[WarrantyTranslationInput] = Field(default_factory=list)
     features: List[WarrantyFeatureInput] = Field(default_factory=list)
-
-    @field_validator('price', mode='before')
-    @classmethod
-    def convert_price_to_cents(cls, value):
-        """Convert euros to cents for database storage"""
-        if isinstance(value, (int, float)):
-            return int(value * 100)
-        return value
 
     class Config:
         from_attributes = True
@@ -75,19 +67,15 @@ class WarrantyUpdate(BaseModel):
     title: Optional[str] = Field(None, max_length=255)
     subtitle: Optional[str] = Field(None, max_length=500)
     meta_description: Optional[str] = None
-    price: Optional[float] = Field(None, ge=0, description="Price in euros (e.g., 89.90)")
+    price: Optional[int] = Field(None, ge=0, description="Price in cents (e.g., 8990 for 89.90€)")
     image: Optional[str] = None
     is_active: Optional[bool] = None
     categories: Optional[List[int]] = None
     features: Optional[List[WarrantyFeatureInput]] = None
     translations: Optional[List[WarrantyTranslationInput]] = None
 
-    @field_validator('price', mode='before')
-    @classmethod
-    def convert_price_to_cents(cls, value):
-        """Convert euros to cents for database storage"""
-        if value is not None and isinstance(value, (int, float)):
-            return int(value * 100)
+    class Config:
+        from_attributes = True
         return value
 
     class Config:
