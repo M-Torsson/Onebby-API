@@ -607,6 +607,33 @@ def get_all_products(
     }
 
 
+@router.get("/v1/products/recent")
+def get_recent_products(
+    limit: int = Query(15, ge=1, le=50, description="Maximum number of products to return"),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get recently added products
+    Sorted by date_add (newest first)
+    
+    Returns compact JSON:
+    - id
+    - title
+    - reference
+    - price
+    - image
+    - date_add
+    """
+    products = crud_product.get_recent_products(db, limit)
+    
+    return {
+        "success": True,
+        "total": len(products),
+        "products": products
+    }
+
+
 @router.get("/v1/products/{product_id}", response_model=ProductResponse)
 def get_product(
     product_id: int,
@@ -1161,32 +1188,5 @@ def quick_search_products(
         "search_type": search_type,
         "lang": lang,
         "results": results
-    }
-
-
-@router.get("/v1/products/recent")
-def get_recent_products(
-    limit: int = Query(15, ge=1, le=50, description="Maximum number of products to return"),
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    Get recently added products
-    Sorted by date_add (newest first)
-    
-    Returns compact JSON:
-    - id
-    - title
-    - reference
-    - price
-    - image
-    - date_add
-    """
-    products = crud_product.get_recent_products(db, limit)
-    
-    return {
-        "success": True,
-        "total": len(products),
-        "products": products
     }
 
