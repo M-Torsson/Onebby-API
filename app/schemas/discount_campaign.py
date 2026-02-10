@@ -26,6 +26,7 @@ class DiscountCampaignCreate(BaseModel):
     """Create discount campaign"""
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
+    image: Optional[str] = Field(None, max_length=500, description="Cloudinary image URL")
     
     discount_type: DiscountTypeEnum
     discount_value: float = Field(..., gt=0)
@@ -72,6 +73,7 @@ class DiscountCampaignUpdate(BaseModel):
     """Update discount campaign"""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
+    image: Optional[str] = Field(None, max_length=500, description="Cloudinary image URL")
     
     discount_type: Optional[DiscountTypeEnum] = None
     discount_value: Optional[float] = Field(None, gt=0)
@@ -93,6 +95,7 @@ class DiscountCampaignResponse(BaseModel):
     id: int
     name: str
     description: Optional[str] = None
+    image: Optional[str] = None
     
     discount_type: str
     discount_value: float

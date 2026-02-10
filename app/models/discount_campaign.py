@@ -30,6 +30,7 @@ class DiscountCampaign(Base):
     # Campaign info
     name = Column(String(255), nullable=False, index=True)
     description = Column(String(1000), nullable=True)
+    image = Column(String(500), nullable=True)  # Cloudinary URL
     
     # Discount details
     discount_type = Column(SQLEnum(DiscountTypeEnum), nullable=False)

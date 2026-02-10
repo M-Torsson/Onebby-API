@@ -101,7 +101,7 @@ async def upload_image(
     - **file**: Image file (JPG, PNG, WebP, SVG)
     - **folder**: Folder name in Cloudinary (default: products)
     
-    Supported folders: products, brands, categories, banners, logos
+    Supported folders: products, brands, categories, banners, logos, deliveries, warranties, discounts
     """
     validate_image(file)
     
