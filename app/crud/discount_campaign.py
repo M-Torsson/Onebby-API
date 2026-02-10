@@ -38,6 +38,42 @@ def get_campaign(db: Session, campaign_id: int) -> Optional[DiscountCampaign]:
     return db.query(DiscountCampaign).filter(DiscountCampaign.id == campaign_id).first()
 
 
+def update_expired_campaigns(db: Session) -> dict:
+    """
+    Automatically update is_active to False for campaigns that have passed end_date
+    Returns count of updated campaigns
+    """
+    now = datetime.now()
+    
+    # Find active campaigns that have expired
+    expired_campaigns = db.query(DiscountCampaign).filter(
+        DiscountCampaign.is_active == True,
+        DiscountCampaign.end_date.isnot(None),
+        DiscountCampaign.end_date < now
+    ).all()
+    
+    updated_count = 0
+    
+    for campaign in expired_campaigns:
+        # Update campaign status
+        campaign.is_active = False
+        
+        # Update all product discounts for this campaign
+        db.query(ProductDiscount).filter(
+            ProductDiscount.campaign_id == campaign.id
+        ).update({"is_active": False}, synchronize_session=False)
+        
+        updated_count += 1
+    
+    if updated_count > 0:
+        db.commit()
+    
+    return {
+        "success": True,
+        "updated_campaigns": updated_count
+    }
+
+
 def get_campaigns(
     db: Session,
     skip: int = 0,
@@ -45,6 +81,9 @@ def get_campaigns(
     is_active: Optional[bool] = None
 ) -> List[DiscountCampaign]:
     """Get all campaigns with pagination"""
+    # Auto-update expired campaigns
+    update_expired_campaigns(db)
+    
     query = db.query(DiscountCampaign)
     
     if is_active is not None:
@@ -405,13 +444,24 @@ def get_all_discounted_products(
     """
     Get all products with active discounts from all campaigns
     Sorted by discount percentage (highest first)
+    Only includes discounts within valid date range
     """
-    from sqlalchemy.orm import joinedload
+    # Auto-update expired campaigns
+    update_expired_campaigns(db)
     
-    # Get all products with active discounts
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import and_, or_
+    from datetime import datetime
+    
+    now = datetime.now()
+    
+    # Get all products with active discounts within date range
     products_query = db.query(Product).join(ProductDiscount).filter(
         ProductDiscount.is_active == True,
-        Product.is_active == True
+        Product.is_active == True,
+        # Check date range
+        or_(ProductDiscount.start_date.is_(None), ProductDiscount.start_date <= now),
+        or_(ProductDiscount.end_date.is_(None), ProductDiscount.end_date >= now)
     ).options(
         joinedload(Product.translations)
     ).distinct()
@@ -427,10 +477,12 @@ def get_all_discounted_products(
     products_data = []
     
     for product in products:
-        # Get all active discounts for this product
+        # Get all active discounts for this product within date range
         discounts = db.query(ProductDiscount).filter(
             ProductDiscount.product_id == product.id,
-            ProductDiscount.is_active == True
+            ProductDiscount.is_active == True,
+            or_(ProductDiscount.start_date.is_(None), ProductDiscount.start_date <= now),
+            or_(ProductDiscount.end_date.is_(None), ProductDiscount.end_date >= now)
         ).all()
         
         if not discounts:

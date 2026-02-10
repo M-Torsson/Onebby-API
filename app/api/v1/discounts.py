@@ -292,3 +292,24 @@ def get_campaign_products(
         "meta": result["meta"]
     }
 
+
+@router.post("/v1/discounts/update-expired")
+def update_expired_campaigns(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Manually trigger update of expired campaigns
+    Sets is_active = False for campaigns past their end_date
+    
+    This also runs automatically when fetching campaigns list
+    """
+    result = crud_campaign.update_expired_campaigns(db)
+    
+    return {
+        "success": True,
+        "message": f"Updated {result['updated_campaigns']} expired campaigns",
+        "updated_count": result['updated_campaigns']
+    }
+
+
