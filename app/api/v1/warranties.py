@@ -23,6 +23,11 @@ def verify_api_key(x_api_key: str = Header(...)):
     return x_api_key
 
 
+def format_price(cents: int) -> float:
+    """Convert price from cents to euros"""
+    return round(cents / 100, 2)
+
+
 # ============= Endpoints =============
 
 @router.post("/admin/warranties", response_model=dict, status_code=201)
@@ -46,7 +51,7 @@ def create_warranty(
                 "title": db_warranty.title,
                 "subtitle": db_warranty.subtitle,
                 "meta_description": db_warranty.meta_description,
-                "price": db_warranty.price,
+                "price": format_price(db_warranty.price),
                 "image": db_warranty.image,
                 "is_active": db_warranty.is_active,
                 "categories": [cat.id for cat in db_warranty.categories],
@@ -101,7 +106,7 @@ def get_warranties(
                     "title": w.title,
                     "subtitle": w.subtitle,
                     "meta_description": w.meta_description,
-                    "price": w.price,
+                    "price": format_price(w.price),
                     "image": w.image,
                     "is_active": w.is_active,
                     "categories": [cat.id for cat in w.categories],
@@ -158,7 +163,7 @@ def get_warranty(
             "title": warranty.title,
             "subtitle": warranty.subtitle,
             "meta_description": warranty.meta_description,
-            "price": warranty.price,
+            "price": format_price(warranty.price),
             "image": warranty.image,
             "is_active": warranty.is_active,
             "categories": [cat.id for cat in warranty.categories],
@@ -209,7 +214,7 @@ def update_warranty(
                 "title": db_warranty.title,
                 "subtitle": db_warranty.subtitle,
                 "meta_description": db_warranty.meta_description,
-                "price": db_warranty.price,
+                "price": format_price(db_warranty.price),
                 "image": db_warranty.image,
                 "is_active": db_warranty.is_active,
                 "categories": [cat.id for cat in db_warranty.categories],
