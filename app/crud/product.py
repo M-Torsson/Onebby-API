@@ -744,3 +744,54 @@ def get_products_by_category(db: Session, category_id: int, lang: str = "it") ->
     
     return result
 
+
+# ============= Get Recent Products =============
+
+def get_recent_products(db: Session, limit: int = 15) -> List[dict]:
+    """
+    Get recently added products
+    Sorted by date_add (newest first)
+    Returns compact JSON format
+    """
+    # Query recent products
+    products = db.query(Product).filter(
+        Product.is_active == True
+    ).order_by(
+        Product.date_add.desc()
+    ).limit(limit).all()
+    
+    result = []
+    
+    for product in products:
+        # Get Italian translation (preferred)
+        translation = db.query(ProductTranslation).filter(
+            ProductTranslation.product_id == product.id,
+            ProductTranslation.lang == "it"
+        ).first()
+        
+        if not translation:
+            # Fallback to first available translation
+            translation = db.query(ProductTranslation).filter(
+                ProductTranslation.product_id == product.id
+            ).first()
+        
+        title = translation.title if translation else "Untitled"
+        
+        # Get first image
+        image = db.query(ProductImage).filter(
+            ProductImage.product_id == product.id
+        ).order_by(ProductImage.position).first()
+        
+        image_url = image.url if image else None
+        
+        result.append({
+            "id": product.id,
+            "title": title,
+            "reference": product.reference,
+            "price": product.price_list or 0.0,
+            "image": image_url,
+            "date_add": product.date_add.isoformat() if product.date_add else None
+        })
+    
+    return result
+

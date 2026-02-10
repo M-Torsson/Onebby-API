@@ -393,3 +393,113 @@ def get_campaign_products(
             "has_prev": skip > 0
         }
     }
+
+
+# ============= Get All Discounted Products =============
+
+def get_all_discounted_products(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+) -> dict:
+    """
+    Get all products with active discounts from all campaigns
+    Sorted by discount percentage (highest first)
+    """
+    from sqlalchemy.orm import joinedload
+    
+    # Get all products with active discounts
+    products_query = db.query(Product).join(ProductDiscount).filter(
+        ProductDiscount.is_active == True,
+        Product.is_active == True
+    ).options(
+        joinedload(Product.translations)
+    ).distinct()
+    
+    # Count total
+    total_products = products_query.count()
+    
+    # Apply pagination
+    products_query = products_query.offset(skip).limit(limit)
+    products = products_query.all()
+    
+    # Build response
+    products_data = []
+    
+    for product in products:
+        # Get all active discounts for this product
+        discounts = db.query(ProductDiscount).filter(
+            ProductDiscount.product_id == product.id,
+            ProductDiscount.is_active == True
+        ).all()
+        
+        if not discounts:
+            continue
+        
+        # Find the highest discount
+        best_discount = None
+        best_percentage = 0
+        
+        price_list = product.price_list or 0
+        
+        for discount in discounts:
+            if discount.discount_type == "percentage":
+                percentage = discount.discount_value
+            else:  # fixed_amount
+                percentage = (discount.discount_value / price_list * 100) if price_list > 0 else 0
+            
+            if percentage > best_percentage:
+                best_percentage = percentage
+                best_discount = discount
+        
+        if not best_discount:
+            continue
+        
+        # Calculate final price
+        if best_discount.discount_type == "percentage":
+            discount_amount = price_list * (best_discount.discount_value / 100)
+        else:
+            discount_amount = best_discount.discount_value
+        
+        final_price = max(0, price_list - discount_amount)
+        
+        # Get product title
+        title = "Untitled"
+        it_translation = next((t for t in product.translations if t.lang == "it"), None)
+        if it_translation:
+            title = it_translation.title
+        elif product.translations:
+            title = product.translations[0].title
+        
+        # Get campaign info
+        campaign = db.query(DiscountCampaign).filter(
+            DiscountCampaign.id == best_discount.campaign_id
+        ).first()
+        
+        products_data.append({
+            "product_id": product.id,
+            "title": title,
+            "reference": product.reference,
+            "price": price_list,
+            "discount": round(best_percentage, 1),
+            "final_price": round(final_price, 2),
+            "campaign_id": best_discount.campaign_id,
+            "campaign_name": campaign.name if campaign else None
+        })
+    
+    # Sort by discount percentage (highest first)
+    products_data.sort(key=lambda x: x["discount"], reverse=True)
+    
+    return {
+        "success": True,
+        "total": total_products,
+        "products": products_data,
+        "meta": {
+            "total": total_products,
+            "skip": skip,
+            "limit": limit,
+            "page": (skip // limit) + 1 if limit > 0 else 1,
+            "has_next": skip + limit < total_products,
+            "has_prev": skip > 0
+        }
+    }
