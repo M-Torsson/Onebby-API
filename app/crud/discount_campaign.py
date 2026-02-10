@@ -263,3 +263,133 @@ def remove_campaign_discounts(db: Session, campaign_id: int) -> dict:
         "products_updated": products_updated,
         "message": f"Removed discounts from {products_updated} products"
     }
+
+
+# ============= Get Products with Discount =============
+
+def get_campaign_products(
+    db: Session,
+    campaign_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    sort_by_discount: bool = True
+) -> dict:
+    """
+    Get all products that have discount from this campaign
+    
+    Args:
+        campaign_id: Campaign ID
+        skip: Number of products to skip (pagination)
+        limit: Max products to return
+        sort_by_discount: Sort by discount value (highest first)
+    
+    Returns:
+        Dict with products and campaign info
+    """
+    campaign = get_campaign(db, campaign_id)
+    if not campaign:
+        return {"success": False, "message": "Campaign not found"}
+    
+    # Get products with discount from this campaign
+    from sqlalchemy.orm import joinedload
+    
+    products_query = db.query(Product).join(ProductDiscount).filter(
+        ProductDiscount.campaign_id == campaign_id,
+        ProductDiscount.is_active == True,
+        Product.is_active == True
+    ).options(
+        joinedload(Product.categories),
+        joinedload(Product.translations)
+    )
+    
+    # Count total before pagination
+    total_products = products_query.count()
+    
+    # Apply pagination
+    products_query = products_query.offset(skip).limit(limit)
+    
+    products = products_query.all()
+    
+    # Build response with discount calculations
+    products_data = []
+    
+    for product in products:
+        # Get the discount for this campaign
+        discount = db.query(ProductDiscount).filter(
+            ProductDiscount.product_id == product.id,
+            ProductDiscount.campaign_id == campaign_id
+        ).first()
+        
+        if not discount:
+            continue
+        
+        # Calculate discount
+        price_list = product.price_list or 0
+        
+        if discount.discount_type == "percentage":
+            discount_amount = price_list * (discount.discount_value / 100)
+            discount_percentage = discount.discount_value
+        else:  # fixed_amount
+            discount_amount = discount.discount_value
+            discount_percentage = (discount_amount / price_list * 100) if price_list > 0 else 0
+        
+        final_price = max(0, price_list - discount_amount)
+        
+        # Get product title (prefer Italian)
+        title = "Untitled"
+        it_translation = next((t for t in product.translations if t.lang == "it"), None)
+        if it_translation:
+            title = it_translation.title
+        elif product.translations:
+            title = product.translations[0].title
+        
+        # Get first image
+        image = None
+        if product.images:
+            image = product.images[0].url
+        
+        # Get category IDs
+        category_ids = [cat.id for cat in product.categories]
+        
+        products_data.append({
+            "id": product.id,
+            "reference": product.reference,
+            "ean": product.ean,
+            "title": title,
+            "image": image,
+            "price_list": price_list,
+            "currency": product.currency or "EUR",
+            "discount_type": discount.discount_type,
+            "discount_value": discount.discount_value,
+            "discount_percentage": round(discount_percentage, 2),
+            "discount_amount": round(discount_amount, 2),
+            "final_price": round(final_price, 2),
+            "is_active": product.is_active,
+            "stock_status": product.stock_status.value,
+            "stock_quantity": product.stock_quantity,
+            "categories": category_ids
+        })
+    
+    # Sort by discount percentage (highest first) if requested
+    if sort_by_discount:
+        products_data.sort(key=lambda x: x["discount_percentage"], reverse=True)
+    
+    return {
+        "success": True,
+        "campaign_id": campaign.id,
+        "campaign_name": campaign.name,
+        "discount_type": campaign.discount_type.value,
+        "discount_value": campaign.discount_value,
+        "target_type": campaign.target_type.value,
+        "total_products": total_products,
+        "products": products_data,
+        "meta": {
+            "total": total_products,
+            "skip": skip,
+            "limit": limit,
+            "page": (skip // limit) + 1,
+            "total_pages": (total_products + limit - 1) // limit if limit > 0 else 0,
+            "has_next": skip + limit < total_products,
+            "has_prev": skip > 0
+        }
+    }

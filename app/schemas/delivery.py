@@ -12,8 +12,8 @@ from datetime import datetime
 class DeliveryTranslationInput(BaseModel):
     """Delivery translation input"""
     lang: str = Field(..., min_length=2, max_length=5)
-    note: Optional[str] = Field(None, max_length=750)
-    option_note: Optional[str] = Field(None, max_length=750)
+    note: Optional[str] = Field(None, max_length=5000, description="Supports HTML formatting (bold, italic, etc.)")
+    option_note: Optional[str] = Field(None, max_length=5000, description="Supports HTML formatting (bold, italic, etc.)")
 
 
 class DeliveryTranslationResponse(DeliveryTranslationInput):
@@ -51,8 +51,8 @@ class DeliveryCreate(BaseModel):
     """Delivery creation schema"""
     days_from: int = Field(..., ge=0)
     days_to: int = Field(..., ge=0)
-    note: Optional[str] = Field(None, max_length=750)
-    option_note: Optional[str] = Field(None, max_length=750)
+    note: Optional[str] = Field(None, max_length=5000, description="Supports HTML formatting (bold, italic, etc.)")
+    option_note: Optional[str] = Field(None, max_length=5000, description="Supports HTML formatting (bold, italic, etc.)")
     is_free_delivery: bool = False
     is_active: bool = True
     categories: List[int] = Field(default_factory=list)
@@ -67,8 +67,8 @@ class DeliveryUpdate(BaseModel):
     """Delivery update schema"""
     days_from: Optional[int] = Field(None, ge=0)
     days_to: Optional[int] = Field(None, ge=0)
-    note: Optional[str] = Field(None, max_length=750)
-    option_note: Optional[str] = Field(None, max_length=750)
+    note: Optional[str] = Field(None, max_length=5000, description="Supports HTML formatting (bold, italic, etc.)")
+    option_note: Optional[str] = Field(None, max_length=5000, description="Supports HTML formatting (bold, italic, etc.)")
     is_free_delivery: Optional[bool] = None
     is_active: Optional[bool] = None
     categories: Optional[List[int]] = None

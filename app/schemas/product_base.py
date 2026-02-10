@@ -41,8 +41,8 @@ class ProductTranslationInput(BaseModel):
     lang: str = Field(..., min_length=2, max_length=5)
     title: str = Field(..., min_length=1, max_length=255)
     sub_title: Optional[str] = Field(None, max_length=500)
-    simple_description: Optional[str] = None
-    meta_description: Optional[str] = None
+    simple_description: Optional[str] = Field(None, description="Supports HTML formatting (bold, italic, etc.)")
+    meta_description: Optional[str] = Field(None, description="Supports HTML formatting (bold, italic, etc.)")
 
 
 class ProductTranslationResponse(ProductTranslationInput):

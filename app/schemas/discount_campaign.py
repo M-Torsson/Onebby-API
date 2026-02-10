@@ -122,3 +122,52 @@ class ApplyCampaignResponse(BaseModel):
     products_updated: int
     target_type: str
     message: str
+
+
+# ============= Campaign Products Response =============
+
+class DiscountedProductItem(BaseModel):
+    """Product with discount information"""
+    id: int
+    reference: str
+    ean: Optional[str] = None
+    title: str
+    image: Optional[str] = None
+    
+    # Original price
+    price_list: float
+    currency: str
+    
+    # Discount info
+    discount_type: str  # percentage or fixed_amount
+    discount_value: float
+    discount_percentage: float  # Always show as percentage for easy comparison
+    
+    # Calculated prices
+    discount_amount: float  # Amount saved
+    final_price: float  # Price after discount
+    
+    # Product status
+    is_active: bool
+    stock_status: str
+    stock_quantity: int
+    
+    # Category info
+    categories: List[int] = []
+    
+    class Config:
+        from_attributes = True
+
+
+class CampaignProductsResponse(BaseModel):
+    """Response with products that have discount from campaign"""
+    campaign_id: int
+    campaign_name: str
+    discount_type: str
+    discount_value: float
+    target_type: str
+    
+    total_products: int
+    products: List[DiscountedProductItem]
+    
+    meta: dict

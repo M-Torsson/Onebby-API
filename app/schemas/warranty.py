@@ -14,7 +14,7 @@ class WarrantyTranslationInput(BaseModel):
     lang: str = Field(..., min_length=2, max_length=5)
     title: Optional[str] = Field(None, max_length=255)
     subtitle: Optional[str] = Field(None, max_length=500)
-    meta_description: Optional[str] = None
+    meta_description: Optional[str] = Field(None, description="Supports HTML formatting (bold, italic, etc.)")
 
 
 class WarrantyTranslationResponse(WarrantyTranslationInput):

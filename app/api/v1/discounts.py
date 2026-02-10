@@ -12,7 +12,8 @@ from app.schemas.discount_campaign import (
     DiscountCampaignCreate,
     DiscountCampaignUpdate,
     DiscountCampaignResponse,
-    ApplyCampaignResponse
+    ApplyCampaignResponse,
+    CampaignProductsResponse
 )
 
 router = APIRouter()
@@ -213,4 +214,51 @@ def remove_discount_campaign(
     return {
         "message": result["message"],
         "products_updated": result["products_updated"]
+    }
+
+
+@router.get("/v1/discounts/{campaign_id}/products", response_model=dict)
+def get_campaign_products(
+    campaign_id: int,
+    skip: int = Query(0, ge=0, description="Number of products to skip (pagination)"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum number of products per page"),
+    sort_by_discount: bool = Query(True, description="Sort by discount percentage (highest first)"),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all products that have discount from this campaign
+    
+    Returns products with:
+    - Original price and discounted price
+    - Discount percentage (always calculated for easy comparison)
+    - Product details (title, image, stock status)
+    - Sorted by discount percentage (highest first) by default
+    
+    Example: Campaign with 30% discount on "Telefonia" category
+    → Returns all products in that category with their discounted prices
+    
+    Requires X-API-Key header for authentication
+    """
+    result = crud_campaign.get_campaign_products(
+        db,
+        campaign_id,
+        skip=skip,
+        limit=limit,
+        sort_by_discount=sort_by_discount
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    
+    return {
+        "campaign": {
+            "id": result["campaign_id"],
+            "name": result["campaign_name"],
+            "discount_type": result["discount_type"],
+            "discount_value": result["discount_value"],
+            "target_type": result["target_type"]
+        },
+        "data": result["products"],
+        "meta": result["meta"]
     }
