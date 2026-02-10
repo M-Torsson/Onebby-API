@@ -58,6 +58,33 @@ async def shutdown_event():
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
 
+@app.get("/run-migration-temp")
+async def run_migration_temp():
+    """Temporary endpoint to run migration"""
+    from sqlalchemy import text
+    from app.db.session import get_db
+    
+    try:
+        db = next(get_db())
+        db.execute(text("ALTER TABLE discount_campaigns ADD COLUMN IF NOT EXISTS image VARCHAR(500);"))
+        db.commit()
+        
+        # Verify
+        result = db.execute(text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'discount_campaigns' AND column_name = 'image';
+        """)).fetchone()
+        
+        if result:
+            return {"success": True, "message": "Migration completed", "column": dict(result._mapping)}
+        else:
+            return {"success": False, "message": "Column not found after migration"}
+            
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @app.get("/")
 async def root():
     """Root endpoint"""
