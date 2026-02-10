@@ -76,10 +76,6 @@ class WarrantyUpdate(BaseModel):
 
     class Config:
         from_attributes = True
-        return value
-
-    class Config:
-        from_attributes = True
 
 
 class WarrantyResponse(BaseModel):
