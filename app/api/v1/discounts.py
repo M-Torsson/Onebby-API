@@ -51,7 +51,8 @@ def create_discount_campaign(
                 # Log warning but don't fail campaign creation
                 print(f"Warning: Failed to auto-apply campaign: {apply_result.get('message')}")
         
-        return db_campaign
+        # Return with category_id
+        return DiscountCampaignResponse.from_orm(db_campaign)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -81,8 +82,8 @@ def get_discount_campaigns(
     total_pages = (total + limit - 1) // limit
     current_page = (skip // limit) + 1
     
-    # Convert to response schemas
-    campaigns_data = [DiscountCampaignResponse.model_validate(c) for c in campaigns]
+    # Convert to response schemas with category_id
+    campaigns_data = [DiscountCampaignResponse.from_orm(c) for c in campaigns]
     
     return {
         "data": campaigns_data,
@@ -140,7 +141,7 @@ def get_discount_campaign(
     campaign = crud_campaign.get_campaign(db, campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return campaign
+    return DiscountCampaignResponse.from_orm(campaign)
 
 
 @router.put("/v1/discounts/{campaign_id}", response_model=DiscountCampaignResponse)
@@ -161,7 +162,7 @@ def update_discount_campaign(
         db_campaign = crud_campaign.update_campaign(db, campaign_id, campaign_update)
         if not db_campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        return db_campaign
+        return DiscountCampaignResponse.from_orm(db_campaign)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

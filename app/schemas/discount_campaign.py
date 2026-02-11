@@ -102,6 +102,7 @@ class DiscountCampaignResponse(BaseModel):
     
     target_type: str
     target_ids: Optional[List[int]] = None
+    category_id: Optional[int] = None  # For category campaigns, the category ID
     
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
@@ -114,6 +115,28 @@ class DiscountCampaignResponse(BaseModel):
 
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, obj):
+        """Custom from_orm to add category_id for category campaigns"""
+        data = {
+            "id": obj.id,
+            "name": obj.name,
+            "description": obj.description,
+            "image": getattr(obj, 'image', None),
+            "discount_type": obj.discount_type.value if hasattr(obj.discount_type, 'value') else obj.discount_type,
+            "discount_value": obj.discount_value,
+            "target_type": obj.target_type.value if hasattr(obj.target_type, 'value') else obj.target_type,
+            "target_ids": obj.target_ids,
+            "category_id": obj.target_ids[0] if obj.target_ids and len(obj.target_ids) > 0 and (obj.target_type.value if hasattr(obj.target_type, 'value') else obj.target_type) == "category" else None,
+            "start_date": obj.start_date,
+            "end_date": obj.end_date,
+            "is_active": obj.is_active,
+            "priority": obj.priority,
+            "created_at": obj.created_at,
+            "updated_at": obj.updated_at
+        }
+        return cls(**data)
 
 
 # ============= Apply Campaign Response =============
