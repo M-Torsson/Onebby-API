@@ -622,6 +622,7 @@ def get_recent_products(
     - reference
     - price
     - image
+    - category
     - date_add
     """
     products = crud_product.get_recent_products(db, limit=15)

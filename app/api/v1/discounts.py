@@ -114,6 +114,7 @@ def get_all_discounted_products(
     - price
     - discount (percentage)
     - final_price
+    - image
     - campaign_id
     - campaign_name
     """

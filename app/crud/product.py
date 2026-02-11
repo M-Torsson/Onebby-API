@@ -15,7 +15,7 @@ from app.models.product import (
     ProductDiscount, ProductType
 )
 from app.models.product_variant import ProductVariant, ProductVariantImage, ProductVariantImageAlt
-from app.models.category import Category
+from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand
 from app.models.tax_class import TaxClass
 from app.schemas.product import ProductCreate, ProductUpdate, StockUpdateInput
@@ -784,12 +784,27 @@ def get_recent_products(db: Session, limit: int = 15) -> List[dict]:
         
         image_url = image.url if image else None
         
+        # Get first category with Italian translation
+        category_name = None
+        if product.categories:
+            first_category = product.categories[0]
+            category_translation = db.query(CategoryTranslation).filter(
+                CategoryTranslation.category_id == first_category.id,
+                CategoryTranslation.lang == "it"
+            ).first()
+            
+            if category_translation:
+                category_name = category_translation.title
+            else:
+                category_name = first_category.name
+        
         result.append({
             "id": product.id,
             "title": title,
             "reference": product.reference,
             "price": product.price_list or 0.0,
             "image": image_url,
+            "category": category_name,
             "date_add": product.date_add.isoformat() if product.date_add else None
         })
     

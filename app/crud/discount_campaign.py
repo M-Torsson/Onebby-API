@@ -7,7 +7,7 @@ from sqlalchemy import and_, or_
 from typing import List, Optional
 from datetime import datetime
 from app.models.discount_campaign import DiscountCampaign, TargetTypeEnum
-from app.models.product import Product, ProductDiscount
+from app.models.product import Product, ProductDiscount, ProductTranslation, ProductImage
 from app.models.category import Category
 from app.schemas.discount_campaign import DiscountCampaignCreate, DiscountCampaignUpdate
 
@@ -639,6 +639,13 @@ def get_highest_discount_products(db: Session) -> dict:
             DiscountCampaign.id == best_discount.campaign_id
         ).first()
         
+        # Get first image
+        image = db.query(ProductImage).filter(
+            ProductImage.product_id == product.id
+        ).order_by(ProductImage.position).first()
+        
+        image_url = image.url if image else None
+        
         all_products_data.append({
             "product_id": product.id,
             "title": title,
@@ -646,6 +653,7 @@ def get_highest_discount_products(db: Session) -> dict:
             "price": price_list,
             "discount": round(best_percentage, 1),
             "final_price": round(final_price, 2),
+            "image": image_url,
             "campaign_id": best_discount.campaign_id,
             "campaign_name": campaign.name if campaign else None
         })
