@@ -2,7 +2,7 @@
 # © 2026 Muthana. All rights reserved.
 # Unauthorized copying or distribution is prohibited.
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 from app.schemas.product_base import (
@@ -161,35 +161,26 @@ class ProductUpdate(BaseModel):
     # Duration (service/warranty products)
     duration_months: Optional[int] = None
     
-    @field_validator('stock_quantity', mode='before')
-    @classmethod
-    def extract_stock_quantity(cls, v, info):
-        """Extract stock_quantity from nested stock object if provided"""
-        # If stock_quantity is already provided, use it
-        if v is not None:
-            return v
+    @model_validator(mode='after')
+    def extract_stock_from_nested(self):
+        """Extract stock_status and stock_quantity from nested stock object"""
+        # If stock object is provided, extract values from it
+        if self.stock is not None:
+            if isinstance(self.stock, dict):
+                # If stock_quantity not set, get from stock.quantity
+                if self.stock_quantity is None and 'quantity' in self.stock:
+                    self.stock_quantity = self.stock['quantity']
+                # If stock_status not set, get from stock.status
+                if self.stock_status is None and 'status' in self.stock:
+                    self.stock_status = self.stock['status']
+            else:
+                # StockInput object
+                if self.stock_quantity is None:
+                    self.stock_quantity = self.stock.quantity
+                if self.stock_status is None:
+                    self.stock_status = self.stock.status
         
-        # Otherwise, check if 'stock' object was provided
-        stock = info.data.get('stock')
-        if stock and isinstance(stock, dict):
-            return stock.get('quantity')
-        
-        return None
-    
-    @field_validator('stock_status', mode='before')
-    @classmethod
-    def extract_stock_status(cls, v, info):
-        """Extract stock_status from nested stock object if provided"""
-        # If stock_status is already provided, use it
-        if v is not None:
-            return v
-        
-        # Otherwise, check if 'stock' object was provided
-        stock = info.data.get('stock')
-        if stock and isinstance(stock, dict):
-            return stock.get('status')
-        
-        return None
+        return self
 
 
 # ============= Product Response Schemas =============
