@@ -138,6 +138,117 @@ def delete_campaign(db: Session, campaign_id: int) -> bool:
     return True
 
 
+# ============= Auto-apply Campaigns to New Products =============
+
+def apply_active_campaigns_to_product(db: Session, product_id: int, category_ids: List[int] = None) -> dict:
+    """
+    Automatically apply active campaigns to a product based on its categories, brand, or "ALL" campaigns
+    This should be called when creating or updating a product to ensure discounts are applied
+    
+    Args:
+        db: Database session
+        product_id: Product ID to apply campaigns to
+        category_ids: Optional list of category IDs (if not provided, will fetch from product)
+    
+    Returns:
+        Dict with success status and number of campaigns applied
+    """
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        return {"success": False, "message": "Product not found", "campaigns_applied": 0}
+    
+    if not product.is_active:
+        return {"success": True, "message": "Product is inactive, skipping campaigns", "campaigns_applied": 0}
+    
+    # Get category IDs if not provided
+    if category_ids is None:
+        category_ids = [cat.id for cat in product.categories]
+    
+    # Find all active campaigns that match this product
+    active_campaigns = db.query(DiscountCampaign).filter(
+        DiscountCampaign.is_active == True
+    ).all()
+    
+    campaigns_applied = 0
+    
+    for campaign in active_campaigns:
+        should_apply = False
+        
+        # Check if campaign applies to this product
+        if campaign.target_type == TargetTypeEnum.ALL:
+            should_apply = True
+        
+        elif campaign.target_type == TargetTypeEnum.PRODUCTS:
+            if campaign.target_ids and product_id in campaign.target_ids:
+                should_apply = True
+        
+        elif campaign.target_type == TargetTypeEnum.CATEGORY:
+            if campaign.target_ids and len(campaign.target_ids) > 0:
+                campaign_category_id = campaign.target_ids[0]
+                
+                # Get all subcategories recursively
+                def get_all_subcategory_ids(cat_id, db_session):
+                    """Recursively get all subcategory IDs"""
+                    from app.models.category import Category
+                    category_ids_list = [cat_id]
+                    children = db_session.query(Category).filter(Category.parent_id == cat_id).all()
+                    for child in children:
+                        category_ids_list.extend(get_all_subcategory_ids(child.id, db_session))
+                    return category_ids_list
+                
+                all_campaign_category_ids = get_all_subcategory_ids(campaign_category_id, db)
+                
+                # Check if product is in any of the campaign categories
+                if any(cat_id in all_campaign_category_ids for cat_id in category_ids):
+                    should_apply = True
+        
+        elif campaign.target_type == TargetTypeEnum.BRAND:
+            if campaign.target_ids and len(campaign.target_ids) > 0:
+                if product.brand_id == campaign.target_ids[0]:
+                    should_apply = True
+        
+        # Apply the campaign if conditions are met
+        if should_apply:
+            # Check if discount already exists for this campaign
+            existing_discount = db.query(ProductDiscount).filter(
+                ProductDiscount.product_id == product_id,
+                ProductDiscount.campaign_id == campaign.id,
+                ProductDiscount.is_active == True
+            ).first()
+            
+            if existing_discount:
+                # Update existing discount
+                existing_discount.discount_type = campaign.discount_type.value
+                existing_discount.discount_value = campaign.discount_value
+                existing_discount.priority = campaign.priority
+                existing_discount.start_date = campaign.start_date
+                existing_discount.end_date = campaign.end_date
+            else:
+                # Create new discount
+                new_discount = ProductDiscount(
+                    product_id=product_id,
+                    discount_type=campaign.discount_type.value,
+                    discount_value=campaign.discount_value,
+                    campaign_id=campaign.id,
+                    priority=campaign.priority,
+                    start_date=campaign.start_date,
+                    end_date=campaign.end_date,
+                    is_active=True
+                )
+                db.add(new_discount)
+            
+            campaigns_applied += 1
+    
+    if campaigns_applied > 0:
+        db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Applied {campaigns_applied} active campaign(s) to product",
+        "campaigns_applied": campaigns_applied
+    }
+
+
 # ============= Apply Campaign to Products =============
 
 def apply_campaign_to_products(db: Session, campaign_id: int) -> dict:

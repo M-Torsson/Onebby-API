@@ -456,6 +456,10 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
     db.commit()
     db.refresh(product)
     
+    # Auto-apply active campaigns to the new product
+    from app.crud.discount_campaign import apply_active_campaigns_to_product
+    apply_active_campaigns_to_product(db, product.id, product_data.categories)
+    
     return product
 
 
@@ -467,6 +471,10 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
     
     update_data = product_data.model_dump(exclude_unset=True)
     
+    # Track if categories are being updated
+    categories_updated = False
+    updated_category_ids = None
+    
     # Handle categories update
     if "categories" in update_data:
         category_ids = update_data.pop("categories")
@@ -475,6 +483,8 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
         if len(categories) != len(category_ids):
             raise ValueError("One or more categories not found")
         product.categories = categories
+        categories_updated = True
+        updated_category_ids = category_ids
     
     # Handle tax class update
     if "tax_class_id" in update_data:
@@ -590,6 +600,12 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
     
     db.commit()
     db.refresh(product)
+    
+    # Auto-apply active campaigns if categories were updated
+    if categories_updated:
+        from app.crud.discount_campaign import apply_active_campaigns_to_product
+        apply_active_campaigns_to_product(db, product_id, updated_category_ids)
+    
     return product
 
 
