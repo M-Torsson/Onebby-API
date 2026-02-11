@@ -698,28 +698,11 @@ def update_product(
     Requires X-API-Key header for authentication
     """
     try:
-        # Log the update data for debugging
-        print(f"🔍 [API] Updating product {product_id}")
-        print(f"📦 [API] Raw product object type: {type(product)}")
-        print(f"📦 [API] Product dict keys: {list(product.model_dump(exclude_unset=True).keys())}")
-        
-        # Get the stock field specifically
-        product_dict = product.model_dump(exclude_unset=True)
-        if 'stock' in product_dict:
-            print(f"📦 [API] stock field received: {product_dict['stock']}")
-        if 'stock_quantity' in product_dict:
-            print(f"📊 [API] stock_quantity field: {product_dict['stock_quantity']}")
-        if 'stock_status' in product_dict:
-            print(f"📊 [API] stock_status field: {product_dict['stock_status']}")
-        
         # Update product
         db_product = crud_product.update_product(db, product_id, product)
         
         if not db_product:
             raise HTTPException(status_code=404, detail="Product not found")
-        
-        # Log the result
-        print(f"✅ Product updated - stock_quantity: {db_product.stock_quantity}")
         
         return {
             "message": "Product updated successfully",

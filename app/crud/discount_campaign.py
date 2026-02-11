@@ -639,6 +639,16 @@ def get_all_discounted_products(
             DiscountCampaign.id == best_discount.campaign_id
         ).first()
         
+        # Get first image
+        image = None
+        if product.images:
+            image = product.images[0].url
+        
+        # Get category_id (first category if exists)
+        category_id = None
+        if product.categories:
+            category_id = product.categories[0].id
+        
         products_data.append({
             "product_id": product.id,
             "title": title,
@@ -646,6 +656,8 @@ def get_all_discounted_products(
             "price": price_list,
             "discount": round(best_percentage, 1),
             "final_price": round(final_price, 2),
+            "image": image,
+            "category_id": category_id,
             "campaign_id": best_discount.campaign_id,
             "campaign_name": campaign.name if campaign else None
         })

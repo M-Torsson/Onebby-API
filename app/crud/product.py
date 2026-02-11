@@ -471,21 +471,8 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
     
     update_data = product_data.model_dump(exclude_unset=True)
     
-    # Log stock data for debugging
-    print(f"🔍 [CRUD] Original update_data keys: {list(update_data.keys())}")
-    if 'stock' in update_data:
-        print(f"📦 [CRUD] stock object: {update_data['stock']}")
-    if 'stock_quantity' in update_data:
-        print(f"📊 [CRUD] stock_quantity: {update_data['stock_quantity']}")
-    if 'stock_status' in update_data:
-        print(f"📊 [CRUD] stock_status: {update_data['stock_status']}")
-    
     # Remove 'stock' object if present (we've already extracted stock_status and stock_quantity)
     update_data.pop('stock', None)
-    
-    print(f"✅ [CRUD] After removing stock object, keys: {list(update_data.keys())}")
-    if 'stock_quantity' in update_data:
-        print(f"💾 [CRUD] Will save stock_quantity: {update_data['stock_quantity']}")
     
     # Track if categories are being updated
     categories_updated = False
