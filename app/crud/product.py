@@ -471,6 +471,9 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
     
     update_data = product_data.model_dump(exclude_unset=True)
     
+    # Remove 'stock' object if present (we've already extracted stock_status and stock_quantity)
+    update_data.pop('stock', None)
+    
     # Track if categories are being updated
     categories_updated = False
     updated_category_ids = None

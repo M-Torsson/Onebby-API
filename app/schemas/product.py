@@ -132,9 +132,10 @@ class ProductUpdate(BaseModel):
     # Categories
     categories: Optional[List[int]] = None
     
-    # Stock
-    stock_status: Optional[str] = None
-    stock_quantity: Optional[int] = Field(None, ge=0)
+    # Stock - supports both flat format and nested object format
+    stock: Optional[StockInput] = None  # Nested format from dashboard
+    stock_status: Optional[str] = None  # Flat format
+    stock_quantity: Optional[int] = Field(None, ge=0)  # Flat format
     
     # Images (replace all)
     images: Optional[List[ProductImageInput]] = None
@@ -159,6 +160,36 @@ class ProductUpdate(BaseModel):
     
     # Duration (service/warranty products)
     duration_months: Optional[int] = None
+    
+    @field_validator('stock_quantity', mode='before')
+    @classmethod
+    def extract_stock_quantity(cls, v, info):
+        """Extract stock_quantity from nested stock object if provided"""
+        # If stock_quantity is already provided, use it
+        if v is not None:
+            return v
+        
+        # Otherwise, check if 'stock' object was provided
+        stock = info.data.get('stock')
+        if stock and isinstance(stock, dict):
+            return stock.get('quantity')
+        
+        return None
+    
+    @field_validator('stock_status', mode='before')
+    @classmethod
+    def extract_stock_status(cls, v, info):
+        """Extract stock_status from nested stock object if provided"""
+        # If stock_status is already provided, use it
+        if v is not None:
+            return v
+        
+        # Otherwise, check if 'stock' object was provided
+        stock = info.data.get('stock')
+        if stock and isinstance(stock, dict):
+            return stock.get('status')
+        
+        return None
 
 
 # ============= Product Response Schemas =============
