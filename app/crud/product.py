@@ -598,6 +598,8 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
     
     product.date_update = datetime.utcnow()
     
+    # Flush changes to ensure they are written to the database
+    db.flush()
     db.commit()
     db.refresh(product)
     
