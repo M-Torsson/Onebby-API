@@ -794,7 +794,7 @@ def get_recent_products(db: Session, limit: int = 15) -> List[dict]:
             ).first()
             
             if category_translation:
-                category_name = category_translation.title
+                category_name = category_translation.name
             else:
                 category_name = first_category.name
         
