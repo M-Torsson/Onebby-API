@@ -609,12 +609,11 @@ def get_all_products(
 
 @router.get("/v1/products/recent")
 def get_recent_products(
-    limit: int = Query(15, ge=1, le=50, description="Maximum number of products to return"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get recently added products
+    Get recently added products (exactly 15 products)
     Sorted by date_add (newest first)
     
     Returns compact JSON:
@@ -625,7 +624,7 @@ def get_recent_products(
     - image
     - date_add
     """
-    products = crud_product.get_recent_products(db, limit)
+    products = crud_product.get_recent_products(db, limit=15)
     
     return {
         "success": True,

@@ -100,14 +100,12 @@ def get_discount_campaigns(
 
 @router.get("/v1/discounts/products")
 def get_all_discounted_products(
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum number of records to return"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get all products with active discounts from all campaigns
-    Sorted by discount percentage (highest first)
+    Get products with the highest discount only (5 products max)
+    Returns only products from the highest discount percentage
     
     Returns compact JSON with:
     - product_id
@@ -119,7 +117,7 @@ def get_all_discounted_products(
     - campaign_id
     - campaign_name
     """
-    result = crud_campaign.get_all_discounted_products(db, skip, limit)
+    result = crud_campaign.get_highest_discount_products(db)
     
     if not result.get("success"):
         raise HTTPException(status_code=500, detail="Failed to fetch discounted products")

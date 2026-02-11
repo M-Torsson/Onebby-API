@@ -555,3 +555,127 @@ def get_all_discounted_products(
             "has_prev": skip > 0
         }
     }
+
+
+def get_highest_discount_products(db: Session) -> dict:
+    """
+    Get products with the highest discount only (maximum 5 products)
+    Returns only products from the highest discount percentage available
+    """
+    # Auto-update expired campaigns
+    update_expired_campaigns(db)
+    
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import and_, or_
+    from datetime import datetime
+    
+    now = datetime.now()
+    
+    # Get all products with active discounts within date range
+    products_query = db.query(Product).join(ProductDiscount).filter(
+        ProductDiscount.is_active == True,
+        Product.is_active == True,
+        # Check date range
+        or_(ProductDiscount.start_date.is_(None), ProductDiscount.start_date <= now),
+        or_(ProductDiscount.end_date.is_(None), ProductDiscount.end_date >= now)
+    ).options(
+        joinedload(Product.translations)
+    ).distinct()
+    
+    products = products_query.all()
+    
+    # Build list with all products and their discounts
+    all_products_data = []
+    
+    for product in products:
+        # Get all active discounts for this product within date range
+        discounts = db.query(ProductDiscount).filter(
+            ProductDiscount.product_id == product.id,
+            ProductDiscount.is_active == True,
+            or_(ProductDiscount.start_date.is_(None), ProductDiscount.start_date <= now),
+            or_(ProductDiscount.end_date.is_(None), ProductDiscount.end_date >= now)
+        ).all()
+        
+        if not discounts:
+            continue
+        
+        # Find the highest discount for this product
+        best_discount = None
+        best_percentage = 0
+        
+        price_list = product.price_list or 0
+        
+        for discount in discounts:
+            if discount.discount_type == "percentage":
+                percentage = discount.discount_value
+            else:  # fixed_amount
+                percentage = (discount.discount_value / price_list * 100) if price_list > 0 else 0
+            
+            if percentage > best_percentage:
+                best_percentage = percentage
+                best_discount = discount
+        
+        if not best_discount or best_percentage == 0:
+            continue
+        
+        # Calculate final price
+        if best_discount.discount_type == "percentage":
+            discount_amount = price_list * (best_discount.discount_value / 100)
+        else:
+            discount_amount = best_discount.discount_value
+        
+        final_price = max(0, price_list - discount_amount)
+        
+        # Get product title
+        title = "Untitled"
+        it_translation = next((t for t in product.translations if t.lang == "it"), None)
+        if it_translation:
+            title = it_translation.title
+        elif product.translations:
+            title = product.translations[0].title
+        
+        # Get campaign info
+        campaign = db.query(DiscountCampaign).filter(
+            DiscountCampaign.id == best_discount.campaign_id
+        ).first()
+        
+        all_products_data.append({
+            "product_id": product.id,
+            "title": title,
+            "reference": product.reference,
+            "price": price_list,
+            "discount": round(best_percentage, 1),
+            "final_price": round(final_price, 2),
+            "campaign_id": best_discount.campaign_id,
+            "campaign_name": campaign.name if campaign else None
+        })
+    
+    # Sort by discount percentage (highest first)
+    all_products_data.sort(key=lambda x: x["discount"], reverse=True)
+    
+    # Get the highest discount percentage
+    if not all_products_data:
+        return {
+            "success": True,
+            "total": 0,
+            "products": [],
+            "highest_discount": None
+        }
+    
+    highest_discount_percentage = all_products_data[0]["discount"]
+    
+    # Filter to get only products with the highest discount
+    highest_discount_products = [
+        p for p in all_products_data 
+        if p["discount"] == highest_discount_percentage
+    ]
+    
+    # Return only 5 products maximum
+    result_products = highest_discount_products[:5]
+    
+    return {
+        "success": True,
+        "total": len(result_products),
+        "products": result_products,
+        "highest_discount": highest_discount_percentage
+    }
