@@ -574,7 +574,9 @@ def get_all_discounted_products(
         or_(ProductDiscount.start_date.is_(None), ProductDiscount.start_date <= now),
         or_(ProductDiscount.end_date.is_(None), ProductDiscount.end_date >= now)
     ).options(
-        joinedload(Product.translations)
+        joinedload(Product.translations),
+        joinedload(Product.images),
+        joinedload(Product.categories)
     ).distinct()
     
     # Count total
@@ -789,6 +791,7 @@ def get_highest_discount_products(db: Session) -> dict:
         return {
             "success": True,
             "total": 0,
+            "category_id": None,
             "products": [],
             "highest_discount": None
         }
@@ -804,9 +807,25 @@ def get_highest_discount_products(db: Session) -> dict:
     # Return only 5 products maximum
     result_products = highest_discount_products[:5]
     
+    # Get category_id: Only if campaign targets single category
+    category_id = None
+    if result_products:
+        first_campaign_id = result_products[0]["campaign_id"]
+        campaign = db.query(DiscountCampaign).filter(
+            DiscountCampaign.id == first_campaign_id
+        ).first()
+        
+        # Only return category_id if campaign targets exactly one category
+        if (campaign and 
+            campaign.target_type == TargetTypeEnum.CATEGORY and 
+            campaign.target_ids and 
+            len(campaign.target_ids) == 1):
+            category_id = campaign.target_ids[0]
+    
     return {
         "success": True,
         "total": len(result_products),
+        "category_id": category_id,
         "products": result_products,
         "highest_discount": highest_discount_percentage
     }
