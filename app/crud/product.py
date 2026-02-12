@@ -807,8 +807,10 @@ def get_recent_products(db: Session, limit: int = 15) -> List[dict]:
         
         # Get first category with Italian translation
         category_name = None
+        category_id = None
         if product.categories:
             first_category = product.categories[0]
+            category_id = first_category.id
             category_translation = db.query(CategoryTranslation).filter(
                 CategoryTranslation.category_id == first_category.id,
                 CategoryTranslation.lang == "it"
@@ -826,6 +828,7 @@ def get_recent_products(db: Session, limit: int = 15) -> List[dict]:
             "price": product.price_list or 0.0,
             "image": image_url,
             "category": category_name,
+            "category_id": category_id,
             "date_add": product.date_add.isoformat() if product.date_add else None
         })
     
