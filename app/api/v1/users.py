@@ -8,7 +8,8 @@ from typing import List
 from app.db.session import get_db
 from app.schemas.user import (
     UserCreate, UserResponse, UserUpdate, LoginRequest, Token,
-    CustomerRegisterRequest, CustomerResponse, CustomerLoginRequest
+    CustomerRegisterRequest, CustomerResponse, CustomerLoginRequest,
+    CompanyRegisterRequest, CompanyResponse, CompanyLoginRequest
 )
 from app.crud import user as crud_user
 from app.core.security.auth import create_access_token
@@ -243,5 +244,103 @@ async def login_customer(
     
     access_token = create_access_token(
         data={"sub": str(customer.id), "email": customer.email}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+# ============= Company Registration & Login Endpoints =============
+
+@router.post("/companies/register", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
+async def register_company(
+    company_data: CompanyRegisterRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Register a new company (requires API Key)
+    
+    Italian companies must provide both tax_code and pec.
+    Foreign companies can omit tax_code and pec.
+    
+    Request Body:
+    ```json
+    {
+        "reg_type": "company",
+        "company_name": "My Company SRL",
+        "email": "info@company.com",
+        "password": "securePassword123",
+        "vat_number": "12345678901",
+        "tax_code": "ABCDEF12G34H567I",
+        "sdi_code": "ABC1234",
+        "pec": "company@pec.it"
+    }
+    ```
+    """
+    # Check if email already exists
+    existing_user = crud_user.get_user_by_email(db, email=company_data.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Validate Italian company requirements
+    try:
+        company_data.validate_italian_company(company_data.dict())
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    
+    # Create company
+    company = crud_user.create_company(
+        db=db,
+        email=company_data.email,
+        password=company_data.password,
+        company_name=company_data.company_name,
+        vat_number=company_data.vat_number,
+        sdi_code=company_data.sdi_code,
+        tax_code=company_data.tax_code,
+        pec=company_data.pec,
+        reg_type=company_data.reg_type
+    )
+    
+    return company
+
+
+@router.post("/companies/login", response_model=Token)
+async def login_company(
+    login_data: CompanyLoginRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Company login and get access token (requires API Key)
+    
+    Request Body:
+    ```json
+    {
+        "email": "info@company.com",
+        "password": "securePassword123"
+    }
+    ```
+    """
+    company = crud_user.authenticate_company(db, login_data.email, login_data.password)
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not company.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive account"
+        )
+    
+    access_token = create_access_token(
+        data={"sub": str(company.id), "email": company.email}
     )
     return {"access_token": access_token, "token_type": "bearer"}

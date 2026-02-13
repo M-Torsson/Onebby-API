@@ -97,3 +97,52 @@ class CustomerLoginRequest(BaseModel):
     """Customer login request schema"""
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., description="Password")
+
+
+# ============= Company Registration Schemas =============
+
+class CompanyRegisterRequest(BaseModel):
+    """Company registration request schema"""
+    reg_type: str = Field(default="company", description="Registration type (must be 'company')")
+    company_name: str = Field(..., min_length=1, max_length=200, description="Company name")
+    email: EmailStr = Field(..., description="Email address")
+    password: str = Field(..., min_length=6, max_length=72, description="Password")
+    vat_number: str = Field(..., min_length=1, max_length=50, description="VAT Number / Partita IVA")
+    tax_code: Optional[str] = Field(None, max_length=50, description="Tax Code / Codice Fiscale (required for Italian companies)")
+    sdi_code: str = Field(..., min_length=1, max_length=20, description="SDI Code")
+    pec: Optional[str] = Field(None, max_length=100, description="PEC Email (required for Italian companies)")
+    
+    @classmethod
+    def validate_italian_company(cls, values):
+        """Validate that Italian companies have required fields"""
+        # If tax_code is provided, assume it's an Italian company and require pec
+        if values.get('tax_code') and not values.get('pec'):
+            raise ValueError('PEC is required for Italian companies (when tax_code is provided)')
+        # If pec is provided, assume it's an Italian company and require tax_code
+        if values.get('pec') and not values.get('tax_code'):
+            raise ValueError('Tax code is required for Italian companies (when PEC is provided)')
+        return values
+
+
+class CompanyResponse(BaseModel):
+    """Company response schema"""
+    id: int
+    reg_type: str
+    company_name: Optional[str] = None
+    email: EmailStr
+    vat_number: Optional[str] = None
+    tax_code: Optional[str] = None
+    sdi_code: Optional[str] = None
+    pec: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class CompanyLoginRequest(BaseModel):
+    """Company login request schema"""
+    email: EmailStr = Field(..., description="Email address")
+    password: str = Field(..., description="Password")

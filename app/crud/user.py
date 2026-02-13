@@ -144,3 +144,65 @@ def authenticate_customer(db: Session, email: str, password: str) -> Optional[Us
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+# ============= Company CRUD Functions =============
+
+def create_company(
+    db: Session,
+    email: str,
+    password: str,
+    company_name: str,
+    vat_number: str,
+    sdi_code: str,
+    tax_code: Optional[str] = None,
+    pec: Optional[str] = None,
+    reg_type: str = "company"
+) -> User:
+    """Create a new company"""
+    hashed_password = get_password_hash(password)
+    
+    # Generate username from company name or email
+    username = company_name.lower().replace(" ", "_")[:50]
+    if not username:
+        username = email.split('@')[0]
+    
+    # Check if username already exists, if so, add a number suffix
+    base_username = username
+    counter = 1
+    while get_user_by_username(db, username):
+        username = f"{base_username}{counter}"
+        counter += 1
+    
+    # Create company
+    db_company = User(
+        reg_type=reg_type,
+        company_name=company_name,
+        vat_number=vat_number,
+        tax_code=tax_code,
+        sdi_code=sdi_code,
+        pec=pec,
+        email=email,
+        username=username,
+        hashed_password=hashed_password,
+        is_active=True,
+        is_superuser=False
+    )
+    
+    db.add(db_company)
+    db.commit()
+    db.refresh(db_company)
+    return db_company
+
+
+def authenticate_company(db: Session, email: str, password: str) -> Optional[User]:
+    """Authenticate a company by email"""
+    user = get_user_by_email(db, email)
+    
+    if not user:
+        return None
+    if user.reg_type != "company":
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
+    return user
