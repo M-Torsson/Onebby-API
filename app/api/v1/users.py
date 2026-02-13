@@ -9,7 +9,8 @@ from app.db.session import get_db
 from app.schemas.user import (
     UserCreate, UserResponse, UserUpdate, LoginRequest, Token,
     CustomerRegisterRequest, CustomerResponse, CustomerLoginRequest,
-    CompanyRegisterRequest, CompanyResponse, CompanyLoginRequest
+    CompanyRegisterRequest, CompanyResponse, CompanyLoginRequest,
+    CustomerUpdateRequest, CompanyUpdateRequest
 )
 from app.crud import user as crud_user
 from app.core.security.auth import create_access_token
@@ -248,6 +249,76 @@ async def login_customer(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/customers", response_model=List[CustomerResponse])
+async def get_all_customers(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all customers (requires API Key)
+    """
+    customers = crud_user.get_customers(db, skip=skip, limit=limit)
+    return customers
+
+
+@router.get("/customers/{customer_id}", response_model=CustomerResponse)
+async def get_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get customer by ID (requires API Key)
+    """
+    customer = crud_user.get_customer_by_id(db, customer_id=customer_id)
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found"
+        )
+    return customer
+
+
+@router.put("/customers/{customer_id}", response_model=CustomerResponse)
+async def update_customer(
+    customer_id: int,
+    customer_update: CustomerUpdateRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Update customer (requires API Key)
+    """
+    update_data = customer_update.dict(exclude_unset=True)
+    customer = crud_user.update_customer(db, customer_id=customer_id, update_data=update_data)
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found"
+        )
+    return customer
+
+
+@router.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Delete customer (requires API Key)
+    """
+    success = crud_user.delete_customer(db, customer_id=customer_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found"
+        )
+    return None
+
+
 # ============= Company Registration & Login Endpoints =============
 
 @router.post("/companies/register", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
@@ -344,3 +415,75 @@ async def login_company(
         data={"sub": str(company.id), "email": company.email}
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/companies", response_model=List[CompanyResponse])
+async def get_all_companies(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all companies (requires API Key)
+    """
+    companies = crud_user.get_companies(db, skip=skip, limit=limit)
+    return companies
+
+
+@router.get("/companies/{company_id}", response_model=CompanyResponse)
+async def get_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get company by ID (requires API Key)
+    """
+    company = crud_user.get_company_by_id(db, company_id=company_id)
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    return company
+
+
+@router.put("/companies/{company_id}", response_model=CompanyResponse)
+async def update_company(
+    company_id: int,
+    company_update: CompanyUpdateRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Update company (requires API Key)
+    
+    Admin can update approval_status to approve/reject companies.
+    """
+    update_data = company_update.dict(exclude_unset=True)
+    company = crud_user.update_company(db, company_id=company_id, update_data=update_data)
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    return company
+
+
+@router.delete("/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Delete company (requires API Key)
+    """
+    success = crud_user.delete_company(db, company_id=company_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    return None

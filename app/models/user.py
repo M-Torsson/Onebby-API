@@ -28,6 +28,9 @@ class User(BaseModel):
     sdi_code = Column(String, nullable=True)  # SDI Code
     pec = Column(String, nullable=True)  # PEC Email (required for Italian companies)
     
+    # Company approval status - only for companies (pending/approved/rejected)
+    approval_status = Column(String, default="pending", nullable=True)  # For companies only
+    
     # Authentication fields
     email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, unique=True, index=True, nullable=True)  # Optional for customers

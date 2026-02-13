@@ -134,6 +134,7 @@ class CompanyResponse(BaseModel):
     tax_code: Optional[str] = None
     sdi_code: Optional[str] = None
     pec: Optional[str] = None
+    approval_status: Optional[str] = None  # pending/approved/rejected
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -146,3 +147,26 @@ class CompanyLoginRequest(BaseModel):
     """Company login request schema"""
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., description="Password")
+
+
+# ============= Update Schemas =============
+
+class CustomerUpdateRequest(BaseModel):
+    """Customer update request schema"""
+    title: Optional[str] = Field(None, max_length=20, description="Title")
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100, description="First name")
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100, description="Last name")
+    email: Optional[EmailStr] = Field(None, description="Email address")
+    password: Optional[str] = Field(None, min_length=6, max_length=72, description="Password")
+
+
+class CompanyUpdateRequest(BaseModel):
+    """Company update request schema"""
+    company_name: Optional[str] = Field(None, min_length=1, max_length=200, description="Company name")
+    email: Optional[EmailStr] = Field(None, description="Email address")
+    password: Optional[str] = Field(None, min_length=6, max_length=72, description="Password")
+    vat_number: Optional[str] = Field(None, min_length=1, max_length=50, description="VAT Number")
+    tax_code: Optional[str] = Field(None, max_length=50, description="Tax Code")
+    sdi_code: Optional[str] = Field(None, min_length=1, max_length=20, description="SDI Code")
+    pec: Optional[str] = Field(None, max_length=100, description="PEC Email")
+    approval_status: Optional[str] = Field(None, description="Approval status (pending/approved/rejected)")

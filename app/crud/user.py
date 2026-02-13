@@ -146,6 +146,53 @@ def authenticate_customer(db: Session, email: str, password: str) -> Optional[Us
     return user
 
 
+def get_customers(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+    """Get all customers with pagination"""
+    return db.query(User).filter(User.reg_type == "user").offset(skip).limit(limit).all()
+
+
+def get_customer_by_id(db: Session, customer_id: int) -> Optional[User]:
+    """Get customer by ID"""
+    user = db.query(User).filter(User.id == customer_id, User.reg_type == "user").first()
+    return user
+
+
+def update_customer(db: Session, customer_id: int, update_data: dict) -> Optional[User]:
+    """Update a customer"""
+    db_customer = get_customer_by_id(db, customer_id)
+    if not db_customer:
+        return None
+    
+    # Hash password if provided
+    if "password" in update_data and update_data["password"]:
+        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+    
+    # Update full_name if first_name or last_name changed
+    if "first_name" in update_data or "last_name" in update_data:
+        first_name = update_data.get("first_name", db_customer.first_name)
+        last_name = update_data.get("last_name", db_customer.last_name)
+        update_data["full_name"] = f"{first_name} {last_name}"
+    
+    for field, value in update_data.items():
+        if value is not None:  # Only update non-null values
+            setattr(db_customer, field, value)
+    
+    db.commit()
+    db.refresh(db_customer)
+    return db_customer
+
+
+def delete_customer(db: Session, customer_id: int) -> bool:
+    """Delete a customer"""
+    db_customer = get_customer_by_id(db, customer_id)
+    if not db_customer:
+        return False
+    
+    db.delete(db_customer)
+    db.commit()
+    return True
+
+
 # ============= Company CRUD Functions =============
 
 def create_company(
@@ -185,6 +232,7 @@ def create_company(
         email=email,
         username=username,
         hashed_password=hashed_password,
+        approval_status="pending",  # Companies start as pending
         is_active=True,
         is_superuser=False
     )
@@ -206,3 +254,44 @@ def authenticate_company(db: Session, email: str, password: str) -> Optional[Use
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+def get_companies(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+    """Get all companies with pagination"""
+    return db.query(User).filter(User.reg_type == "company").offset(skip).limit(limit).all()
+
+
+def get_company_by_id(db: Session, company_id: int) -> Optional[User]:
+    """Get company by ID"""
+    company = db.query(User).filter(User.id == company_id, User.reg_type == "company").first()
+    return company
+
+
+def update_company(db: Session, company_id: int, update_data: dict) -> Optional[User]:
+    """Update a company"""
+    db_company = get_company_by_id(db, company_id)
+    if not db_company:
+        return None
+    
+    # Hash password if provided
+    if "password" in update_data and update_data["password"]:
+        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+    
+    for field, value in update_data.items():
+        if value is not None:  # Only update non-null values
+            setattr(db_company, field, value)
+    
+    db.commit()
+    db.refresh(db_company)
+    return db_company
+
+
+def delete_company(db: Session, company_id: int) -> bool:
+    """Delete a company"""
+    db_company = get_company_by_id(db, company_id)
+    if not db_company:
+        return False
+    
+    db.delete(db_company)
+    db.commit()
+    return True
