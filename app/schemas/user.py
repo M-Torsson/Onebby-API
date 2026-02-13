@@ -63,3 +63,37 @@ class LoginRequest(BaseModel):
     """Login request schema"""
     username: str
     password: str
+
+
+# ============= Customer Registration Schemas =============
+
+class CustomerRegisterRequest(BaseModel):
+    """Customer registration request schema"""
+    reg_type: str = Field(default="user", description="Registration type (user/admin)")
+    title: str = Field(..., max_length=20, description="Title (e.g., Sig., Sig.ra)")
+    first_name: str = Field(..., min_length=1, max_length=100, description="First name")
+    last_name: str = Field(..., min_length=1, max_length=100, description="Last name")
+    email: EmailStr = Field(..., description="Email address")
+    password: str = Field(..., min_length=6, max_length=72, description="Password")
+
+
+class CustomerResponse(BaseModel):
+    """Customer response schema"""
+    id: int
+    reg_type: str
+    title: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: EmailStr
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class CustomerLoginRequest(BaseModel):
+    """Customer login request schema"""
+    email: EmailStr = Field(..., description="Email address")
+    password: str = Field(..., description="Password")

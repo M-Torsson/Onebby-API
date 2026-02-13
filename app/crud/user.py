@@ -87,3 +87,60 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+# ============= Customer CRUD Functions =============
+
+def create_customer(
+    db: Session,
+    email: str,
+    password: str,
+    first_name: str,
+    last_name: str,
+    title: str,
+    reg_type: str = "user"
+) -> User:
+    """Create a new customer"""
+    hashed_password = get_password_hash(password)
+    
+    # Generate username from email (use email as username for customers)
+    username = email.split('@')[0]
+    
+    # Check if username already exists, if so, add a number suffix
+    base_username = username
+    counter = 1
+    while get_user_by_username(db, username):
+        username = f"{base_username}{counter}"
+        counter += 1
+    
+    # Create customer
+    db_customer = User(
+        reg_type=reg_type,
+        title=title,
+        first_name=first_name,
+        last_name=last_name,
+        full_name=f"{first_name} {last_name}",
+        email=email,
+        username=username,
+        hashed_password=hashed_password,
+        is_active=True,
+        is_superuser=False
+    )
+    
+    db.add(db_customer)
+    db.commit()
+    db.refresh(db_customer)
+    return db_customer
+
+
+def authenticate_customer(db: Session, email: str, password: str) -> Optional[User]:
+    """Authenticate a customer by email"""
+    user = get_user_by_email(db, email)
+    
+    if not user:
+        return None
+    if user.reg_type != "user":
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
+    return user

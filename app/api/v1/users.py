@@ -6,7 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.db.session import get_db
-from app.schemas.user import UserCreate, UserResponse, UserUpdate, LoginRequest, Token
+from app.schemas.user import (
+    UserCreate, UserResponse, UserUpdate, LoginRequest, Token,
+    CustomerRegisterRequest, CustomerResponse, CustomerLoginRequest
+)
 from app.crud import user as crud_user
 from app.core.security.auth import create_access_token
 from app.core.security.dependencies import get_current_active_user
@@ -160,3 +163,85 @@ async def delete_user(
             detail="User not found"
         )
     return None
+
+
+# ============= Customer Registration & Login Endpoints =============
+
+@router.post("/customers/register", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+async def register_customer(
+    customer_data: CustomerRegisterRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Register a new customer (requires API Key)
+    
+    Request Body:
+    ```json
+    {
+        "reg_type": "user",
+        "title": "Sig.",
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john.doe@example.com",
+        "password": "securePassword123"
+    }
+    ```
+    """
+    # Check if email already exists
+    existing_user = crud_user.get_user_by_email(db, email=customer_data.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create customer
+    customer = crud_user.create_customer(
+        db=db,
+        email=customer_data.email,
+        password=customer_data.password,
+        first_name=customer_data.first_name,
+        last_name=customer_data.last_name,
+        title=customer_data.title,
+        reg_type=customer_data.reg_type
+    )
+    
+    return customer
+
+
+@router.post("/customers/login", response_model=Token)
+async def login_customer(
+    login_data: CustomerLoginRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Customer login and get access token (requires API Key)
+    
+    Request Body:
+    ```json
+    {
+        "email": "john.doe@example.com",
+        "password": "securePassword123"
+    }
+    ```
+    """
+    customer = crud_user.authenticate_customer(db, login_data.email, login_data.password)
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not customer.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive account"
+        )
+    
+    access_token = create_access_token(
+        data={"sub": str(customer.id), "email": customer.email}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
