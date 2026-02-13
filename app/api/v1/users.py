@@ -94,79 +94,6 @@ async def get_current_user_info(
     return user
 
 
-@router.get("/", response_model=List[UserResponse])
-async def get_users(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    Get all users (requires API Key + JWT)
-    """
-    users = crud_user.get_users(db, skip=skip, limit=limit)
-    return users
-
-
-@router.get("/{user_id}", response_model=UserResponse)
-async def get_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    Get user by ID (requires API Key + JWT)
-    """
-    user = crud_user.get_user(db, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return user
-
-
-@router.put("/{user_id}", response_model=UserResponse)
-async def update_user(
-    user_id: int,
-    user_update: UserUpdate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    Update user (requires API Key + JWT)
-    """
-    user = crud_user.update_user(db, user_id=user_id, user=user_update)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return user
-
-
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    Delete user (requires API Key + JWT)
-    """
-    success = crud_user.delete_user(db, user_id=user_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return None
-
-
 # ============= Customer Registration & Login Endpoints =============
 
 @router.post("/customers/register", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
@@ -485,5 +412,80 @@ async def delete_company(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Company not found"
+        )
+    return None
+
+
+# ============= Generic User Endpoints (Admin Only) =============
+
+@router.get("/", response_model=List[UserResponse])
+async def get_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get all users (requires API Key + JWT)
+    """
+    users = crud_user.get_users(db, skip=skip, limit=limit)
+    return users
+
+
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get user by ID (requires API Key + JWT)
+    """
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return user
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: int,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Update user (requires API Key + JWT)
+    """
+    user = crud_user.update_user(db, user_id=user_id, user=user_update)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return user
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Delete user (requires API Key + JWT)
+    """
+    success = crud_user.delete_user(db, user_id=user_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
     return None
