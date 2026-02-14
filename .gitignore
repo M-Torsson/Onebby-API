@@ -97,23 +97,116 @@ remove_*.py
 categories_backup*.json
 
 # Documentation that contains implementation details
-CATEGORY_FIX.md
-CATEGORIES_API.md
-API_KEY_USAGE.md
-API_CHANGELOG.md
-CLEANUP_STEPS.md
-GIT_COMMANDS.md
-SECURITY_NOTICE.md
-DEPLOYMENT_RENDER.md
-DEPLOY_NOW.md
-DUPLICATE_CATEGORIES_REPORT.md
-FINAL_SOLUTION.md
-FRONTEND_FAQ.md
-IMPORT_API.md
-IMPORT_QUICKSTART.md
-IMPORT_VERIFICATION.md
-PRODUCTS_API.md
-RENDER_DEPLOY_FIX.md
-RENDER_SETUP.md
-TEST_CATEGORY_README.md
+*.md
+!README.md
+!LICENSE.md
+
+# JSON and text data files
+*.json
+!requirements.json
+!package.json
+!package-lock.json
+*.txt
+!requirements.txt
+
+# SQL files
+*.sql
+
+# Excel files
+*.xls
+*.xlsx
+*.csv
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Batch and shell scripts (except deployment)
+*.bat
+!deploy.bat
+*.sh
+!startup.sh
+!deploy.sh
+
+# Temporary and output files
+temp_*.json
+output.txt
+sample_*.json
+categories_backup*.json
+commerceclarity_single_product.json
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Migration run scripts
+run_migration_*.py
+
+# Local environment files
+.env
+.env.local
+.env.production
+!.env.example
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Logs
+logs/
+*.log
+
+# All utility scripts in root directory
+add_*.py
+delete_*.py
+fix_*.py
+update_*.py
+move_*.py
+create_*.py
+import_*.py
+export_*.py
+verify_*.py
+analyze_*.py
+compare_*.py
+restore_*.py
+backup_*.py
+cleanup_*.py
+diagnose_*.py
+identify_*.py
+extract_*.py
+find_*.py
+force_*.py
+final_*.py
+complete_*.py
+rebuild_*.py
+recategorize_*.py
+replace_*.py
+activate_*.py
+show_*.py
+monitor_*.py
+process_*.py
+run_*.py
+use_*.py
+quick_*.py
+detailed_*.py
+remove_*.py
+search_*.py
+debug_*.py
+check_*.py
 
