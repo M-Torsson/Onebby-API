@@ -45,13 +45,16 @@ All endpoints require API Key in headers:
 
 ## 📊 APPROVAL STATUS (Companies Only)
 
-| Status | Description |
-|--------|-------------|
-| `"pending"` | ✋ Default - Company waiting for approval |
-| `"approved"` | ✅ Company approved by admin |
-| `"rejected"` | ❌ Company rejected by admin |
+| Status | Description | Login Behavior |
+|--------|-------------|----------------|
+| `"pending"` | ✋ Default - Company waiting for approval | **Cannot login** - Error: "Your account is pending approval. Please wait for administrator approval." |
+| `"approved"` | ✅ Company approved by admin | **Can login** - Full access granted |
+| `"rejected"` | ❌ Company rejected by admin | **Cannot login** - Error: "Your account has been rejected. Please contact administration for more information." |
 
-**Note:** All new companies start with `approval_status = "pending"`
+**Note:** 
+- All new companies start with `approval_status = "pending"`
+- Companies **cannot login** until status is changed to `"approved"` by admin
+- Admin changes status using `PUT /companies/{id}` endpoint
 
 ---
 
@@ -111,6 +114,33 @@ All endpoints require API Key in headers:
 
 ---
 
+## ⚠️ Error Responses
+
+### Company Login Errors:
+
+**Pending Approval (403):**
+```json
+{
+  "detail": "Your account is pending approval. Please wait for administrator approval."
+}
+```
+
+**Rejected Account (403):**
+```json
+{
+  "detail": "Your account has been rejected. Please contact administration for more information."
+}
+```
+
+**Invalid Credentials (401):**
+```json
+{
+  "detail": "Incorrect email or password"
+}
+```
+
+---
+
 ## 🎯 Frontend Implementation Tips
 
 ```javascript
@@ -124,6 +154,27 @@ const registerCustomer = async (data) => {
     },
     body: JSON.stringify(data)
   });
+  return await response.json();
+};
+
+// Example: Company Login with Error Handling
+const loginCompany = async (email, password) => {
+  const response = await fetch('https://onebby-api.onrender.com/api/users/companies/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': 'YOUR_API_KEY'
+    },
+    body: JSON.stringify({ email, password })
+  });
+  
+  if (response.status === 403) {
+    const data = await response.json();
+    // Show appropriate message based on approval status
+    alert(data.detail);
+    return null;
+  }
+  
   return await response.json();
 };
 

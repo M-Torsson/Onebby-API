@@ -316,6 +316,8 @@ async def login_company(
     """
     Company login and get access token (requires API Key)
     
+    Company must be approved (approval_status = 'approved') to login.
+    
     Request Body:
     ```json
     {
@@ -336,6 +338,25 @@ async def login_company(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive account"
+        )
+    
+    # Check approval status
+    if company.approval_status == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval. Please wait for administrator approval."
+        )
+    
+    if company.approval_status == "rejected":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been rejected. Please contact administration for more information."
+        )
+    
+    if company.approval_status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is not approved yet."
         )
     
     access_token = create_access_token(

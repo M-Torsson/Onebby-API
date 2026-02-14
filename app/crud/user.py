@@ -244,7 +244,7 @@ def create_company(
 
 
 def authenticate_company(db: Session, email: str, password: str) -> Optional[User]:
-    """Authenticate a company by email"""
+    """Authenticate a company by email - returns user even if not approved"""
     user = get_user_by_email(db, email)
     
     if not user:
@@ -253,6 +253,7 @@ def authenticate_company(db: Session, email: str, password: str) -> Optional[Use
         return None
     if not verify_password(password, user.hashed_password):
         return None
+    # Return user regardless of approval_status - let the endpoint handle it
     return user
 
 
