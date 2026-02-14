@@ -72,7 +72,7 @@ async def login(
         )
     
     access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -173,7 +173,7 @@ async def login_customer(
     access_token = create_access_token(
         data={"sub": str(customer.id), "email": customer.email}
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": customer.id}
 
 
 @router.get("/customers", response_model=List[CustomerResponse])
@@ -341,7 +341,7 @@ async def login_company(
     access_token = create_access_token(
         data={"sub": str(company.id), "email": company.email}
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": company.id}
 
 
 @router.get("/companies", response_model=List[CompanyResponse])

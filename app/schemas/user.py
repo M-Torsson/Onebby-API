@@ -50,6 +50,7 @@ class Token(BaseModel):
     """Token response schema"""
     access_token: str
     token_type: str = "bearer"
+    user_id: int  # User/Customer/Company ID
 
 
 class TokenData(BaseModel):
