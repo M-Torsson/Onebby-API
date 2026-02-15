@@ -39,11 +39,9 @@ def calculate_cart_totals(cart) -> dict:
     for item in cart.items:
         # Get current price
         if item.product_variant_id and item.product_variant:
-            current_price = item.product_variant.price or (item.product.price if hasattr(item.product, 'price') else Decimal(0))
-            current_discount = item.product_variant.discount_price or Decimal(0)
+            current_price = item.product_variant.price_list if hasattr(item.product_variant, 'price_list') else Decimal(0)
         else:
-            current_price = item.product.price if hasattr(item.product, 'price') else Decimal(0)
-            current_discount = Decimal(0)
+            current_price = item.product.price_list if hasattr(item.product, 'price_list') else Decimal(0)
         
         # Skip items with invalid prices
         if current_price <= 0:
@@ -51,17 +49,15 @@ def calculate_cart_totals(cart) -> dict:
         
         # Calculate item totals
         item_subtotal = current_price * item.quantity
-        item_discount = current_discount * item.quantity
         
         subtotal += item_subtotal
-        total_discount += item_discount
         items_count += item.quantity
     
-    total = subtotal - total_discount
+    total = subtotal
     
     return {
         "subtotal": float(subtotal),
-        "total_discount": float(total_discount),
+        "total_discount": 0.0,
         "total": float(total),
         "items_count": items_count
     }
@@ -88,14 +84,12 @@ def build_cart_response(cart, db: Session) -> dict:
         variant_name = None
         if item.product_variant_id and item.product_variant:
             variant = item.product_variant
-            variant_name = variant.sku or f"Variant {variant.id}"
-            current_price = variant.price or (product.price if hasattr(product, 'price') else None)
-            current_discount = variant.discount_price or Decimal(0)
-            stock_available = variant.stock
+            variant_name = variant.reference or f"Variant {variant.id}"
+            current_price = variant.price_list if hasattr(variant, 'price_list') else None
+            stock_available = variant.stock_quantity if hasattr(variant, 'stock_quantity') else 0
         else:
-            current_price = product.price if hasattr(product, 'price') else None
-            current_discount = Decimal(0)
-            stock_available = product.stock if hasattr(product, 'stock') else 0
+            current_price = product.price_list if hasattr(product, 'price_list') else None
+            stock_available = product.stock_quantity if hasattr(product, 'stock_quantity') else 0
         
         # Check if price is valid
         if current_price is None or current_price <= 0:
@@ -145,8 +139,7 @@ def build_cart_response(cart, db: Session) -> dict:
         
         # Calculate item totals
         item_subtotal = current_price * item.quantity
-        item_discount = current_discount * item.quantity
-        item_total = item_subtotal - item_discount
+        item_total = item_subtotal
         
         # Get product image (first image)
         product_image = None
@@ -162,10 +155,8 @@ def build_cart_response(cart, db: Session) -> dict:
             "price_at_add": float(item.price_at_add),
             "discount_at_add": float(item.discount_at_add) if item.discount_at_add else 0,
             "current_price": float(current_price),
-            "current_discount": float(current_discount),
             "price_changed": price_changed,
             "item_subtotal": float(item_subtotal),
-            "item_discount": float(item_discount),
             "item_total": float(item_total),
             "stock_available": stock_available,
             "is_available": is_available,
