@@ -210,3 +210,6 @@ search_*.py
 debug_*.py
 check_*.py
 
+# Specific sensitive files
+full_analysis.py
+change_product_type_to_simple.py
