@@ -39,9 +39,11 @@ def calculate_cart_totals(cart) -> dict:
     for item in cart.items:
         # Get current price
         if item.product_variant_id and item.product_variant:
-            current_price = item.product_variant.price_list if hasattr(item.product_variant, 'price_list') else Decimal(0)
+            price_value = item.product_variant.price_list if hasattr(item.product_variant, 'price_list') else 0
+            current_price = Decimal(str(price_value)) if price_value else Decimal(0)
         else:
-            current_price = item.product.price_list if hasattr(item.product, 'price_list') else Decimal(0)
+            price_value = item.product.price_list if hasattr(item.product, 'price_list') else 0
+            current_price = Decimal(str(price_value)) if price_value else Decimal(0)
         
         # Skip items with invalid prices
         if current_price <= 0:
@@ -85,10 +87,12 @@ def build_cart_response(cart, db: Session) -> dict:
         if item.product_variant_id and item.product_variant:
             variant = item.product_variant
             variant_name = variant.reference or f"Variant {variant.id}"
-            current_price = variant.price_list if hasattr(variant, 'price_list') else None
+            price_value = variant.price_list if hasattr(variant, 'price_list') else None
+            current_price = Decimal(str(price_value)) if price_value else None
             stock_available = variant.stock_quantity if hasattr(variant, 'stock_quantity') else 0
         else:
-            current_price = product.price_list if hasattr(product, 'price_list') else None
+            price_value = product.price_list if hasattr(product, 'price_list') else None
+            current_price = Decimal(str(price_value)) if price_value else None
             stock_available = product.stock_quantity if hasattr(product, 'stock_quantity') else 0
         
         # Check if price is valid
@@ -102,9 +106,9 @@ def build_cart_response(cart, db: Session) -> dict:
             continue
         
         # Check for price changes
-        price_changed = (current_price != item.price_at_add)
+        price_changed = (current_price != Decimal(str(item.price_at_add)))
         if price_changed:
-            price_diff = current_price - item.price_at_add
+            price_diff = current_price - Decimal(str(item.price_at_add))
             if price_diff > 0:
                 warnings.append({
                     "item_id": item.id,
