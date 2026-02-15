@@ -4,6 +4,7 @@
 
 from app.models.user import User
 from app.models.address import Address
+from app.models.cart import Cart, CartItem
 from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand
 from app.models.tax_class import TaxClass
@@ -23,6 +24,7 @@ from app.models.product_variant import (
 __all__ = [
     "User",
     "Address",
+    "Cart", "CartItem",
     "Category", "CategoryTranslation",
     "Brand", "TaxClass",
     "Delivery", "DeliveryTranslation",
