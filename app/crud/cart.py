@@ -105,13 +105,21 @@ def add_item_to_cart(
         if not variant:
             raise ValueError("Product variant not found")
         
-        current_price = variant.price or product.price
+        current_price = variant.price or (product.price if hasattr(product, 'price') and product.price else None)
         current_stock = variant.stock
         current_discount = variant.discount_price if variant.discount_price else None
     else:
+        # Check if product has price attribute
+        if not hasattr(product, 'price') or product.price is None:
+            raise ValueError(f"Product {product.id} does not have a valid price")
+        
         current_price = product.price
-        current_stock = product.stock
+        current_stock = product.stock if hasattr(product, 'stock') else 0
         current_discount = product.discount_price if hasattr(product, 'discount_price') else None
+    
+    # Validate price
+    if current_price is None or current_price <= 0:
+        raise ValueError(f"Product price is invalid or not set")
     
     # Check stock availability
     if current_stock < item_data.quantity:
@@ -271,10 +279,20 @@ def validate_cart_for_checkout(db: Session, cart_id: int) -> Tuple[bool, List[di
                 continue
             
             current_stock = variant.stock
-            current_price = variant.price or product.price
+            current_price = variant.price or (product.price if hasattr(product, 'price') else None)
         else:
-            current_stock = product.stock
-            current_price = product.price
+            current_stock = product.stock if hasattr(product, 'stock') else 0
+            current_price = product.price if hasattr(product, 'price') else None
+        
+        # Check if price is valid
+        if current_price is None or current_price <= 0:
+            errors.append({
+                "item_id": item.id,
+                "product_id": item.product_id,
+                "message": "Product price is not set or invalid",
+                "type": "invalid_price"
+            })
+            continue
         
         # Check stock availability
         if current_stock <= 0:

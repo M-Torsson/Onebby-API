@@ -39,11 +39,15 @@ def calculate_cart_totals(cart) -> dict:
     for item in cart.items:
         # Get current price
         if item.product_variant_id and item.product_variant:
-            current_price = item.product_variant.price or item.product.price
+            current_price = item.product_variant.price or (item.product.price if hasattr(item.product, 'price') else Decimal(0))
             current_discount = item.product_variant.discount_price or Decimal(0)
         else:
-            current_price = item.product.price
+            current_price = item.product.price if hasattr(item.product, 'price') else Decimal(0)
             current_discount = Decimal(0)
+        
+        # Skip items with invalid prices
+        if current_price <= 0:
+            continue
         
         # Calculate item totals
         item_subtotal = current_price * item.quantity
@@ -85,13 +89,23 @@ def build_cart_response(cart, db: Session) -> dict:
         if item.product_variant_id and item.product_variant:
             variant = item.product_variant
             variant_name = variant.sku or f"Variant {variant.id}"
-            current_price = variant.price or product.price
+            current_price = variant.price or (product.price if hasattr(product, 'price') else None)
             current_discount = variant.discount_price or Decimal(0)
             stock_available = variant.stock
         else:
-            current_price = product.price
+            current_price = product.price if hasattr(product, 'price') else None
             current_discount = Decimal(0)
-            stock_available = product.stock
+            stock_available = product.stock if hasattr(product, 'stock') else 0
+        
+        # Check if price is valid
+        if current_price is None or current_price <= 0:
+            warnings.append({
+                "item_id": item.id,
+                "product_id": item.product_id,
+                "message": "Product price is not set or invalid",
+                "type": "invalid_price"
+            })
+            continue
         
         # Check for price changes
         price_changed = (current_price != item.price_at_add)
