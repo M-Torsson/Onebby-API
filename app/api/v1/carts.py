@@ -250,7 +250,7 @@ async def add_item_to_cart(
         )
 
 
-@router.get("", response_model=CartResponse)
+@router.get("")
 async def get_cart(
     user_id: Optional[int] = None,
     db: Session = Depends(get_db),
