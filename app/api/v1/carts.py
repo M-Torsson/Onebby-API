@@ -162,9 +162,9 @@ def build_cart_response(cart, db: Session) -> dict:
             "is_available": is_available,
             "created_at": item.created_at,
             "updated_at": item.updated_at,
-            "product_name": product.sku or f"Product {product.id}",
+            "product_name": product.reference or f"Product {product.id}",
             "product_image": product_image,
-            "product_sku": product.sku,
+            "product_reference": product.reference,
             "variant_name": variant_name
         })
     
