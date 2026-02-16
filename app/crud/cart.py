@@ -141,6 +141,11 @@ def add_item_to_cart(
             raise ValueError(f"Cannot add {item_data.quantity} more. Maximum available: {current_stock}")
         
         existing_item.quantity = new_quantity
+        
+        # Update delivery option if provided
+        if item_data.delivery_option:
+            existing_item.delivery_option = item_data.delivery_option.dict()
+        
         db.commit()
         db.refresh(existing_item)
         return existing_item, "updated"
