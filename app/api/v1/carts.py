@@ -161,6 +161,17 @@ def build_cart_response(cart, db: Session) -> dict:
         if product.images and len(product.images) > 0:
             product_image = product.images[0].url
         
+        # Get product name from translations (default to Italian)
+        product_name = product.reference  # fallback
+        if product.translations:
+            # Try to get Italian translation first
+            italian_translation = next((t for t in product.translations if t.lang == 'it'), None)
+            if italian_translation and italian_translation.title:
+                product_name = italian_translation.title
+            # Fallback to any available translation
+            elif product.translations[0].title:
+                product_name = product.translations[0].title
+        
         items_response.append({
             "id": item.id,
             "cart_id": item.cart_id,
@@ -179,7 +190,7 @@ def build_cart_response(cart, db: Session) -> dict:
             "is_available": is_available,
             "created_at": item.created_at,
             "updated_at": item.updated_at,
-            "product_name": product.reference or f"Product {product.id}",
+            "product_name": product_name,
             "product_image": product_image,
             "product_reference": product.reference,
             "variant_name": variant_name
