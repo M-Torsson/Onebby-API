@@ -2,7 +2,7 @@
 # © 2026 Muthana. All rights reserved.
 # Unauthorized copying or distribution is prohibited.
 
-from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, DateTime, func
+from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, DateTime, func, JSON
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -49,6 +49,10 @@ class CartItem(BaseModel):
     
     # Discount at the time of adding to cart (optional)
     discount_at_add = Column(Numeric(10, 2), nullable=True, default=0)
+    
+    # Delivery option selected by user (optional, JSON format)
+    # Example: {"option": "delivery to floor with installation", "price": 339.99}
+    delivery_option = Column(JSON, nullable=True)
     
     # Relationships
     cart = relationship("Cart", back_populates="items")

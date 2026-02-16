@@ -10,11 +10,18 @@ from decimal import Decimal
 
 # ============= Cart Item Schemas =============
 
+class DeliveryOption(BaseModel):
+    """Schema for delivery option"""
+    option: str = Field(..., description="Delivery option name")
+    price: float = Field(..., ge=0, description="Delivery price")
+
+
 class CartItemAdd(BaseModel):
     """Schema for adding item to cart"""
     product_id: int = Field(..., description="Product ID")
     product_variant_id: Optional[int] = Field(None, description="Product Variant ID (optional)")
     quantity: int = Field(..., ge=1, le=100, description="Quantity (1-100)")
+    delivery_option: Optional[DeliveryOption] = Field(None, description="Delivery option (optional, null for free delivery)")
 
 
 class CartItemUpdate(BaseModel):

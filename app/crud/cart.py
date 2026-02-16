@@ -152,7 +152,8 @@ def add_item_to_cart(
             product_variant_id=item_data.product_variant_id,
             quantity=item_data.quantity,
             price_at_add=current_price,
-            discount_at_add=Decimal(0)
+            discount_at_add=Decimal(0),
+            delivery_option=item_data.delivery_option.dict() if item_data.delivery_option else None
         )
         db.add(cart_item)
         db.commit()

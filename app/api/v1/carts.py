@@ -33,7 +33,7 @@ def get_user_or_session(
 def calculate_cart_totals(cart) -> dict:
     """Calculate cart totals"""
     subtotal = Decimal(0)
-    total_discount = Decimal(0)
+    total_delivery = Decimal(0)
     items_count = 0
     
     for item in cart.items:
@@ -51,15 +51,20 @@ def calculate_cart_totals(cart) -> dict:
         
         # Calculate item totals
         item_subtotal = current_price * item.quantity
-        
         subtotal += item_subtotal
+        
+        # Add delivery cost if delivery option is selected
+        if item.delivery_option and isinstance(item.delivery_option, dict):
+            delivery_price = item.delivery_option.get('price', 0)
+            total_delivery += Decimal(str(delivery_price))
+        
         items_count += item.quantity
     
-    total = subtotal
+    total = subtotal + total_delivery
     
     return {
         "subtotal": float(subtotal),
-        "total_discount": 0.0,
+        "total_delivery": float(total_delivery),
         "total": float(total),
         "items_count": items_count
     }
@@ -143,7 +148,13 @@ def build_cart_response(cart, db: Session) -> dict:
         
         # Calculate item totals
         item_subtotal = current_price * item.quantity
-        item_total = item_subtotal
+        
+        # Get delivery cost if delivery option is selected
+        delivery_cost = Decimal(0)
+        if item.delivery_option and isinstance(item.delivery_option, dict):
+            delivery_cost = Decimal(str(item.delivery_option.get('price', 0)))
+        
+        item_total = item_subtotal + delivery_cost
         
         # Get product image (first image)
         product_image = None
@@ -160,6 +171,8 @@ def build_cart_response(cart, db: Session) -> dict:
             "discount_at_add": float(item.discount_at_add) if item.discount_at_add else 0,
             "current_price": float(current_price),
             "price_changed": price_changed,
+            "delivery": item.delivery_option,
+            "delivery_cost": float(delivery_cost),
             "item_subtotal": float(item_subtotal),
             "item_total": float(item_total),
             "stock_available": stock_available,
