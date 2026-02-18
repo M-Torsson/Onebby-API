@@ -54,6 +54,10 @@ class CartItem(BaseModel):
     # Example: {"option": "delivery to floor with installation", "price": 339.99}
     delivery_option = Column(JSON, nullable=True)
     
+    # Warranty option selected by user (optional, JSON format)
+    # Example: {"id": 1, "title": "GARANZIA3", "image": "url", "price": 49.9}
+    warranty_option = Column(JSON, nullable=True)
+    
     # Relationships
     cart = relationship("Cart", back_populates="items")
     product = relationship("Product", backref="cart_items")

@@ -146,6 +146,10 @@ def add_item_to_cart(
         if item_data.delivery_option:
             existing_item.delivery_option = item_data.delivery_option.dict()
         
+        # Update warranty option if provided
+        if item_data.warranty:
+            existing_item.warranty_option = item_data.warranty.dict()
+        
         db.commit()
         db.refresh(existing_item)
         return existing_item, "updated"
@@ -158,7 +162,8 @@ def add_item_to_cart(
             quantity=item_data.quantity,
             price_at_add=current_price,
             discount_at_add=Decimal(0),
-            delivery_option=item_data.delivery_option.dict() if item_data.delivery_option else None
+            delivery_option=item_data.delivery_option.dict() if item_data.delivery_option else None,
+            warranty_option=item_data.warranty.dict() if item_data.warranty else None
         )
         db.add(cart_item)
         db.commit()

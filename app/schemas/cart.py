@@ -16,12 +16,21 @@ class DeliveryOption(BaseModel):
     price: float = Field(..., ge=0, description="Delivery price")
 
 
+class WarrantyOption(BaseModel):
+    """Schema for warranty option"""
+    id: int = Field(..., description="Warranty ID")
+    title: str = Field(..., description="Warranty title")
+    image: Optional[str] = Field(None, description="Warranty image URL")
+    price: float = Field(..., ge=0, description="Warranty price")
+
+
 class CartItemAdd(BaseModel):
     """Schema for adding item to cart"""
     product_id: int = Field(..., description="Product ID")
     product_variant_id: Optional[int] = Field(None, description="Product Variant ID (optional)")
     quantity: int = Field(..., ge=1, le=100, description="Quantity (1-100)")
     delivery_option: Optional[DeliveryOption] = Field(None, description="Delivery option (optional, null for free delivery)")
+    warranty: Optional[WarrantyOption] = Field(None, description="Warranty option (optional, null for no warranty)")
 
 
 class CartItemUpdate(BaseModel):

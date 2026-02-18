@@ -34,6 +34,7 @@ def calculate_cart_totals(cart) -> dict:
     """Calculate cart totals"""
     subtotal = Decimal(0)
     total_delivery = Decimal(0)
+    total_warranty = Decimal(0)
     items_count = 0
     
     for item in cart.items:
@@ -58,13 +59,19 @@ def calculate_cart_totals(cart) -> dict:
             delivery_price = item.delivery_option.get('price', 0)
             total_delivery += Decimal(str(delivery_price))
         
+        # Add warranty cost if warranty option is selected
+        if item.warranty_option and isinstance(item.warranty_option, dict):
+            warranty_price = item.warranty_option.get('price', 0)
+            total_warranty += Decimal(str(warranty_price))
+        
         items_count += item.quantity
     
-    total = subtotal + total_delivery
+    total = subtotal + total_delivery + total_warranty
     
     return {
         "subtotal": float(subtotal),
         "total_delivery": float(total_delivery),
+        "total_warranty": float(total_warranty),
         "total": float(total),
         "items_count": items_count
     }
@@ -154,7 +161,12 @@ def build_cart_response(cart, db: Session) -> dict:
         if item.delivery_option and isinstance(item.delivery_option, dict):
             delivery_cost = Decimal(str(item.delivery_option.get('price', 0)))
         
-        item_total = item_subtotal + delivery_cost
+        # Get warranty cost if warranty option is selected
+        warranty_cost = Decimal(0)
+        if item.warranty_option and isinstance(item.warranty_option, dict):
+            warranty_cost = Decimal(str(item.warranty_option.get('price', 0)))
+        
+        item_total = item_subtotal + delivery_cost + warranty_cost
         
         # Get product image (first image)
         product_image = None
@@ -184,6 +196,8 @@ def build_cart_response(cart, db: Session) -> dict:
             "price_changed": price_changed,
             "delivery": item.delivery_option,
             "delivery_cost": float(delivery_cost),
+            "warranty": item.warranty_option,
+            "warranty_cost": float(warranty_cost),
             "item_subtotal": float(item_subtotal),
             "item_total": float(item_total),
             "stock_available": stock_available,
@@ -233,9 +247,20 @@ async def add_item_to_cart(
     {
         "product_id": 123,
         "product_variant_id": 456,
-        "quantity": 2
+        "quantity": 2,
+        "delivery_option": {
+            "option": "delivery to floor with installation",
+            "price": 339.99
+        },
+        "warranty": {
+            "id": 1,
+            "title": "GARANZIA3 – 3 ANNI",
+            "image": "https://example.com/warranty.png",
+            "price": 49.9
+        }
     }
     ```
+    Note: delivery_option and warranty are optional (can be null or omitted)
     """
     # Get or create cart
     try:
