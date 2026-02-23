@@ -232,7 +232,7 @@ class CRUDOrder:
                 product_id=cart_item.product_id,
                 product_variant_id=cart_item.product_variant_id,
                 product_title=product_title,
-                product_sku=product.sku,
+                product_sku=product.reference,
                 product_type=product.product_type,
                 product_image=product_image,
                 quantity=quantity,
