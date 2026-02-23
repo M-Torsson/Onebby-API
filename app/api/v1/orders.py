@@ -148,7 +148,7 @@ async def create_order_from_cart(
     user_id = int(current_user["id"])
     
     # Get user's cart
-    cart = crud_cart.get_cart(db, user_id=user_id, session_id=session_id)
+    cart = crud_cart.get_active_cart(db, user_id=user_id, session_id=session_id)
     
     if not cart:
         raise HTTPException(
@@ -203,7 +203,7 @@ async def create_order_from_cart_guest(
     - Payment needs to be completed separately
     """
     # Get guest cart
-    cart = crud_cart.get_cart(db, user_id=None, session_id=session_id)
+    cart = crud_cart.get_active_cart(db, user_id=None, session_id=session_id)
     
     if not cart:
         raise HTTPException(
