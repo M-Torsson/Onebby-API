@@ -37,7 +37,7 @@ def get_current_admin_user(
             detail="User not found"
         )
     
-    if not user.is_superuser:
+    if user.reg_type != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions. Admin access required."
