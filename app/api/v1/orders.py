@@ -12,7 +12,7 @@ from app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
     OrderStatsResponse, WarrantyUpdateRequest
 )
-from app.crud import order as crud_order
+from app.crud.order import crud_order
 from app.crud import cart as crud_cart
 from app.core.security.api_key import verify_api_key
 from app.core.security.dependencies import get_current_active_user
