@@ -208,7 +208,7 @@ class CRUDOrder:
             # Get product image
             product_image = None
             if product.images and len(product.images) > 0:
-                product_image = product.images[0].image
+                product_image = product.images[0].url
             
             # Get variant attributes if applicable
             variant_attributes = None
