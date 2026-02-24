@@ -73,7 +73,7 @@ async def create_payment_for_order(
     """
     
     # Get order
-    order = crud_order.get(db, order_id=order_id)
+    order = crud_order.get(db, id=order_id)
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -191,7 +191,7 @@ async def get_order_payments(
     """
     
     # Get order
-    order = crud_order.get(db, order_id=order_id)
+    order = crud_order.get(db, id=order_id)
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
