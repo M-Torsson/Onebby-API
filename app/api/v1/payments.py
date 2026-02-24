@@ -95,12 +95,19 @@ async def create_payment_for_order(
             detail="Order already paid"
         )
     
+    # Use order total if amount not provided
+    payment_amount = payment_in.amount if payment_in.amount is not None else order.total_amount
+    
     # Validate payment amount matches order total
-    if float(payment_in.amount) != float(order.total_amount):
+    if float(payment_amount) != float(order.total_amount):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment amount {payment_in.amount} does not match order total {order.total_amount}"
+            detail=f"Payment amount {payment_amount} does not match order total {order.total_amount}"
         )
+    
+    # Update payment_in with amount if not provided
+    if payment_in.amount is None:
+        payment_in.amount = order.total_amount
     
     # Build URLs
     base_url = str(request.base_url).rstrip('/')

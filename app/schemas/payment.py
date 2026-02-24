@@ -14,7 +14,6 @@ class PaymentBase(BaseModel):
     """Base schema for payment"""
     provider: str = Field(..., description="Payment provider: payplug, floa, findomestic")
     payment_method: str = Field(..., description="Payment method: credit_card, bnpl_3x, bnpl_4x, installments")
-    amount: Decimal = Field(..., gt=0, description="Payment amount in EUR")
     currency: str = Field(default="EUR", description="Currency code")
 
 
@@ -24,7 +23,12 @@ class PaymentCreate(PaymentBase):
     
     This is called when customer chooses payment method at checkout.
     The order_id is passed separately in the API call.
+    
+    Note: amount is optional - if not provided, it will be taken from order.total_price
     """
+    # Amount is optional - will use order.total_price if not provided
+    amount: Optional[Decimal] = Field(None, gt=0, description="Payment amount in EUR (optional, defaults to order total)")
+    
     # Optional metadata from frontend
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional payment metadata")
     
