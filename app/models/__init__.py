@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.address import Address
 from app.models.cart import Cart, CartItem
 from app.models.order import Order, OrderItem
+from app.models.payment import Payment
 from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand
 from app.models.tax_class import TaxClass
@@ -27,6 +28,7 @@ __all__ = [
     "Address",
     "Cart", "CartItem",
     "Order", "OrderItem",
+    "Payment",
     "Category", "CategoryTranslation",
     "Brand", "TaxClass",
     "Delivery", "DeliveryTranslation",

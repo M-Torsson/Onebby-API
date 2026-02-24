@@ -3,7 +3,7 @@
 # Unauthorized copying or distribution is prohibited.
 
 from fastapi import APIRouter
-from app.api.v1 import health, users, addresses, carts, orders, categories, products, brands_taxes, upload, import_products, discounts, deliveries, warranties
+from app.api.v1 import health, users, addresses, carts, orders, payments, webhooks, categories, products, brands_taxes, upload, import_products, discounts, deliveries, warranties
 
 api_router = APIRouter()
 
@@ -21,6 +21,12 @@ api_router.include_router(carts.router, prefix="/cart", tags=["cart"])
 
 # Include orders routes
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
+
+# Include payments routes
+api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
+
+# Include webhooks routes (no authentication required)
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
 # Include categories routes
 api_router.include_router(categories.router, tags=["categories"])

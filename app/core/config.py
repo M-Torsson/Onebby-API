@@ -34,6 +34,25 @@ class Settings(BaseSettings):
     # API Key for additional security (optional)
     API_KEY: str
     
+    # Payment Configuration
+    PAYMENT_MODE: str = "test"  # test or production
+    FRONTEND_URL: str = "http://localhost:3000"
+    
+    # Payment Provider Credentials (Mock mode by default)
+    PAYPLUG_API_KEY: Optional[str] = None
+    PAYPLUG_SECRET_KEY: Optional[str] = None
+    
+    FLOA_API_KEY: Optional[str] = None
+    FLOA_SECRET_KEY: Optional[str] = None
+    
+    FINDOMESTIC_API_KEY: Optional[str] = None
+    FINDOMESTIC_SECRET_KEY: Optional[str] = None
+    
+    # Mock Payment Settings (for testing)
+    MOCK_WEBHOOK_SECRET: str = "mock_webhook_secret_key"
+    TESTING: bool = False
+    ENVIRONMENT: str = "development"  # development, staging, production
+    
     # Cloudinary Configuration (required for image uploads)
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
