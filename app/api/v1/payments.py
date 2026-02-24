@@ -146,7 +146,7 @@ async def create_payment_for_order(
         )
 
 
-@router.get("/payments/{payment_id}", response_model=PaymentResponse)
+@router.get("/{payment_id}", response_model=PaymentResponse)
 async def get_payment(
     payment_id: int,
     current_user: dict = Depends(get_current_active_user),
