@@ -3,7 +3,7 @@
 # Unauthorized copying or distribution is prohibited.
 
 from fastapi import APIRouter
-from app.api.v1 import health, users, addresses, carts, orders, payments, webhooks, categories, products, brands_taxes, upload, import_products, discounts, deliveries, warranties
+from app.api.v1 import health, users, addresses, carts, orders, payments, webhooks, categories, products, brands_taxes, upload, import_products, discounts, deliveries, warranties, dashboard
 
 api_router = APIRouter()
 
@@ -45,6 +45,9 @@ api_router.include_router(deliveries.router, tags=["deliveries"])
 
 # Include warranties routes
 api_router.include_router(warranties.router, tags=["warranties"])
+
+# Include dashboard routes (admin only)
+api_router.include_router(dashboard.router, tags=["dashboard"])
 
 # Include upload routes
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
