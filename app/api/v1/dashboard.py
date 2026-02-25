@@ -258,7 +258,7 @@ async def get_latest_products(
                 translation = product.translations[0]
         
         if translation:
-            title = translation.name
+            title = translation.title
         else:
             title = f"Product {product.id}"
         
@@ -426,7 +426,7 @@ async def get_crm_live_data(
             translation = next((t for t in product.translations if t.lang == "it"), None)
         if not translation and product.translations:
             translation = product.translations[0]
-        title = translation.name if translation else f"Product {product.id}"
+        title = translation.title if translation else f"Product {product.id}"
         
         image_url = None
         if product.images:
