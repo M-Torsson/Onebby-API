@@ -112,52 +112,55 @@ class DashboardProductsResponse(BaseModel):
 # ========================================
 
 class DashboardPaymentItem(BaseModel):
-    """Payment item for dashboard"""
-    id: int = Field(..., description="Payment ID")
-    amount: float = Field(..., description="Payment amount")
+    """Order item for dashboard (showing payment info)"""
+    id: int = Field(..., description="Order ID")
+    customer_name: str = Field(..., description="Customer or company name")
+    customer_email: str = Field(..., description="Customer email")
+    amount: float = Field(..., description="Order total amount")
     currency: str = Field(default="EUR", description="Currency code")
-    status: str = Field(..., description="Payment status")
-    provider: str = Field(..., description="Payment provider")
-    payment_method: str = Field(..., description="Payment method")
-    order_id: int = Field(..., description="Associated order ID")
-    created_at: datetime = Field(..., description="Creation timestamp")
+    payment_status: str = Field(..., description="Payment status")
+    payment_method: Optional[str] = Field(None, description="Payment method")
+    shipping_status: str = Field(..., description="Shipping status")
+    created_at: datetime = Field(..., description="Order creation timestamp")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "id": 4551,
-                "amount": 324.50,
+                "id": 9,
+                "customer_name": "CodeCore SRL",
+                "customer_email": "codecore@info.com",
+                "amount": 6075.00,
                 "currency": "EUR",
-                "status": "completed",
-                "provider": "stripe",
-                "payment_method": "card",
-                "order_id": 9012,
-                "created_at": "2026-02-25T08:21:00Z"
+                "payment_status": "pending",
+                "payment_method": "credit_card",
+                "shipping_status": "pending",
+                "created_at": "2026-02-24T16:11:00Z"
             }
         }
 
 
 class DashboardPaymentsResponse(BaseModel):
-    """Latest payments response"""
-    payments: List[DashboardPaymentItem] = Field(..., description="List of recent payments")
-    total: int = Field(..., description="Total number of payments")
+    """Latest orders response (with payment info)"""
+    payments: List[DashboardPaymentItem] = Field(..., description="List of recent orders")
+    total: int = Field(..., description="Total order count")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "payments": [
                     {
-                        "id": 4551,
-                        "amount": 324.50,
+                        "id": 9,
+                        "customer_name": "CodeCore SRL",
+                        "customer_email": "codecore@info.com",
+                        "amount": 6075.00,
                         "currency": "EUR",
-                        "status": "completed",
-                        "provider": "stripe",
-                        "payment_method": "card",
-                        "order_id": 9012,
-                        "created_at": "2026-02-25T08:21:00Z"
+                        "payment_status": "pending",
+                        "payment_method": "credit_card",
+                        "shipping_status": "pending",
+                        "created_at": "2026-02-24T16:11:00Z"
                     }
                 ],
-                "total": 274
+                "total": 5
             }
         }
 

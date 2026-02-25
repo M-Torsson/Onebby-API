@@ -295,37 +295,52 @@ async def get_latest_products(
 @router.get("/admin/dashboard/payments/recent", response_model=DashboardPaymentsResponse)
 async def get_latest_payments(
     skip: int = Query(default=0, ge=0, description="Number of records to skip"),
-    limit: int = Query(default=10, ge=1, le=50, description="Number of payments to return"),
+    limit: int = Query(default=10, ge=1, le=50, description="Number of orders to return"),
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin_user),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get latest payments for dashboard
+    Get latest orders with payment info for dashboard
     
-    Returns the most recent payment transactions sorted by creation date (descending)
+    Returns the most recent orders sorted by creation date (descending)
     """
     
     # Get total count
-    total = db.query(func.count(Payment.id)).scalar() or 0
+    total = db.query(func.count(Order.id)).scalar() or 0
     
-    # Query latest payments
-    payments = db.query(Payment).order_by(
-        desc(Payment.created_at)
+    # Query latest orders
+    orders = db.query(Order).order_by(
+        desc(Order.created_at)
     ).offset(skip).limit(limit).all()
     
     # Build response items
     payment_items = []
-    for payment in payments:
+    for order in orders:
+        # Extract customer info
+        customer_info = order.customer_info or {}
+        
+        # Get customer name
+        if customer_info.get('reg_type') == 'company':
+            customer_name = customer_info.get('company_name', 'Unknown Company')
+        else:
+            first_name = customer_info.get('first_name', '')
+            last_name = customer_info.get('last_name', '')
+            customer_name = f"{first_name} {last_name}".strip() or 'Unknown'
+        
+        # Get customer email
+        customer_email = customer_info.get('email', '')
+        
         payment_items.append(DashboardPaymentItem(
-            id=payment.id,
-            amount=float(payment.amount),
-            currency=payment.currency,
-            status=payment.status,
-            provider=payment.provider,
-            payment_method=payment.payment_method,
-            order_id=payment.order_id,
-            created_at=payment.created_at
+            id=order.id,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            amount=float(order.total_amount),
+            currency=order.currency,
+            payment_status=order.payment_status,
+            payment_method=order.payment_method,
+            shipping_status=order.shipping_status,
+            created_at=order.created_at
         ))
     
     return DashboardPaymentsResponse(
@@ -445,19 +460,34 @@ async def get_crm_live_data(
             created_at=product.created_at
         ))
     
-    # Get latest payments
-    payments = db.query(Payment).order_by(desc(Payment.created_at)).limit(limit_payments).all()
+    # Get latest orders (with payment info)
+    orders = db.query(Order).order_by(desc(Order.created_at)).limit(limit_payments).all()
     payment_items = []
-    for payment in payments:
+    for order in orders:
+        # Extract customer info
+        customer_info = order.customer_info or {}
+        
+        # Get customer name
+        if customer_info.get('reg_type') == 'company':
+            customer_name = customer_info.get('company_name', 'Unknown Company')
+        else:
+            first_name = customer_info.get('first_name', '')
+            last_name = customer_info.get('last_name', '')
+            customer_name = f"{first_name} {last_name}".strip() or 'Unknown'
+        
+        # Get customer email
+        customer_email = customer_info.get('email', '')
+        
         payment_items.append(DashboardPaymentItem(
-            id=payment.id,
-            amount=float(payment.amount),
-            currency=payment.currency,
-            status=payment.status,
-            provider=payment.provider,
-            payment_method=payment.payment_method,
-            order_id=payment.order_id,
-            created_at=payment.created_at
+            id=order.id,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            amount=float(order.total_amount),
+            currency=order.currency,
+            payment_status=order.payment_status,
+            payment_method=order.payment_method,
+            shipping_status=order.shipping_status,
+            created_at=order.created_at
         ))
     
     return DashboardCRMLiveResponse(
