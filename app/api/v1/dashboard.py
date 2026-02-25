@@ -2,7 +2,7 @@
 # © 2026 Muthana. All rights reserved.
 # Unauthorized copying or distribution is prohibited.
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, desc
 from datetime import datetime, timedelta
@@ -10,6 +10,7 @@ from typing import Optional, List
 from decimal import Decimal
 
 from app.db.session import get_db
+from app.core.config import settings
 from app.schemas.dashboard import (
     DashboardOverviewResponse,
     DashboardProductsResponse,
@@ -23,10 +24,18 @@ from app.models.brand import Brand
 from app.models.product import Product, ProductTranslation
 from app.models.order import Order
 from app.models.payment import Payment
-from app.core.security.api_key import verify_api_key
 from app.core.security.dependencies import get_current_active_user
 
 router = APIRouter()
+
+
+# ============= Helper Functions =============
+
+def verify_api_key(x_api_key: str = Header(...)):
+    """Verify API Key from header"""
+    if x_api_key != settings.API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return x_api_key
 
 
 def get_current_admin_user(
@@ -69,7 +78,7 @@ def calculate_percentage_change(current: float, previous: float) -> float:
 async def get_dashboard_overview(
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin_user),
-    api_key_valid: bool = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Get dashboard overview statistics
@@ -218,7 +227,7 @@ async def get_latest_products(
     lang: str = Query(default="en", description="Language code (en, it, ar, fr, de)"),
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin_user),
-    api_key_valid: bool = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Get latest products for dashboard
@@ -289,7 +298,7 @@ async def get_latest_payments(
     limit: int = Query(default=10, ge=1, le=50, description="Number of payments to return"),
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin_user),
-    api_key_valid: bool = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Get latest payments for dashboard
@@ -336,7 +345,7 @@ async def get_crm_live_data(
     limit_payments: int = Query(default=10, ge=1, le=50, description="Number of payments to return"),
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin_user),
-    api_key_valid: bool = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Get all CRM dashboard data in a single request (optimal performance)
