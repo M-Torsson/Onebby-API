@@ -14,8 +14,10 @@ from app.schemas.warranty_registration import (
 )
 from app.crud.warranty_registration import crud_warranty_registration
 from app.crud.order import crud_order
-from app.crud.product import crud_product
-from app.crud.warranty import crud_warranty
+from app.crud import product as crud_product
+from app.crud import warranty as crud_warranty
+from app.models.product import Product
+from app.models.warranty import Warranty
 from app.core.security.api_key import verify_api_key
 from app.core.security.dependencies import get_current_active_user
 from app.services.garanzia3_service import garanzia3_service
@@ -96,7 +98,7 @@ async def register_warranty(
         )
     
     # Get product
-    product = crud_product.get(db, id=registration_in.product_id)
+    product = crud_product.get_product(db, product_id=registration_in.product_id)
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -104,7 +106,7 @@ async def register_warranty(
         )
     
     # Get warranty
-    warranty = crud_warranty.get(db, id=registration_in.warranty_id)
+    warranty = crud_warranty.get_warranty(db, warranty_id=registration_in.warranty_id)
     if not warranty:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
