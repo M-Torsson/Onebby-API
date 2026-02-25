@@ -18,8 +18,7 @@ from app.core.config import settings
 from app.db.session import Base
 from app.models.base import BaseModel
 # Import all models here for autogenerate
-from app.models.user import User
-from app.models.category import Category, CategoryTranslation
+import app.models  # This will import all models from __init__.py
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

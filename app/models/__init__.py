@@ -7,11 +7,13 @@ from app.models.address import Address
 from app.models.cart import Cart, CartItem
 from app.models.order import Order, OrderItem
 from app.models.payment import Payment
+from app.models.warranty_registration import WarrantyRegistration
 from app.models.category import Category, CategoryTranslation
 from app.models.brand import Brand
 from app.models.tax_class import TaxClass
 from app.models.delivery import Delivery, DeliveryTranslation, DeliveryOption
 from app.models.warranty import Warranty, WarrantyTranslation, WarrantyFeature
+from app.models.discount_campaign import DiscountCampaign
 from app.models.product import (
     Product, ProductTranslation, ProductImage, ProductImageAlt,
     ProductFeature, ProductFeatureTranslation,
@@ -29,10 +31,12 @@ __all__ = [
     "Cart", "CartItem",
     "Order", "OrderItem",
     "Payment",
+    "WarrantyRegistration",
     "Category", "CategoryTranslation",
     "Brand", "TaxClass",
     "Delivery", "DeliveryTranslation",
     "Warranty", "WarrantyTranslation", "WarrantyFeature",
+    "DiscountCampaign",
     "Product", "ProductTranslation", "ProductImage", "ProductImageAlt",
     "ProductFeature", "ProductFeatureTranslation",
     "ProductAttribute", "ProductAttributeTranslation",

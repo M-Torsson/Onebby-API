@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     TESTING: bool = False
     ENVIRONMENT: str = "development"  # development, staging, production
     
+    # Garanzia3 Configuration (Warranty Registration)
+    GARANZIA3_API_URL: Optional[str] = None  # Base URL for Garanzia3 API
+    GARANZIA3_TOKEN: Optional[str] = None  # Authentication token
+    GARANZIA3_MODE: str = "test"  # test or production
+    GARANZIA3_TIMEOUT: int = 30  # API timeout in seconds
+    
     # Cloudinary Configuration (required for image uploads)
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
