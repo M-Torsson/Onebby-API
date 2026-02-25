@@ -269,8 +269,8 @@ async def get_latest_products(
             sorted_images = sorted(product.images, key=lambda x: x.position or 999)
             image_url = sorted_images[0].url if sorted_images else None
         
-        # Get price (use price_final if available, otherwise price_list)
-        price = product.price_final if product.price_final else (product.price_list if product.price_list else 0.0)
+        # Get price
+        price = product.price_list if product.price_list else 0.0
         
         items.append(DashboardProductItem(
             id=product.id,
@@ -433,7 +433,7 @@ async def get_crm_live_data(
             sorted_images = sorted(product.images, key=lambda x: x.position or 999)
             image_url = sorted_images[0].url if sorted_images else None
         
-        price = product.price_final if product.price_final else (product.price_list if product.price_list else 0.0)
+        price = product.price_list if product.price_list else 0.0
         
         product_items.append(DashboardProductItem(
             id=product.id,
