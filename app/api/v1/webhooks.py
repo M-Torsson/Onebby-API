@@ -241,7 +241,7 @@ async def payment_webhook(
         if updated_payment.status == 'completed':
             # Payment successful
             order.payment_status = 'completed'
-            order.status = 'confirmed'
+            order.status = 'completed'  # Changed from 'confirmed' to match warranty registration check
             order.payment_transaction_id = updated_payment.provider_transaction_id
             
             # Auto-register warranties if order has warranty products

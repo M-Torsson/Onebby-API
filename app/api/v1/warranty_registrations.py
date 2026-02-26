@@ -90,8 +90,9 @@ async def register_warranty(
             detail="Not authorized to access this order"
         )
     
-    # Verify order is completed
-    if order.status != 'completed' or order.payment_status != 'completed':
+    # Verify order is completed and paid
+    # Accept both 'completed' and 'confirmed' status for backward compatibility
+    if order.status not in ['completed', 'confirmed'] or order.payment_status != 'completed':
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Order must be completed and paid before registering warranty"
