@@ -53,30 +53,34 @@ async def auto_register_warranties(db: Session, order):
     
     # Process each order item
     for item in order.items:
-        # Check if item has warranty
-        # Assuming warranty products have category or specific field indicating warranty
-        # You may need to adjust this logic based on your product structure
+        # Check if item has warranty option (stored as JSON)
+        if not item.warranty_option or not isinstance(item.warranty_option, dict):
+            continue
         
+        # Extract warranty info from JSON
+        warranty_id = item.warranty_option.get('id')
+        if not warranty_id:
+            continue
+        
+        # Get product for EAN13
         product = item.product
         if not product:
             continue
         
-        # Check if product has warranty (adjust this condition based on your data model)
-        # For now, assuming products have a warranty_id field or relationship
-        # You'll need to update this based on your actual model
+        # Get product EAN13 (required for Garanzia3)
+        # Try to get from product_ean13 field first, then product.ean13
+        product_ean13 = item.product_ean13 if hasattr(item, 'product_ean13') and item.product_ean13 else None
+        if not product_ean13 and hasattr(product, 'ean13'):
+            product_ean13 = product.ean13
         
-        # Skip if no warranty info
-        if not hasattr(product, 'warranty_id') or not product.warranty_id:
+        # Skip if no EAN13 (required for Garanzia3)
+        if not product_ean13:
             continue
         
-        # Check if product has EAN13 (required for Garanzia3)
-        if not hasattr(product, 'ean13') or not product.ean13:
-            continue
-        
-        # Check if warranty already registered for this product-order combo
+        # Check if warranty already registered for this item
         existing = crud_warranty_registration.get_by_order(db, order_id=order.id)
         already_registered = any(
-            reg.product_id == product.id and reg.status == 'registered'
+            reg.product_id == item.product_id and reg.warranty_id == warranty_id and reg.status == 'registered'
             for reg in existing
         )
         
@@ -86,14 +90,14 @@ async def auto_register_warranties(db: Session, order):
         # Create warranty registration record
         registration_data = WarrantyRegistrationCreate(
             order_id=order.id,
-            product_id=product.id,
-            warranty_id=product.warranty_id,
+            product_id=item.product_id,
+            warranty_id=warranty_id,
             customer_name=customer_name,
             customer_lastname=customer_lastname,
             customer_email=customer_email,
             customer_phone=customer_phone,
-            product_ean13=product.ean13,
-            product_name=product.name
+            product_ean13=product_ean13,
+            product_name=item.product_title  # Use product title from order item
         )
         
         registration = crud_warranty_registration.create(
@@ -105,7 +109,7 @@ async def auto_register_warranties(db: Session, order):
         # Call Garanzia3 API
         try:
             result = await garanzia3_service.register_warranty(
-                ean13=product.ean13,
+                ean13=product_ean13,
                 customer_name=customer_name,
                 customer_lastname=customer_lastname,
                 customer_email=customer_email,
