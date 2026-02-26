@@ -40,16 +40,18 @@ async def auto_register_warranties(db: Session, order):
         return
     
     # Get customer address for contact info
-    customer_address = order.address
+    customer_address = order.billing_address
     if not customer_address:
         # No address, cannot register
         return
     
     # Extract customer info
-    customer_name = customer_address.first_name or "Customer"
-    customer_lastname = customer_address.last_name or "Customer"
-    customer_email = order.user.email if order.user else customer_address.email or ""
-    customer_phone = customer_address.phone or ""
+    customer_name = customer_address.get('name') or customer_address.get('first_name') or "Customer"
+    customer_lastname = customer_address.get('last_name') or "Customer"
+    
+    # Get email from customer_info (preserved at order time)
+    customer_email = order.customer_info.get('email', '')
+    customer_phone = customer_address.get('phone', '')
     
     # Process each order item
     for item in order.items:
