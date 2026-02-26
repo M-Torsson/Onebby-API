@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import Optional, List
 from datetime import datetime
+import json
 
 from app.models.warranty_registration import WarrantyRegistration
 from app.schemas.warranty_registration import WarrantyRegistrationCreate
@@ -196,7 +197,8 @@ class CRUDWarrantyRegistration:
         if g3_pin:
             registration.g3_pin = g3_pin
         if g3_response:
-            registration.g3_response = g3_response
+            # Convert dict to JSON string for Text column
+            registration.g3_response = json.dumps(g3_response) if isinstance(g3_response, dict) else g3_response
         if error_message:
             registration.error_message = error_message
         if error_code:
