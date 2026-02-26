@@ -68,12 +68,21 @@ async def auto_register_warranties(db: Session, order):
             continue
         
         # Get product EAN13 (required for Garanzia3)
-        # Try to get from product_ean13 field first, then product.ean13
-        product_ean13 = item.product_ean13 if hasattr(item, 'product_ean13') and item.product_ean13 else None
-        if not product_ean13 and hasattr(product, 'ean13'):
-            product_ean13 = product.ean13
+        # Try multiple sources in order of preference:
+        # 1. product_ean13 field from OrderItem
+        # 2. product.ean13 from Product model
+        # 3. product_sku from OrderItem (fallback - SKU is often the same as EAN13)
+        product_ean13 = None
         
-        # Skip if no EAN13 (required for Garanzia3)
+        if hasattr(item, 'product_ean13') and item.product_ean13:
+            product_ean13 = item.product_ean13
+        elif hasattr(product, 'ean13') and product.ean13:
+            product_ean13 = product.ean13
+        elif hasattr(item, 'product_sku') and item.product_sku:
+            # Use SKU as fallback (often SKU = EAN13 in product databases)
+            product_ean13 = item.product_sku
+        
+        # Skip if no EAN13 found from any source
         if not product_ean13:
             continue
         
