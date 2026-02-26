@@ -21,6 +21,10 @@ class WarrantyRegistrationCreate(BaseModel):
     customer_email: Optional[EmailStr] = None
     customer_phone: Optional[str] = Field(None, max_length=50)
     
+    # Product info (optional - will be extracted from order if not provided)
+    product_ean13: Optional[str] = Field(None, max_length=13)
+    product_name: Optional[str] = Field(None, max_length=255)
+    
     class Config:
         from_attributes = True
 
