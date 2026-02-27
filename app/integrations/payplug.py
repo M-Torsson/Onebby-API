@@ -61,11 +61,11 @@ class PayPlugService:
             # Convert amount to cents (PayPlug requires amount in cents)
             amount_cents = int(amount * 100)
             
-            # Prepare payment data
+            # Prepare payment data (PayPlug simplified format)
             payment_data = {
                 'amount': amount_cents,
                 'currency': 'EUR',
-                'billing': {
+                'customer': {
                     'email': customer_email,
                     'first_name': customer_first_name,
                     'last_name': customer_last_name,
