@@ -617,10 +617,10 @@ class CRUDOrder:
                 raise ValueError(f"Product with ID {item.product_id} not found")
             
             # Check stock availability
-            if product.quantity < item.qty:
+            if product.stock_quantity < item.qty:
                 raise ValueError(
                     f"Insufficient stock for product {item.product_id}. "
-                    f"Available: {product.quantity}, Requested: {item.qty}"
+                    f"Available: {product.stock_quantity}, Requested: {item.qty}"
                 )
             
             # Get product details
@@ -750,7 +750,7 @@ class CRUDOrder:
             db.add(order_item)
             
             # 10. Update product stock
-            item_data["product"].quantity -= item_data["quantity"]
+            item_data["product"].stock_quantity -= item_data["quantity"]
         
         db.commit()
         db.refresh(order)
