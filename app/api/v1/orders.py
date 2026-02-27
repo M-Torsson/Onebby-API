@@ -96,18 +96,14 @@ async def create_order_from_cart(
           "warranty": null,
           "delivery_opt": null
         }
-      ],
-      "total": {
-        "sub_total": 3200,
-        "warranty": 100.89,
-        "shipping": 120.43,
-        "total": 2332.09
-      }
+      ]
     }
     ```
     
+    **Note:** Total is calculated automatically by the system
+    
     **Returns:**
-    - Order object with full details
+    - Order object with full details including calculated totals
     - Stock is automatically reduced
     """
     # Create order directly (no cart needed)

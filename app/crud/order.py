@@ -674,26 +674,22 @@ class CRUDOrder:
                 "delivery_option": delivery_option
             })
         
-        # 6. Validate totals (optional - trust the client or verify)
-        # We're validating as per user's request
-        # The total.sub_total should match our calculated total_calculated
-        # However, the client is sending products + warranty + shipping in their sub_total
-        # So we'll use client's values but verify they make sense
+        # 6. Calculate totals automatically
+        # Subtotal = all products prices
+        subtotal = total_calculated
         
-        if order_data.total.warranty != total_warranty:
-            raise ValueError(
-                f"Warranty total mismatch. Expected: {total_warranty}, Got: {order_data.total.warranty}"
-            )
+        # Shipping cost = sum of all delivery options
+        shipping_cost = total_shipping
         
-        if order_data.total.shipping != total_shipping:
-            raise ValueError(
-                f"Shipping total mismatch. Expected: {total_shipping}, Got: {order_data.total.shipping}"
-            )
+        # Tax (can be calculated based on country/business logic)
+        tax = Decimal('0.00')
         
-        # Use the provided totals
-        subtotal = order_data.total.sub_total
-        shipping_cost = order_data.total.shipping
-        total_amount = order_data.total.total
+        # Discount (can be applied if needed)
+        discount = Decimal('0.00')
+        
+        # Total amount = subtotal + shipping + tax - discount
+        # Note: warranty costs are already included in item prices if added
+        total_amount = subtotal + total_warranty + shipping_cost + tax - discount
         
         # 7. Build payment_info JSON
         payment_info = {
@@ -716,8 +712,8 @@ class CRUDOrder:
             shipping_address=shipping_address,
             subtotal=subtotal,
             shipping_cost=shipping_cost,
-            tax=Decimal('0.00'),  # Can be calculated if needed
-            discount=Decimal('0.00'),
+            tax=tax,
+            discount=discount,
             total_amount=total_amount,
             currency='EUR',
             payment_status=payment_status,

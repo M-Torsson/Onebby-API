@@ -359,6 +359,7 @@ class OrderCreateDirect(BaseModel):
     Schema for creating an order directly (new API - no cart needed)
     
     This is the new format requested for order creation.
+    Total will be calculated automatically by the system.
     """
     user_id: int = Field(..., description="User ID (required - no guest users)")
     reg_type: str = Field(..., description="Registration type (customer or company)")
@@ -367,7 +368,6 @@ class OrderCreateDirect(BaseModel):
     customer_note: Optional[str] = Field(None, max_length=1000, description="Customer note")
     payment_info: PaymentInfo = Field(..., description="Payment information")
     items: List[OrderItemDirect] = Field(..., min_items=1, description="Order items (at least 1)")
-    total: OrderTotal = Field(..., description="Order total breakdown")
     
     @validator('reg_type')
     def validate_reg_type(cls, v):
