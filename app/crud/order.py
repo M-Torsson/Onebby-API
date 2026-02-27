@@ -633,7 +633,7 @@ class CRUDOrder:
                 product_image = product.images[0].url
             
             # Calculate prices
-            unit_price = Decimal(str(product.price))
+            unit_price = Decimal(str(product.price_list))
             quantity = item.qty
             item_subtotal = unit_price * quantity
             
