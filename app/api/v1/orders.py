@@ -10,7 +10,8 @@ from datetime import datetime
 from app.db.session import get_db
 from app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
-    OrderStatsResponse, WarrantyUpdateRequest, OrderCreateDirect
+    OrderStatsResponse, WarrantyUpdateRequest, OrderCreateDirect,
+    PayUrlRequest, PayUrlResponse
 )
 from app.crud.order import crud_order
 from app.crud import cart as crud_cart
@@ -175,6 +176,102 @@ async def create_order_from_cart(
         return response_dict
     
     return order_response
+
+
+@router.post("/get_pay_url", response_model=PayUrlResponse, status_code=status.HTTP_200_OK)
+async def get_payment_url(
+    request: PayUrlRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get PayPlug payment URL without creating an order
+    
+    **Requirements:**
+    - API Key (in header X-API-Key)
+    
+    **Request Body:**
+    ```json
+    {
+      "payment_type": "PayPal",
+      "user_id": 5,
+      "total": 2300.98
+    }
+    ```
+    
+    **Returns:**
+    - payment_url: PayPlug payment URL
+    - amount: Payment amount
+    - payment_id: PayPlug payment ID
+    """
+    # Validate payment type
+    if request.payment_type.lower() not in ['paypal', 'payplug', 'card', 'credit_card']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payment type. Allowed: PayPal, PayPlug, card, credit_card"
+        )
+    
+    # Verify user exists
+    from app.models.user import User
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with ID {request.user_id} not found"
+        )
+    
+    # Check if PayPlug is configured
+    if not settings.PAYPLUG_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="PayPlug is not configured"
+        )
+    
+    try:
+        # Get user email
+        user_email = ""
+        user_first_name = ""
+        user_last_name = ""
+        
+        if hasattr(user, 'email'):
+            user_email = user.email or ""
+        
+        if hasattr(user, 'first_name'):
+            user_first_name = user.first_name or ""
+        
+        if hasattr(user, 'last_name'):
+            user_last_name = user.last_name or ""
+        
+        # If company, use company name
+        if user.reg_type == 'company' and hasattr(user, 'company_name'):
+            user_first_name = user.company_name or ""
+        
+        # Create payment URLs
+        return_url = f"{settings.FRONTEND_URL}/payment-success"
+        cancel_url = f"{settings.FRONTEND_URL}/payment-cancel"
+        
+        # Create PayPlug payment
+        payment_result = payplug_service.create_payment(
+            amount=float(request.total),
+            order_id=f"temp_{request.user_id}_{int(datetime.now().timestamp())}",
+            customer_email=user_email,
+            customer_first_name=user_first_name,
+            customer_last_name=user_last_name,
+            return_url=return_url,
+            cancel_url=cancel_url
+        )
+        
+        return PayUrlResponse(
+            payment_url=payment_result['payment_url'],
+            amount=request.total,
+            payment_id=payment_result['payment_id']
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create payment: {str(e)}"
+        )
 
 
 @router.post("/guest/create-from-cart", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)

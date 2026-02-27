@@ -377,3 +377,17 @@ class OrderCreateDirect(BaseModel):
         if v not in ['customer', 'company']:
             raise ValueError("reg_type must be 'customer' or 'company'")
         return v
+
+
+class PayUrlRequest(BaseModel):
+    """Request to get payment URL"""
+    payment_type: str = Field(..., description="Payment type (PayPal or PayPlug)")
+    user_id: int = Field(..., gt=0, description="User ID")
+    total: Decimal = Field(..., gt=0, description="Total amount")
+
+
+class PayUrlResponse(BaseModel):
+    """Response with payment URL"""
+    payment_url: str = Field(..., description="PayPlug payment URL")
+    amount: Decimal = Field(..., description="Payment amount")
+    payment_id: str = Field(..., description="PayPlug payment ID")
