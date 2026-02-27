@@ -694,13 +694,14 @@ class CRUDOrder:
         # 7. Build payment_info JSON
         payment_info = {
             "payment_type": order_data.payment_info.payment_type,
-            "payment_status": order_data.payment_info.payment_status,
+            "payment_status": order_data.payment_info.payment_status or "pending",
             "invoice_num": order_data.payment_info.invoice_num,
             "payment_id": order_data.payment_info.payment_id
         }
         
-        # Determine payment_status based on payment_info
-        payment_status = "completed" if order_data.payment_info.payment_status == "successful" else "pending"
+        # Payment status always starts as "pending"
+        # Will be updated to "completed" or "failed" by PayPlug webhook
+        payment_status = "pending"
         
         # 8. Create Order
         order = Order(

@@ -343,7 +343,7 @@ class OrderItemDirect(BaseModel):
 class PaymentInfo(BaseModel):
     """Payment information for order"""
     payment_type: str = Field(..., description="Payment type (e.g., PayPal, Card)")
-    payment_status: str = Field(..., description="Payment status (successful, pending, failed)")
+    payment_status: Optional[str] = Field(None, description="Payment status - will be set by system based on actual payment result")
     invoice_num: int = Field(..., description="Invoice number")
     payment_id: int = Field(..., description="Payment ID")
 
