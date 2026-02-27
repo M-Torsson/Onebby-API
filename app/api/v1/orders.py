@@ -164,17 +164,17 @@ async def create_order_from_cart(
             payment_error = str(e)
             print(f"PayPlug payment creation failed: {payment_error}")
     
-    # Prepare response
-    response_data = {
-        **order.__dict__,
-        '_sa_instance_state': None  # Remove SQLAlchemy state
-    }
+    # Convert order to response model
+    order_response = OrderResponse.model_validate(order)
     
-    # Add payment_url to response if available
+    # Add payment_url if available
     if payment_url:
-        response_data['payment_url'] = payment_url
+        # Convert to dict, add payment_url, and return
+        response_dict = order_response.model_dump()
+        response_dict['payment_url'] = payment_url
+        return response_dict
     
-    return response_data
+    return order_response
 
 
 @router.post("/guest/create-from-cart", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)

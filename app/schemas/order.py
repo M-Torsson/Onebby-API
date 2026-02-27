@@ -202,6 +202,9 @@ class OrderResponse(BaseModel):
     delivered_at: Optional[datetime]
     cancelled_at: Optional[datetime]
     
+    # Payment URL (for PayPlug integration)
+    payment_url: Optional[str] = None
+    
     class Config:
         from_attributes = True
 
