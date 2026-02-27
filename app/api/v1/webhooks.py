@@ -16,6 +16,8 @@ from app.schemas.warranty_registration import WarrantyRegistrationCreate
 from app.services.payment import PaymentFactory, PaymentProviderError
 from app.services.garanzia3_service import garanzia3_service
 from app.core.security.api_key import verify_api_key
+from app.integrations.payplug import payplug_service
+from loguru import logger
 
 router = APIRouter()
 
@@ -412,3 +414,110 @@ async def test_payment_webhook(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.post("/payplug")
+async def payplug_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    PayPlug Webhook Endpoint
+    
+    Receives payment notifications from PayPlug and updates order status.
+    
+    **No authentication required** - PayPlug sends notifications directly.
+    
+    **Note:** Verify the webhook signature in production for security.
+    """
+    try:
+        # Get webhook data
+        webhook_data = await request.json()
+        
+        logger.info(f"Received PayPlug webhook: {webhook_data}")
+        
+        # Extract resource ID (payment ID)
+        resource_id = webhook_data.get('data', {}).get('id')
+        
+        if not resource_id:
+            logger.error("No resource ID in webhook data")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid webhook data: missing resource ID"
+            )
+        
+        # Process webhook
+        payment_info = payplug_service.process_webhook(resource_id)
+        
+        # Get order ID
+        order_id = payment_info.get('order_id')
+        if not order_id:
+            logger.error(f"No order ID in payment metadata for payment {resource_id}")
+            return {"status": "ok", "message": "No order ID found"}
+        
+        # Get order
+        order = crud_order.get(db, id=int(order_id))
+        if not order:
+            logger.error(f"Order {order_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Order {order_id} not found"
+            )
+        
+        # Update order based on payment status
+        if payment_info['status'] == 'completed':
+            # Payment successful
+            order.payment_status = 'completed'
+            order.status = 'confirmed'
+            order.payment_transaction_id = payment_info['payment_id']
+            
+            logger.info(f"Order {order_id} payment completed successfully")
+            
+            # Auto-register warranties if payment successful
+            await auto_register_warranties(db, order)
+            
+        elif payment_info['status'] == 'failed':
+            # Payment failed
+            order.payment_status = 'failed'
+            order.admin_note = (
+                f"Payment failed: {payment_info.get('failure_message', 'Unknown error')}"
+            )
+            
+            logger.warning(
+                f"Order {order_id} payment failed: {payment_info.get('failure_message')}"
+            )
+        
+        else:
+            # Payment still pending
+            order.payment_status = 'pending'
+            logger.info(f"Order {order_id} payment still pending")
+        
+        # Save changes
+        db.commit()
+        db.refresh(order)
+        
+        return {
+            "status": "ok",
+            "order_id": order_id,
+            "payment_status": order.payment_status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing PayPlug webhook: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook processing failed: {str(e)}"
+        )
+
+
+@router.get("/payplug/test")
+async def test_payplug_webhook():
+    """Test endpoint to verify PayPlug webhook route is accessible"""
+    return {
+        "status": "ok",
+        "message": "PayPlug webhook endpoint is ready",
+        "endpoint": "/api/payments/payplug"
+    }
+

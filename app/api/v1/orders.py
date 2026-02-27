@@ -17,6 +17,8 @@ from app.crud import cart as crud_cart
 from app.core.security.api_key import verify_api_key
 from app.core.security.dependencies import get_current_active_user
 from app.models.user import User
+from app.integrations.payplug import payplug_service
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -104,6 +106,7 @@ async def create_order_from_cart(
     
     **Returns:**
     - Order object with full details including calculated totals
+    - Payment URL for completing payment (if PayPlug is enabled)
     - Stock is automatically reduced
     """
     # Create order directly (no cart needed)
@@ -119,7 +122,59 @@ async def create_order_from_cart(
             detail=str(e)
         )
     
-    return order
+    # Initialize payment_url as None
+    payment_url = None
+    payment_error = None
+    
+    # Create PayPlug payment if configured and payment type is PayPal/card
+    if (settings.PAYPLUG_API_KEY and 
+        order_data.payment_info.payment_type.lower() in ['paypal', 'card', 'credit_card']):
+        try:
+            # Get customer info
+            customer_info = order.customer_info
+            customer_email = customer_info.get('email', '')
+            customer_first_name = customer_info.get('first_name', '') or customer_info.get('company_name' , '')
+            customer_last_name = customer_info.get('last_name', '')
+            
+            # Create payment URLs
+            return_url = f"{settings.FRONTEND_URL}/orders/{order.id}/payment-success"
+            cancel_url = f"{settings.FRONTEND_URL}/orders/{order.id}/payment-cancel"
+            
+            # Create payment
+            payment_result = payplug_service.create_payment(
+                amount=order.total_amount,
+                order_id=order.id,
+                customer_email=customer_email,
+                customer_first_name=customer_first_name,
+                customer_last_name=customer_last_name,
+                return_url=return_url,
+                cancel_url=cancel_url
+            )
+            
+            payment_url = payment_result['payment_url']
+            
+            # Update order with PayPlug payment ID
+            order.payment_transaction_id = payment_result['payment_id']
+            order.payment_status = 'pending'  # Will be updated by webhook
+            db.commit()
+            db.refresh(order)
+            
+        except Exception as e:
+            # Log error but don't fail order creation
+            payment_error = str(e)
+            print(f"PayPlug payment creation failed: {payment_error}")
+    
+    # Prepare response
+    response_data = {
+        **order.__dict__,
+        '_sa_instance_state': None  # Remove SQLAlchemy state
+    }
+    
+    # Add payment_url to response if available
+    if payment_url:
+        response_data['payment_url'] = payment_url
+    
+    return response_data
 
 
 @router.post("/guest/create-from-cart", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)

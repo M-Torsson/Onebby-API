@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     # Payment Provider Credentials (Mock mode by default)
     PAYPLUG_API_KEY: Optional[str] = None
     PAYPLUG_SECRET_KEY: Optional[str] = None
+    PAYPLUG_MODE: str = "test"  # test or live
+    PAYPLUG_WEBHOOK_URL: Optional[str] = None  # Full webhook URL
     
     FLOA_API_KEY: Optional[str] = None
     FLOA_SECRET_KEY: Optional[str] = None
