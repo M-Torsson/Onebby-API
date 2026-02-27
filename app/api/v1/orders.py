@@ -126,9 +126,9 @@ async def create_order_from_cart(
     payment_url = None
     payment_error = None
     
-    # Create PayPlug payment if configured and payment type is PayPal/card
+    # Create PayPlug payment if configured and payment type is PayPal/card/payplug
     if (settings.PAYPLUG_API_KEY and 
-        order_data.payment_info.payment_type.lower() in ['paypal', 'card', 'credit_card']):
+        order_data.payment_info.payment_type.lower() in ['paypal', 'card', 'credit_card', 'payplug']):
         try:
             # Get customer info
             customer_info = order.customer_info
