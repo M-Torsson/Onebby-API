@@ -154,7 +154,6 @@ class OrderResponse(BaseModel):
     
     # User reference
     user_id: Optional[int]
-    session_id: Optional[str]
     user_type: str
     
     # Customer/Company info
