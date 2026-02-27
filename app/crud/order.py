@@ -13,6 +13,7 @@ from app.models.cart import Cart, CartItem
 from app.models.user import User
 from app.models.product import Product
 from app.models.product_variant import ProductVariant
+from app.models.address import Address
 from app.schemas.order import OrderCreate, OrderUpdate
 
 
@@ -528,6 +529,237 @@ class CRUDOrder:
             'orders_with_warranty': orders_with_warranty,
             'warranty_revenue': warranty_revenue
         }
+    
+    def create_direct(
+        self,
+        db: Session,
+        order_data,  # OrderCreateDirect schema
+        user_id: int
+    ) -> Order:
+        """
+        Create an order directly from items (new API format)
+        
+        This bypasses the cart system and creates an order directly
+        from the provided items in the request.
+        
+        Args:
+            db: Database session
+            order_data: OrderCreateDirect schema with items and payment info
+            user_id: User ID (required - no guest users)
+        
+        Returns:
+            Created Order object
+        
+        Raises:
+            ValueError: If validation fails
+        """
+        # 1. Validate user exists
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found")
+        
+        # 2. Get address from database
+        address = db.query(Address).filter(
+            and_(
+                Address.id == order_data.address_id,
+                Address.user_id == user_id
+            )
+        ).first()
+        
+        if not address:
+            raise ValueError(f"Address with ID {order_data.address_id} not found for this user")
+        
+        # 3. Convert address to JSON format for order
+        billing_address = {
+            "address_type": address.address_type,
+            "name": address.name,
+            "last_name": address.last_name,
+            "company_name": address.company_name,
+            "address_house_number": address.address_house_number,
+            "house_number": address.house_number,
+            "city": address.city,
+            "postal_code": address.postal_code,
+            "country": address.country,
+            "phone": address.phone
+        }
+        shipping_address = billing_address.copy()  # Same as billing for now
+        
+        # 4. Build customer_info from user and order_data
+        if order_data.reg_type == 'customer':
+            customer_info = {
+                "reg_type": "user",
+                "first_name": user.first_name or "",
+                "last_name": user.last_name or "",
+                "email": user.email,
+                "title": getattr(user, 'title', 'Sig.')
+            }
+        else:  # company
+            customer_info = {
+                "reg_type": "company",
+                "company_name": getattr(user, 'company_name', ''),
+                "email": user.email,
+                "vat_number": getattr(user, 'vat_number', ''),
+                "tax_code": getattr(user, 'tax_code', ''),
+                "sdi_code": getattr(user, 'sdi_code', ''),
+                "pec": getattr(user, 'pec', '')
+            }
+        
+        # 5. Validate and process items
+        order_items_data = []
+        total_calculated = Decimal('0.00')
+        total_warranty = Decimal('0.00')
+        total_shipping = Decimal('0.00')
+        
+        for item in order_data.items:
+            # Check product exists
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            if not product:
+                raise ValueError(f"Product with ID {item.product_id} not found")
+            
+            # Check stock availability
+            if product.quantity < item.qty:
+                raise ValueError(
+                    f"Insufficient stock for product {item.product_id}. "
+                    f"Available: {product.quantity}, Requested: {item.qty}"
+                )
+            
+            # Get product details
+            product_title = "Unknown Product"
+            if product.translations and len(product.translations) > 0:
+                product_title = product.translations[0].title
+            
+            product_image = None
+            if product.images and len(product.images) > 0:
+                product_image = product.images[0].url
+            
+            # Calculate prices
+            unit_price = Decimal(str(product.price))
+            quantity = item.qty
+            item_subtotal = unit_price * quantity
+            
+            # Build warranty_option JSON
+            warranty_option = None
+            if item.warranty:
+                warranty_option = {
+                    "title": item.warranty.title,
+                    "price": float(item.warranty.cost),
+                    "contract_number": None,
+                    "pin_code": None,
+                    "registered_at": None,
+                    "registration_error": None
+                }
+                total_warranty += item.warranty.cost
+            
+            # Build delivery_option JSON
+            delivery_option = None
+            if item.delivery_opt:
+                delivery_option = {
+                    "title": item.delivery_opt.title,
+                    "price": float(item.delivery_opt.cost)
+                }
+                total_shipping += item.delivery_opt.cost
+            
+            # Add to total
+            total_calculated += item_subtotal
+            
+            # Store item data for later
+            order_items_data.append({
+                "product": product,
+                "product_title": product_title,
+                "product_image": product_image,
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "subtotal": item_subtotal,
+                "warranty_option": warranty_option,
+                "delivery_option": delivery_option
+            })
+        
+        # 6. Validate totals (optional - trust the client or verify)
+        # We're validating as per user's request
+        # The total.sub_total should match our calculated total_calculated
+        # However, the client is sending products + warranty + shipping in their sub_total
+        # So we'll use client's values but verify they make sense
+        
+        if order_data.total.warranty != total_warranty:
+            raise ValueError(
+                f"Warranty total mismatch. Expected: {total_warranty}, Got: {order_data.total.warranty}"
+            )
+        
+        if order_data.total.shipping != total_shipping:
+            raise ValueError(
+                f"Shipping total mismatch. Expected: {total_shipping}, Got: {order_data.total.shipping}"
+            )
+        
+        # Use the provided totals
+        subtotal = order_data.total.sub_total
+        shipping_cost = order_data.total.shipping
+        total_amount = order_data.total.total
+        
+        # 7. Build payment_info JSON
+        payment_info = {
+            "payment_type": order_data.payment_info.payment_type,
+            "payment_status": order_data.payment_info.payment_status,
+            "invoice_num": order_data.payment_info.invoice_num,
+            "payment_id": order_data.payment_info.payment_id
+        }
+        
+        # Determine payment_status based on payment_info
+        payment_status = "completed" if order_data.payment_info.payment_status == "successful" else "pending"
+        
+        # 8. Create Order
+        order = Order(
+            user_id=user_id,
+            session_id=None,
+            user_type='customer' if order_data.reg_type == 'customer' else 'company',
+            customer_info=customer_info,
+            billing_address=billing_address,
+            shipping_address=shipping_address,
+            subtotal=subtotal,
+            shipping_cost=shipping_cost,
+            tax=Decimal('0.00'),  # Can be calculated if needed
+            discount=Decimal('0.00'),
+            total_amount=total_amount,
+            currency='EUR',
+            payment_status=payment_status,
+            payment_method=order_data.payment_info.payment_type,
+            payment_info=payment_info,
+            order_date=order_data.order_date,
+            shipping_method='standard',
+            shipping_status='pending',
+            status='pending' if payment_status == 'pending' else 'confirmed',
+            customer_note=order_data.customer_note
+        )
+        
+        db.add(order)
+        db.flush()  # Get order.id
+        
+        # 9. Create Order Items
+        for item_data in order_items_data:
+            order_item = OrderItem(
+                order_id=order.id,
+                product_id=item_data["product"].id,
+                product_variant_id=None,
+                product_title=item_data["product_title"],
+                product_sku=item_data["product"].reference,
+                product_type=item_data["product"].product_type,
+                product_image=item_data["product_image"],
+                quantity=item_data["quantity"],
+                unit_price=item_data["unit_price"],
+                subtotal=item_data["subtotal"],
+                discount=Decimal('0.00'),
+                delivery_option=item_data["delivery_option"],
+                warranty_option=item_data["warranty_option"],
+                variant_attributes=None
+            )
+            db.add(order_item)
+            
+            # 10. Update product stock
+            item_data["product"].quantity -= item_data["quantity"]
+        
+        db.commit()
+        db.refresh(order)
+        
+        return order
 
 
 # Create a singleton instance

@@ -93,6 +93,15 @@ class Order(BaseModel):
     # Payment transaction ID from payment gateway
     payment_transaction_id = Column(String(255), nullable=True)
     
+    # Payment info (new - comprehensive payment details)
+    # {
+    #   "payment_type": "PayPal",
+    #   "payment_status": "successful",
+    #   "invoice_num": 2234454,
+    #   "payment_id": 3
+    # }
+    payment_info = Column(JSON, nullable=True)
+    
     # ========== Shipping Information ==========
     # Shipping method: shippy_pro, poste_italiane, express, standard
     shipping_method = Column(String(100), nullable=True)
@@ -115,6 +124,9 @@ class Order(BaseModel):
     admin_note = Column(Text, nullable=True)
     
     # ========== Timestamps ==========
+    # Custom order date (from request)
+    order_date = Column(String(50), nullable=True, comment="Custom order date from request")
+    
     # Auto-managed timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

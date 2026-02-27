@@ -10,7 +10,7 @@ from datetime import datetime
 from app.db.session import get_db
 from app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
-    OrderStatsResponse, WarrantyUpdateRequest
+    OrderStatsResponse, WarrantyUpdateRequest, OrderCreateDirect
 )
 from app.crud.order import crud_order
 from app.crud import cart as crud_cart
@@ -52,124 +52,70 @@ def get_current_admin_user(
 
 @router.post("/create-from-cart", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order_from_cart(
-    order_data: OrderCreate,
-    current_user: dict = Depends(get_current_active_user),
-    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    order_data: OrderCreateDirect,
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Create an order from cart (authenticated user)
+    Create an order directly (NEW API - no cart, no token required)
     
     **Requirements:**
-    - API Key (in header)
-    - Bearer Token (authenticated user)
-    - Cart must have items
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
-    **Body Example (Customer):**
+    **New Body Format:**
     ```json
     {
-      "payment_method": "paypal",
-      "customer_info": {
-        "reg_type": "user",
-        "title": "Sig.",
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "john@example.com"
+      "user_id": 5,
+      "reg_type": "customer",
+      "address_id": 6,
+      "order_date": "22-2-2222",
+      "customer_note": "Please ring the bell twice",
+      "payment_info": {
+        "payment_type": "PayPal",
+        "payment_status": "successful",
+        "invoice_num": 2234454,
+        "payment_id": 3
       },
-      "billing_address": {
-        "address_type": "customer",
-        "name": "John",
-        "last_name": "Doe",
-        "address_house_number": "Via Roma 123",
-        "house_number": "123",
-        "city": "Milan",
-        "postal_code": "20100",
-        "country": "Italy",
-        "phone": "+39 1234567890"
-      },
-      "shipping_address": {
-        "address_type": "customer",
-        "name": "John",
-        "last_name": "Doe",
-        "address_house_number": "Via Roma 123",
-        "house_number": "123",
-        "city": "Milan",
-        "postal_code": "20100",
-        "country": "Italy",
-        "phone": "+39 1234567890"
-      },
-      "shipping_method": "standard",
-      "customer_note": "Please ring the bell twice"
-    }
-    ```
-    
-    **Body Example (Company):**
-    ```json
-    {
-      "payment_method": "scalapay",
-      "customer_info": {
-        "reg_type": "company",
-        "company_name": "ABC SRL",
-        "email": "company@example.com",
-        "vat_number": "IT12345678901",
-        "tax_code": "12345678901",
-        "sdi_code": "ABCDEFG",
-        "pec": "company@pec.it"
-      },
-      "billing_address": {
-        "address_type": "company",
-        "company_name": "ABC SRL",
-        "address_house_number": "Via Milano 456",
-        "house_number": "456",
-        "city": "Rome",
-        "postal_code": "00100",
-        "country": "Italy",
-        "phone": "+39 0612345678"
-      },
-      "shipping_address": {
-        "address_type": "company",
-        "company_name": "ABC SRL",
-        "address_house_number": "Via Milano 456",
-        "house_number": "456",
-        "city": "Rome",
-        "postal_code": "00100",
-        "country": "Italy",
-        "phone": "+39 0612345678"
-      },
-      "shipping_method": "express"
+      "items": [
+        {
+          "product_id": 99898,
+          "qty": 2,
+          "warranty": {
+            "title": "GARANZIA3 – 3 Years",
+            "cost": 49.90
+          },
+          "delivery_opt": {
+            "title": "Delivery to floor",
+            "cost": 69.0
+          }
+        },
+        {
+          "product_id": 44333,
+          "qty": 5,
+          "warranty": null,
+          "delivery_opt": null
+        }
+      ],
+      "total": {
+        "sub_total": 3200,
+        "warranty": 100.89,
+        "shipping": 120.43,
+        "total": 2332.09
+      }
     }
     ```
     
     **Returns:**
-    - Order object with status 'pending'
-    - Payment needs to be completed separately
+    - Order object with full details
+    - Stock is automatically reduced
     """
-    user_id = int(current_user["id"])
-    
-    # Get user's cart
-    cart = crud_cart.get_active_cart(db, user_id=user_id, session_id=session_id)
-    
-    if not cart:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cart not found"
-        )
-    
-    if not cart.items:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot create order from empty cart"
-        )
-    
-    # Create order from cart
+    # Create order directly (no cart needed)
     try:
-        order = crud_order.create_from_cart(
+        order = crud_order.create_direct(
             db=db,
-            cart=cart,
             order_data=order_data,
-            user_id=user_id,
-            session_id=session_id
+            user_id=order_data.user_id
         )
     except ValueError as e:
         raise HTTPException(
@@ -237,9 +183,9 @@ async def create_order_from_cart_guest(
 
 @router.get("/my-orders", response_model=List[OrderListResponse])
 async def get_my_orders(
+    user_id: int = Query(..., description="User ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum number of records to return"),
-    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -247,17 +193,17 @@ async def get_my_orders(
     Get current user's orders
     
     **Requirements:**
-    - API Key
-    - Bearer Token (authenticated user)
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
     **Query Parameters:**
+    - user_id: User ID (required)
     - skip: Number of records to skip (default: 0)
     - limit: Maximum records to return (default: 100, max: 100)
     
     **Returns:**
-    List of orders (summary) for the authenticated user
+    List of orders (summary) for the user
     """
-    user_id = int(current_user["id"])
     
     orders = crud_order.get_by_user(db, user_id=user_id, skip=skip, limit=limit)
     
@@ -303,7 +249,7 @@ async def get_my_orders(
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
     order_id: int,
-    current_user: dict = Depends(get_current_active_user),
+    user_id: Optional[int] = Query(None, description="User ID for authorization check"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -311,15 +257,13 @@ async def get_order(
     Get order details
     
     **Requirements:**
-    - API Key
-    - Bearer Token (authenticated user)
-    - User must own the order
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
+    - Optional: user_id for authorization check
     
     **Returns:**
     Full order details including items
     """
-    user_id = int(current_user["id"])
-    
     order = crud_order.get(db, id=order_id)
     
     if not order:
@@ -328,8 +272,8 @@ async def get_order(
             detail="Order not found"
         )
     
-    # Verify order belongs to user
-    if order.user_id != user_id:
+    # Optional: Verify order belongs to user (if user_id provided)
+    if user_id and order.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this order"
@@ -385,7 +329,6 @@ async def get_all_orders_admin(
     payment_status: Optional[str] = Query(None, description="Filter by payment status"),
     shipping_status: Optional[str] = Query(None, description="Filter by shipping status"),
     user_type: Optional[str] = Query(None, description="Filter by user type (customer/company/guest)"),
-    current_admin: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -462,16 +405,15 @@ async def get_all_orders_admin(
 @router.get("/admin/{order_id}", response_model=OrderResponse)
 async def get_order_admin(
     order_id: int,
-    current_admin: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get order details (Admin only)
+    Get order details (Admin)
     
     **Requirements:**
-    - API Key
-    - Bearer Token (admin user)
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
     **Returns:**
     Full order details
@@ -491,16 +433,15 @@ async def get_order_admin(
 async def update_order_admin(
     order_id: int,
     order_update: OrderUpdate,
-    current_admin: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Update order (Admin only)
+    Update order (Admin)
     
     **Requirements:**
-    - API Key
-    - Bearer Token (admin user)
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
     **Body Example:**
     ```json
@@ -531,16 +472,15 @@ async def update_order_admin(
 
 @router.get("/admin/statistics/overview", response_model=OrderStatsResponse)
 async def get_order_statistics(
-    current_admin: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get order statistics (Admin only)
+    Get order statistics (Admin)
     
     **Requirements:**
-    - API Key
-    - Bearer Token (admin user)
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
     **Returns:**
     ```json
@@ -570,16 +510,15 @@ async def get_order_statistics(
 async def get_orders_with_failed_warranties(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    current_admin: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get orders with failed warranty registrations (Admin only)
+    Get orders with failed warranty registrations (Admin)
     
     **Requirements:**
-    - API Key
-    - Bearer Token (admin user)
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
     **Use Case:**
     When Garanzia3 registration fails, admin can see these orders
@@ -602,16 +541,15 @@ async def update_warranty_info_admin(
     order_id: int,
     item_id: int,
     warranty_update: WarrantyUpdateRequest,
-    current_admin: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Update warranty information for order item (Admin only)
+    Update warranty information for order item (Admin)
     
     **Requirements:**
-    - API Key
-    - Bearer Token (admin user)
+    - API Key (in header X-API-Key)
+    - NO Bearer Token Required
     
     **Use Case:**
     - Manually add Garanzia3 contract details

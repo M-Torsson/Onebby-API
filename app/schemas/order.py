@@ -176,6 +176,7 @@ class OrderResponse(BaseModel):
     payment_status: str
     payment_method: Optional[str]
     payment_transaction_id: Optional[str]
+    payment_info: Optional[Dict[str, Any]]  # New field
     
     # Shipping
     shipping_method: Optional[str]
@@ -193,6 +194,7 @@ class OrderResponse(BaseModel):
     items: List[OrderItemResponse]
     
     # Timestamps
+    order_date: Optional[str]  # New field
     created_at: datetime
     updated_at: Optional[datetime]
     paid_at: Optional[datetime]
@@ -312,3 +314,64 @@ class WarrantyUpdateRequest(BaseModel):
     contract_number: str
     pin_code: str
     registered_at: Optional[datetime] = None
+
+
+# ========== New Direct Order API Schemas ==========
+
+class WarrantyOption(BaseModel):
+    """Warranty option for order item"""
+    title: str = Field(..., description="Warranty title")
+    cost: Decimal = Field(..., ge=0, description="Warranty cost")
+
+
+class DeliveryOption(BaseModel):
+    """Delivery option for order item"""
+    title: str = Field(..., description="Delivery option title")
+    cost: Decimal = Field(..., ge=0, description="Delivery cost")
+
+
+class OrderItemDirect(BaseModel):
+    """Order item for direct order creation (new API)"""
+    product_id: int = Field(..., description="Product ID")
+    qty: int = Field(..., ge=1, le=1000, description="Quantity")
+    warranty: Optional[WarrantyOption] = Field(None, description="Warranty option (optional)")
+    delivery_opt: Optional[DeliveryOption] = Field(None, description="Delivery option (optional)")
+
+
+class PaymentInfo(BaseModel):
+    """Payment information for order"""
+    payment_type: str = Field(..., description="Payment type (e.g., PayPal, Card)")
+    payment_status: str = Field(..., description="Payment status (successful, pending, failed)")
+    invoice_num: int = Field(..., description="Invoice number")
+    payment_id: int = Field(..., description="Payment ID")
+
+
+class OrderTotal(BaseModel):
+    """Order total breakdown"""
+    sub_total: Decimal = Field(..., ge=0, description="Subtotal (products only)")
+    warranty: Decimal = Field(..., ge=0, description="Total warranty cost")
+    shipping: Decimal = Field(..., ge=0, description="Total shipping cost")
+    total: Decimal = Field(..., ge=0, description="Grand total")
+
+
+class OrderCreateDirect(BaseModel):
+    """
+    Schema for creating an order directly (new API - no cart needed)
+    
+    This is the new format requested for order creation.
+    """
+    user_id: int = Field(..., description="User ID (required - no guest users)")
+    reg_type: str = Field(..., description="Registration type (customer or company)")
+    address_id: int = Field(..., description="Address ID from addresses table")
+    order_date: str = Field(..., description="Custom order date")
+    customer_note: Optional[str] = Field(None, max_length=1000, description="Customer note")
+    payment_info: PaymentInfo = Field(..., description="Payment information")
+    items: List[OrderItemDirect] = Field(..., min_items=1, description="Order items (at least 1)")
+    total: OrderTotal = Field(..., description="Order total breakdown")
+    
+    @validator('reg_type')
+    def validate_reg_type(cls, v):
+        """Validate reg_type"""
+        if v not in ['customer', 'company']:
+            raise ValueError("reg_type must be 'customer' or 'company'")
+        return v
