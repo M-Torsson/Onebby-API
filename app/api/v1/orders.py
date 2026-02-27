@@ -200,9 +200,9 @@ async def get_payment_url(
     ```
     
     **Returns:**
-    - payment_url: PayPlug payment URL
+    - user_id: User ID who requested payment
+    - payment_url: PayPlug payment URL (redirect user here - contains payment_id)
     - amount: Payment amount
-    - payment_id: PayPlug payment ID
     """
     # Validate payment type
     if request.payment_type.lower() not in ['paypal', 'payplug', 'card', 'credit_card']:
@@ -262,9 +262,9 @@ async def get_payment_url(
         )
         
         return PayUrlResponse(
+            user_id=request.user_id,
             payment_url=payment_result['payment_url'],
-            amount=request.total,
-            payment_id=payment_result['payment_id']
+            amount=request.total
         )
         
     except Exception as e:

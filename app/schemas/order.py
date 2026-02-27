@@ -388,6 +388,6 @@ class PayUrlRequest(BaseModel):
 
 class PayUrlResponse(BaseModel):
     """Response with payment URL"""
-    payment_url: str = Field(..., description="PayPlug payment URL")
+    user_id: int = Field(..., description="User ID who requested payment")
+    payment_url: str = Field(..., description="PayPlug payment URL (contains payment_id)")
     amount: Decimal = Field(..., description="Payment amount")
-    payment_id: str = Field(..., description="PayPlug payment ID")
