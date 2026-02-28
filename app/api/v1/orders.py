@@ -348,7 +348,10 @@ async def verify_payment_status(
         paid_at = datetime.fromtimestamp(payment.paid_at).isoformat() if hasattr(payment, 'paid_at') and payment.paid_at else None
         
         # Get customer email
-        customer_email = payment.customer.get('email') if hasattr(payment, 'customer') and payment.customer else None
+        try:
+            customer_email = payment.customer['email'] if hasattr(payment, 'customer') and payment.customer else None
+        except (TypeError, KeyError):
+            customer_email = None
         
         return PaymentVerifyResponse(
             payment_id=payment.id,
