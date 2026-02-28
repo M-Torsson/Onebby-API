@@ -389,13 +389,14 @@ class PayUrlRequest(BaseModel):
 class PayUrlResponse(BaseModel):
     """Response with payment URL"""
     user_id: int = Field(..., description="User ID who requested payment")
-    payment_url: str = Field(..., description="PayPlug payment URL (contains payment_id)")
+    payment_id: str = Field(..., description="PayPlug payment ID for tracking")
+    payment_url: str = Field(..., description="PayPlug payment URL - redirect user here")
     amount: Decimal = Field(..., description="Payment amount")
 
 
 class PaymentVerifyRequest(BaseModel):
     """Request to verify payment status"""
-    payment_url: str = Field(..., description="PayPlug payment URL to verify")
+    payment_id: str = Field(..., description="PayPlug payment ID (from get_pay_url response)")
 
 
 class PaymentVerifyResponse(BaseModel):

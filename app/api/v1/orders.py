@@ -201,6 +201,7 @@ async def get_payment_url(
     
     **Returns:**
     - user_id: User ID who requested payment
+    - payment_id: PayPlug payment ID (use this for verification!)
     - payment_url: PayPlug payment URL (redirect user here - contains payment_id)
     - amount: Payment amount
     """
@@ -263,6 +264,7 @@ async def get_payment_url(
         
         return PayUrlResponse(
             user_id=request.user_id,
+            payment_id=payment_result['payment_id'],
             payment_url=payment_result['payment_url'],
             amount=request.total
         )
@@ -291,7 +293,7 @@ async def verify_payment_status(
     **Request Body:**
     ```json
     {
-      "payment_url": "https://secure.payplug.com/pay/test_..."
+      "payment_id": "pay_xxxxx"
     }
     ```
     
@@ -305,10 +307,10 @@ async def verify_payment_status(
     - customer_email: Customer email
     
     **Flow:**
-    1. User gets payment_url from /get_pay_url
+    1. User gets payment_id from /get_pay_url response
     2. User completes payment on PayPlug
     3. User returns to your site
-    4. Call this endpoint to verify payment status
+    4. Call this endpoint with payment_id to verify payment status
     5. If is_paid=true, payment successful!
     """
     # Check if PayPlug is configured
@@ -319,24 +321,8 @@ async def verify_payment_status(
         )
     
     try:
-        # Extract payment ID from URL
-        # URL format: https://secure.payplug.com/pay/test_xxxxx or https://secure.payplug.com/pay/pay_xxxxx
-        payment_url = verify_request.payment_url
-        
-        if '/pay/' not in payment_url:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid PayPlug payment URL format"
-            )
-        
-        # Extract payment ID from URL
-        payment_id = payment_url.split('/pay/')[-1].split('?')[0].split('#')[0]
-        
-        if not payment_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not extract payment ID from URL"
-            )
+        # Get payment ID from request
+        payment_id = verify_request.payment_id
         
         # Retrieve payment details from PayPlug
         payment = payplug_service.retrieve_payment(payment_id)

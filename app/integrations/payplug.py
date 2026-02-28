@@ -110,7 +110,7 @@ class PayPlugService:
             logger.error(f"Failed to create PayPlug payment for order {order_id}: {str(e)}")
             raise Exception(f"Payment creation failed: {str(e)}")
     
-    def retrieve_payment(self, payment_id: str) -> Dict[str, Any]:
+    def retrieve_payment(self, payment_id: str):
         """
         Retrieve payment details from PayPlug
         
@@ -118,23 +118,14 @@ class PayPlugService:
             payment_id: PayPlug payment ID
         
         Returns:
-            Dict containing payment details
+            PayPlug Payment object
         
         Raises:
             Exception: If retrieval fails
         """
         try:
             payment = payplug.Payment.retrieve(payment_id)
-            
-            return {
-                'payment_id': payment.id,
-                'amount': payment.amount / 100,  # Convert cents to EUR
-                'currency': payment.currency,
-                'is_paid': payment.is_paid,
-                'failure': payment.failure,
-                'metadata': payment.metadata,
-                'created_at': payment.created_at
-            }
+            return payment
             
         except Exception as e:
             logger.error(f"Failed to retrieve PayPlug payment {payment_id}: {str(e)}")
