@@ -674,12 +674,11 @@ class CRUDOrder:
                 "delivery_option": delivery_option
             })
         
-        # 6. Calculate totals automatically
-        # Subtotal = all products prices
-        subtotal = total_calculated
-        
-        # Shipping cost = sum of all delivery options
-        shipping_cost = total_shipping
+        # 6. Use totals from request body (frontend already calculated them)
+        subtotal = order_data.total.sub_total
+        total_warranty = order_data.total.warranty
+        shipping_cost = order_data.total.shipping
+        total_amount = order_data.total.total
         
         # Tax (can be calculated based on country/business logic)
         tax = Decimal('0.00')
@@ -687,15 +686,9 @@ class CRUDOrder:
         # Discount (can be applied if needed)
         discount = Decimal('0.00')
         
-        # Total amount = subtotal + shipping + tax - discount
-        # Note: warranty costs are already included in item prices if added
-        total_amount = subtotal + total_warranty + shipping_cost + tax - discount
-        
         # 7. Build payment_info JSON
         payment_info = {
             "payment_type": order_data.payment_info.payment_type,
-            "payment_status": order_data.payment_info.payment_status or "pending",
-            "invoice_num": order_data.payment_info.invoice_num,
             "payment_id": order_data.payment_info.payment_id
         }
         
