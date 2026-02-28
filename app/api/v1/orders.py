@@ -372,20 +372,43 @@ async def verify_payment_status(
         except (TypeError, KeyError, AttributeError):
             customer_email = None
         
-        # Get transaction number (from card or payment object)
+        # Get transaction number (search in multiple places)
         transaction_number = None
         try:
-            # Try to get from card object
-            if hasattr(payment, 'card') and payment.card:
+            # Try different sources for transaction number:
+            
+            # 1. Authorization ID (from bank)
+            if hasattr(payment, 'authorization') and payment.authorization:
+                if isinstance(payment.authorization, dict):
+                    transaction_number = payment.authorization.get('authorization_id') or payment.authorization.get('id')
+                elif hasattr(payment.authorization, 'authorization_id'):
+                    transaction_number = payment.authorization.authorization_id
+                elif hasattr(payment.authorization, 'id'):
+                    transaction_number = payment.authorization.id
+            
+            # 2. Card transaction ID
+            if not transaction_number and hasattr(payment, 'card') and payment.card:
                 if isinstance(payment.card, dict):
-                    transaction_number = payment.card.get('id')
+                    transaction_number = payment.card.get('id') or payment.card.get('transaction_id')
                 elif hasattr(payment.card, 'id'):
                     transaction_number = payment.card.id
-            # Or use payment ID as transaction number
+                elif hasattr(payment.card, 'transaction_id'):
+                    transaction_number = payment.card.transaction_id
+            
+            # 3. Check for id_transaction field
+            if not transaction_number and hasattr(payment, 'id_transaction'):
+                transaction_number = payment.id_transaction
+            
+            # 4. Check for transaction_id field
+            if not transaction_number and hasattr(payment, 'transaction_id'):
+                transaction_number = payment.transaction_id
+            
+            # 5. Last resort: return None to avoid duplicating payment_id
             if not transaction_number:
-                transaction_number = payment.id
+                transaction_number = None
+                
         except (TypeError, KeyError, AttributeError):
-            transaction_number = payment.id
+            transaction_number = None
         
         return PaymentVerifyResponse(
             payment_id=payment.id,
