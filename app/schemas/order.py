@@ -342,10 +342,8 @@ class OrderItemDirect(BaseModel):
 
 class PaymentInfo(BaseModel):
     """Payment information for order"""
-    payment_type: str = Field(..., description="Payment type (e.g., PayPal, Card)")
-    payment_status: Optional[str] = Field(None, description="Payment status - will be set by system based on actual payment result")
-    invoice_num: int = Field(..., description="Invoice number")
-    payment_id: int = Field(..., description="Payment ID")
+    payment_type: str = Field(..., description="Payment type (e.g., PayPal, Payplug)")
+    payment_id: str = Field(..., description="PayPlug payment ID (e.g., pay_xxxxx)")
 
 
 class OrderTotal(BaseModel):
@@ -361,7 +359,6 @@ class OrderCreateDirect(BaseModel):
     Schema for creating an order directly (new API - no cart needed)
     
     This is the new format requested for order creation.
-    Total will be calculated automatically by the system.
     """
     user_id: int = Field(..., description="User ID (required - no guest users)")
     reg_type: str = Field(..., description="Registration type (customer or company)")
@@ -370,6 +367,7 @@ class OrderCreateDirect(BaseModel):
     customer_note: Optional[str] = Field(None, max_length=1000, description="Customer note")
     payment_info: PaymentInfo = Field(..., description="Payment information")
     items: List[OrderItemDirect] = Field(..., min_items=1, description="Order items (at least 1)")
+    total: OrderTotal = Field(..., description="Order totals (sub_total, warranty, shipping, total)")
     
     @validator('reg_type')
     def validate_reg_type(cls, v):
@@ -422,3 +420,10 @@ class PaymentVerifyResponse(BaseModel):
                 "customer_email": "customer@example.com"
             }
         }
+
+
+class OrderCreateResponse(BaseModel):
+    """Simple response for order creation"""
+    success: bool = Field(..., description="Whether order was created successfully")
+    message: str = Field(..., description="Success or error message")
+    order_id: Optional[int] = Field(None, description="Order ID if successful")

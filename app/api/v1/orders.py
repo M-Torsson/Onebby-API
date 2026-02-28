@@ -11,7 +11,8 @@ from app.db.session import get_db
 from app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
     OrderStatsResponse, WarrantyUpdateRequest, OrderCreateDirect,
-    PayUrlRequest, PayUrlResponse, PaymentVerifyRequest, PaymentVerifyResponse
+    PayUrlRequest, PayUrlResponse, PaymentVerifyRequest, PaymentVerifyResponse,
+    OrderCreateResponse
 )
 from app.crud.order import crud_order
 from app.crud import cart as crud_cart
@@ -53,7 +54,7 @@ def get_current_admin_user(
 # CUSTOMER/USER ENDPOINTS
 # ========================================
 
-@router.post("/create-from-cart", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/create-from-cart", response_model=OrderCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_order_from_cart(
     order_data: OrderCreateDirect,
     db: Session = Depends(get_db),
@@ -69,46 +70,47 @@ async def create_order_from_cart(
     **New Body Format:**
     ```json
     {
-      "user_id": 5,
-      "reg_type": "customer",
-      "address_id": 6,
-      "order_date": "22-2-2222",
-      "customer_note": "Please ring the bell twice",
+      "user_id": 10,
+      "reg_type": "company",
+      "address_id": 10,
+      "order_date": "27-02-2026",
+      "customer_note": "Test PayPlug payment",
       "payment_info": {
-        "payment_type": "PayPal",
-        "payment_status": "successful",
-        "invoice_num": 2234454,
-        "payment_id": 3
+        "payment_type": "Payplug",
+        "payment_id": "pay_5TVrOgdsnseJIlyluCa6ej"
       },
       "items": [
         {
-          "product_id": 99898,
+          "product_id": 3630,
           "qty": 2,
           "warranty": {
             "title": "GARANZIA3 – 3 Years",
             "cost": 49.90
           },
           "delivery_opt": {
-            "title": "Delivery to floor",
+            "title": "Consegna al Piano",
             "cost": 69.0
           }
         },
         {
-          "product_id": 44333,
-          "qty": 5,
+          "product_id": 3632,
+          "qty": 1,
           "warranty": null,
           "delivery_opt": null
         }
-      ]
+      ],
+      "total": {
+        "sub_total": 3200,
+        "warranty": 100.89,
+        "shipping": 120.43,
+        "total": 2332.09
+      }
     }
     ```
     
-    **Note:** Total is calculated automatically by the system
-    
     **Returns:**
-    - Order object with full details including calculated totals
-    - Payment URL for completing payment (if PayPlug is enabled)
-    - Stock is automatically reduced
+    - Success message with order ID
+    - Or error message with failure reason
     """
     # Create order directly (no cart needed)
     try:
@@ -117,65 +119,25 @@ async def create_order_from_cart(
             order_data=order_data,
             user_id=order_data.user_id
         )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+        
+        return OrderCreateResponse(
+            success=True,
+            message="Order placed successfully",
+            order_id=order.id
         )
-    
-    # Initialize payment_url as None
-    payment_url = None
-    payment_error = None
-    
-    # Create PayPlug payment if configured and payment type is PayPal/card/payplug
-    if (settings.PAYPLUG_API_KEY and 
-        order_data.payment_info.payment_type.lower() in ['paypal', 'card', 'credit_card', 'payplug']):
-        try:
-            # Get customer info
-            customer_info = order.customer_info
-            customer_email = customer_info.get('email', '')
-            customer_first_name = customer_info.get('first_name', '') or customer_info.get('company_name' , '')
-            customer_last_name = customer_info.get('last_name', '')
-            
-            # Create payment URLs
-            return_url = f"{settings.FRONTEND_URL}/orders/{order.id}/payment-success"
-            cancel_url = f"{settings.FRONTEND_URL}/orders/{order.id}/payment-cancel"
-            
-            # Create payment
-            payment_result = payplug_service.create_payment(
-                amount=order.total_amount,
-                order_id=order.id,
-                customer_email=customer_email,
-                customer_first_name=customer_first_name,
-                customer_last_name=customer_last_name,
-                return_url=return_url,
-                cancel_url=cancel_url
-            )
-            
-            payment_url = payment_result['payment_url']
-            
-            # Update order with PayPlug payment ID
-            order.payment_transaction_id = payment_result['payment_id']
-            order.payment_status = 'pending'  # Will be updated by webhook
-            db.commit()
-            db.refresh(order)
-            
-        except Exception as e:
-            # Log error but don't fail order creation
-            payment_error = str(e)
-            print(f"PayPlug payment creation failed: {payment_error}")
-    
-    # Convert order to response model
-    order_response = OrderResponse.model_validate(order)
-    
-    # Add payment_url if available
-    if payment_url:
-        # Convert to dict, add payment_url, and return
-        response_dict = order_response.model_dump()
-        response_dict['payment_url'] = payment_url
-        return response_dict
-    
-    return order_response
+        
+    except ValueError as e:
+        return OrderCreateResponse(
+            success=False,
+            message=f"Order failed: {str(e)}",
+            order_id=None
+        )
+    except Exception as e:
+        return OrderCreateResponse(
+            success=False,
+            message=f"Order failed: Server error - {str(e)}",
+            order_id=None
+        )
 
 
 @router.post("/get_pay_url", response_model=PayUrlResponse, status_code=status.HTTP_200_OK)
