@@ -288,7 +288,7 @@ async def get_payment_url(
         )
 
 
-@router.post("/verify_payment", response_model=PaymentVerifyResponse, status_code=status.HTTP_200_OK)
+@router.post("/verify_payment", response_model=PaymentVerifyResponse, response_model_exclude_none=True, status_code=status.HTTP_200_OK)
 async def verify_payment_status(
     verify_request: PaymentVerifyRequest,
     db: Session = Depends(get_db),
