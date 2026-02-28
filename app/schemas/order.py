@@ -402,6 +402,7 @@ class PaymentVerifyRequest(BaseModel):
 class PaymentVerifyResponse(BaseModel):
     """Payment verification response"""
     payment_id: str = Field(..., description="PayPlug payment ID")
+    transaction_number: Optional[str] = Field(None, description="Transaction number (if available)")
     status: str = Field(..., description="Payment status: completed, pending, failed")
     amount: Decimal = Field(..., description="Payment amount")
     is_paid: bool = Field(..., description="Whether payment is completed")

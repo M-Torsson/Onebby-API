@@ -229,23 +229,35 @@ async def get_payment_url(
         )
     
     try:
-        # Get user email
+        # Get user email and info
         user_email = ""
         user_first_name = ""
         user_last_name = ""
         
-        if hasattr(user, 'email'):
-            user_email = user.email or ""
+        # Try to get email from multiple sources
+        if hasattr(user, 'email') and user.email:
+            user_email = user.email
+        elif hasattr(user, 'customer_info') and user.customer_info:
+            # Try from customer_info JSON
+            if isinstance(user.customer_info, dict):
+                user_email = user.customer_info.get('email', '')
         
-        if hasattr(user, 'first_name'):
-            user_first_name = user.first_name or ""
+        if hasattr(user, 'first_name') and user.first_name:
+            user_first_name = user.first_name
+        elif hasattr(user, 'customer_info') and isinstance(user.customer_info, dict):
+            user_first_name = user.customer_info.get('first_name', '')
         
-        if hasattr(user, 'last_name'):
-            user_last_name = user.last_name or ""
+        if hasattr(user, 'last_name') and user.last_name:
+            user_last_name = user.last_name
+        elif hasattr(user, 'customer_info') and isinstance(user.customer_info, dict):
+            user_last_name = user.customer_info.get('last_name', '')
         
         # If company, use company name
-        if user.reg_type == 'company' and hasattr(user, 'company_name'):
-            user_first_name = user.company_name or ""
+        if user.reg_type == 'company':
+            if hasattr(user, 'company_name') and user.company_name:
+                user_first_name = user.company_name
+            elif hasattr(user, 'customer_info') and isinstance(user.customer_info, dict):
+                user_first_name = user.customer_info.get('company_name', user_first_name)
         
         # Create payment URLs
         return_url = f"{settings.FRONTEND_URL}/payment-success"
@@ -347,14 +359,37 @@ async def verify_payment_status(
         created_at = datetime.fromtimestamp(payment.created_at).isoformat() if payment.created_at else None
         paid_at = datetime.fromtimestamp(payment.paid_at).isoformat() if hasattr(payment, 'paid_at') and payment.paid_at else None
         
-        # Get customer email
+        # Get customer email (try multiple ways)
+        customer_email = None
         try:
-            customer_email = payment.customer['email'] if hasattr(payment, 'customer') and payment.customer else None
-        except (TypeError, KeyError):
+            if hasattr(payment, 'customer') and payment.customer:
+                # Try as dictionary
+                if isinstance(payment.customer, dict):
+                    customer_email = payment.customer.get('email')
+                # Try as object attribute
+                elif hasattr(payment.customer, 'email'):
+                    customer_email = payment.customer.email
+        except (TypeError, KeyError, AttributeError):
             customer_email = None
+        
+        # Get transaction number (from card or payment object)
+        transaction_number = None
+        try:
+            # Try to get from card object
+            if hasattr(payment, 'card') and payment.card:
+                if isinstance(payment.card, dict):
+                    transaction_number = payment.card.get('id')
+                elif hasattr(payment.card, 'id'):
+                    transaction_number = payment.card.id
+            # Or use payment ID as transaction number
+            if not transaction_number:
+                transaction_number = payment.id
+        except (TypeError, KeyError, AttributeError):
+            transaction_number = payment.id
         
         return PaymentVerifyResponse(
             payment_id=payment.id,
+            transaction_number=transaction_number,
             status=status_text,
             amount=payment.amount / 100,  # PayPlug uses cents
             is_paid=is_paid,
