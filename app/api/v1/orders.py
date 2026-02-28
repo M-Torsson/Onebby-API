@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
     OrderStatsResponse, WarrantyUpdateRequest, OrderCreateDirect,
-    PayUrlRequest, PayUrlResponse
+    PayUrlRequest, PayUrlResponse, PaymentVerifyRequest, PaymentVerifyResponse
 )
 from app.crud.order import crud_order
 from app.crud import cart as crud_cart
@@ -271,6 +271,115 @@ async def get_payment_url(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create payment: {str(e)}"
+        )
+
+
+@router.post("/verify_payment", response_model=PaymentVerifyResponse, status_code=status.HTTP_200_OK)
+async def verify_payment_status(
+    verify_request: PaymentVerifyRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Verify PayPlug payment status
+    
+    **Use this after user returns from PayPlug payment page**
+    
+    **Requirements:**
+    - API Key (in header X-API-Key)
+    
+    **Request Body:**
+    ```json
+    {
+      "payment_url": "https://secure.payplug.com/pay/test_..."
+    }
+    ```
+    
+    **Returns:**
+    - payment_id: PayPlug payment ID
+    - status: completed, pending, or failed
+    - amount: Payment amount
+    - is_paid: true if payment completed
+    - created_at: When payment was created
+    - paid_at: When payment was completed (if completed)
+    - customer_email: Customer email
+    
+    **Flow:**
+    1. User gets payment_url from /get_pay_url
+    2. User completes payment on PayPlug
+    3. User returns to your site
+    4. Call this endpoint to verify payment status
+    5. If is_paid=true, payment successful!
+    """
+    # Check if PayPlug is configured
+    if not settings.PAYPLUG_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="PayPlug is not configured"
+        )
+    
+    try:
+        # Extract payment ID from URL
+        # URL format: https://secure.payplug.com/pay/test_xxxxx or https://secure.payplug.com/pay/pay_xxxxx
+        payment_url = verify_request.payment_url
+        
+        if '/pay/' not in payment_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid PayPlug payment URL format"
+            )
+        
+        # Extract payment ID from URL
+        payment_id = payment_url.split('/pay/')[-1].split('?')[0].split('#')[0]
+        
+        if not payment_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract payment ID from URL"
+            )
+        
+        # Retrieve payment details from PayPlug
+        payment = payplug_service.retrieve_payment(payment_id)
+        
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Payment {payment_id} not found"
+            )
+        
+        # Determine status
+        is_paid = payment.is_paid
+        if is_paid:
+            status_text = "completed"
+        elif payment.failure:
+            status_text = "failed"
+        else:
+            status_text = "pending"
+        
+        # Get timestamps
+        from datetime import datetime
+        created_at = datetime.fromtimestamp(payment.created_at).isoformat() if payment.created_at else None
+        paid_at = datetime.fromtimestamp(payment.paid_at).isoformat() if hasattr(payment, 'paid_at') and payment.paid_at else None
+        
+        # Get customer email
+        customer_email = payment.customer.get('email') if hasattr(payment, 'customer') and payment.customer else None
+        
+        return PaymentVerifyResponse(
+            payment_id=payment.id,
+            status=status_text,
+            amount=payment.amount / 100,  # PayPlug uses cents
+            is_paid=is_paid,
+            created_at=created_at,
+            paid_at=paid_at,
+            customer_email=customer_email
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to verify payment: {str(e)}"
         )
 
 

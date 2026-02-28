@@ -391,3 +391,19 @@ class PayUrlResponse(BaseModel):
     user_id: int = Field(..., description="User ID who requested payment")
     payment_url: str = Field(..., description="PayPlug payment URL (contains payment_id)")
     amount: Decimal = Field(..., description="Payment amount")
+
+
+class PaymentVerifyRequest(BaseModel):
+    """Request to verify payment status"""
+    payment_url: str = Field(..., description="PayPlug payment URL to verify")
+
+
+class PaymentVerifyResponse(BaseModel):
+    """Payment verification response"""
+    payment_id: str = Field(..., description="PayPlug payment ID")
+    status: str = Field(..., description="Payment status: completed, pending, failed")
+    amount: Decimal = Field(..., description="Payment amount")
+    is_paid: bool = Field(..., description="Whether payment is completed")
+    created_at: Optional[str] = Field(None, description="Payment creation time")
+    paid_at: Optional[str] = Field(None, description="Payment completion time")
+    customer_email: Optional[str] = Field(None, description="Customer email")
