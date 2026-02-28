@@ -409,3 +409,16 @@ class PaymentVerifyResponse(BaseModel):
     created_at: Optional[str] = Field(None, description="Payment creation time")
     paid_at: Optional[str] = Field(None, description="Payment completion time")
     customer_email: Optional[str] = Field(None, description="Customer email")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "payment_id": "pay_xxxxx",
+                "status": "completed",
+                "amount": 320.98,
+                "is_paid": True,
+                "created_at": "2026-02-28T11:59:25",
+                "paid_at": "2026-02-28T12:05:42",
+                "customer_email": "customer@example.com"
+            }
+        }

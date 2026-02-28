@@ -410,16 +410,25 @@ async def verify_payment_status(
         except (TypeError, KeyError, AttributeError):
             transaction_number = None
         
-        return PaymentVerifyResponse(
-            payment_id=payment.id,
-            transaction_number=transaction_number,
-            status=status_text,
-            amount=payment.amount / 100,  # PayPlug uses cents
-            is_paid=is_paid,
-            created_at=created_at,
-            paid_at=paid_at,
-            customer_email=customer_email
-        )
+        # Build response (exclude None values)
+        response_data = {
+            "payment_id": payment.id,
+            "status": status_text,
+            "amount": payment.amount / 100,  # PayPlug uses cents
+            "is_paid": is_paid,
+        }
+        
+        # Add optional fields only if they have values
+        if transaction_number:
+            response_data["transaction_number"] = transaction_number
+        if created_at:
+            response_data["created_at"] = created_at
+        if paid_at:
+            response_data["paid_at"] = paid_at
+        if customer_email:
+            response_data["customer_email"] = customer_email
+        
+        return response_data
         
     except HTTPException:
         raise
