@@ -521,3 +521,121 @@ async def test_payplug_webhook():
         "endpoint": "/api/payments/payplug"
     }
 
+
+@router.post("/floa")
+async def floa_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Floa payment notification webhook
+    
+    Floa sends notifications to this endpoint when payment status changes.
+    This is the primary way to track payment completion.
+    
+    **Request Body:** (sent by Floa)
+    ```json
+    {
+      "dealReference": "FINxxxxx",
+      "status": "APPROVED",  // or REFUSED, CANCELLED, EXPIRED
+      "merchantReference": "ORDxxxxx",
+      "customerTotalAmount": 50000,
+      "dealStatus": "DELIVERED"
+    }
+    ```
+    
+    **Returns:**
+    - 200 OK if processed successfully
+    - Floa expects quick response (< 30s)
+    """
+    try:
+        # Get raw body
+        body = await request.json()
+        
+        logger.info(f"Floa webhook received: {json.dumps(body, indent=2)}")
+        
+        # Extract data from webhook
+        deal_reference = body.get('dealReference')
+        deal_status = body.get('dealStatus')
+        merchant_reference = body.get('merchantReference')
+        
+        if not deal_reference or not merchant_reference:
+            logger.error("Missing dealReference or merchantReference in Floa webhook")
+            return {"status": "error", "message": "Missing required fields"}
+        
+        # Extract order ID from merchantReference
+        # Format: ORD{order_id}_{timestamp}
+        if merchant_reference.startswith("ORD"):
+            try:
+                order_id_str = merchant_reference[3:].split('_')[0]
+                order_id = int(order_id_str)
+            except (IndexError, ValueError):
+                logger.error(f"Invalid merchantReference format: {merchant_reference}")
+                return {"status": "error", "message": "Invalid merchantReference format"}
+        else:
+            logger.error(f"Unknown merchantReference format: {merchant_reference}")
+            return {"status": "error", "message": "Unknown merchantReference format"}
+        
+        # Get order
+        order = crud_order.get(db, id=order_id)
+        if not order:
+            logger.error(f"Order {order_id} not found for Floa deal {deal_reference}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Order {order_id} not found"
+            )
+        
+        # Update order based on deal status
+        if deal_status == 'DELIVERED':
+            # Check if first installment is paid
+            # We could call Floa API here to get detailed status, but for webhook we trust the status
+            order.payment_status = 'completed'
+            order.status = 'confirmed'
+            order.payment_transaction_id = deal_reference
+            
+            logger.info(f"Order {order_id} Floa payment completed (deal: {deal_reference})")
+            
+            # Auto-register warranties if payment successful
+            await auto_register_warranties(db, order)
+            
+        elif deal_status in ['CANCELLED', 'REFUSED', 'EXPIRED']:
+            # Payment failed/cancelled
+            order.payment_status = 'failed'
+            order.admin_note = f"Floa payment {deal_status.lower()}: {deal_reference}"
+            
+            logger.warning(f"Order {order_id} Floa payment {deal_status} (deal: {deal_reference})")
+        
+        else:
+            # Payment still pending (DRAFT, etc.)
+            order.payment_status = 'pending'
+            logger.info(f"Order {order_id} Floa payment pending (deal: {deal_reference})")
+        
+        # Save changes
+        db.commit()
+        db.refresh(order)
+        
+        return {
+            "status": "ok",
+            "dealReference": deal_reference,
+            "order_id": order_id,
+            "payment_status": order.payment_status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing Floa webhook: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook processing failed: {str(e)}"
+        )
+
+
+@router.get("/floa/test")
+async def test_floa_webhook():
+    """Test endpoint to verify Floa webhook route is accessible"""
+    return {
+        "status": "ok",
+        "message": "Floa webhook endpoint is ready",
+        "endpoint": "/api/payments/floa"
+    }

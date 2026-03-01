@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     PAYPLUG_MODE: str = "test"  # test or live
     PAYPLUG_WEBHOOK_URL: Optional[str] = None  # Full webhook URL
     
+    # Floa Payment Configuration
+    FLOA_CLIENT_ID: Optional[str] = None
+    FLOA_CLIENT_SECRET: Optional[str] = None
+    FLOA_BASE_URL: str = "https://api.floapay.io/api-nx-live-int"
+    FLOA_PRODUCT_CODE: str = "BC3XFIT"  # Italy - 3 times payment free
+    FLOA_CULTURE: str = "it-IT"  # Italy locale
+    FLOA_WEBHOOK_URL: Optional[str] = None  # Webhook notification URL
+    
     FLOA_API_KEY: Optional[str] = None
     FLOA_SECRET_KEY: Optional[str] = None
     

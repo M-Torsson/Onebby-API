@@ -1,0 +1,301 @@
+# Author: Muthana
+# © 2026 Muthana. All rights reserved.
+# Unauthorized copying or distribution is prohibited.
+
+import requests
+from typing import Dict, Any, Optional
+from decimal import Decimal
+from datetime import datetime
+from app.core.config import settings
+
+
+class FloaService:
+    """Floa Payment Integration Service"""
+    
+    def __init__(self):
+        self.base_url = settings.FLOA_BASE_URL
+        self.client_id = settings.FLOA_CLIENT_ID
+        self.client_secret = settings.FLOA_CLIENT_SECRET
+        self.product_code = settings.FLOA_PRODUCT_CODE
+        self.culture = settings.FLOA_CULTURE
+        self._access_token = None
+        self._token_expires_at = None
+    
+    def get_access_token(self) -> str:
+        """
+        Get OAuth access token using client_credentials grant
+        Token is cached and reused until it expires
+        
+        Returns:
+            str: Bearer access token
+        """
+        # Check if we have a valid cached token
+        if self._access_token and self._token_expires_at:
+            if datetime.now().timestamp() < self._token_expires_at:
+                return self._access_token
+        
+        # Request new token
+        url = f"{self.base_url}/oauth/token"
+        
+        data = {
+            "grant_type": "client_credentials"
+        }
+        
+        response = requests.post(
+            url,
+            data=data,
+            auth=(self.client_id, self.client_secret),
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        
+        response.raise_for_status()
+        token_data = response.json()
+        
+        # Cache the token
+        self._access_token = token_data["access_token"]
+        # expires_in is in seconds (usually 3600 = 1 hour)
+        expires_in = token_data.get("expires_in", 3600)
+        self._token_expires_at = datetime.now().timestamp() + expires_in - 60  # 60s buffer
+        
+        return self._access_token
+    
+    def create_deal(
+        self,
+        merchant_reference: str,
+        amount: Decimal,
+        customer_data: Dict[str, Any],
+        shipping_address: Dict[str, Any],
+        items: list,
+        product_code: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a deal with Floa
+        
+        Args:
+            merchant_reference: Unique order reference
+            amount: Total amount in EUR (will be converted to cents)
+            customer_data: Customer information
+            shipping_address: Shipping address
+            items: List of order items
+            product_code: Product code (e.g., BC3XFIT), defaults to settings
+        
+        Returns:
+            dict: Deal data with dealReference and links
+        """
+        token = self.get_access_token()
+        product_code = product_code or self.product_code
+        
+        url = f"{self.base_url}/api/v1/deals"
+        
+        # Convert amount to cents
+        amount_cents = int(amount * 100)
+        
+        # Build request body
+        body = {
+            "merchantReference": merchant_reference,
+            "device": "Desktop",
+            "shippingMethod": "STD",
+            "shippingAddress": shipping_address,
+            "merchantFinancedAmount": amount_cents,
+            "itemCount": len(items),
+            "items": items,
+            "customers": [customer_data]
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        params = {"productCode": product_code}
+        
+        response = requests.post(url, json=body, headers=headers, params=params)
+        response.raise_for_status()
+        
+        return response.json()
+    
+    def finalize_deal(
+        self,
+        deal_reference: str,
+        merchant_reference: str,
+        amount: Decimal,
+        back_url: str,
+        return_url: str,
+        notification_url: str
+    ) -> Dict[str, Any]:
+        """
+        Finalize a deal to get the payment URL
+        
+        Args:
+            deal_reference: Deal reference from create_deal
+            merchant_reference: Merchant reference (order ID)
+            amount: Total amount in EUR (will be converted to cents)
+            back_url: URL for back button
+            return_url: URL after payment completion
+            notification_url: Webhook URL
+        
+        Returns:
+            dict: Contains redirect-payment-journey URL
+        """
+        token = self.get_access_token()
+        
+        url = f"{self.base_url}/api/v1/deals/{deal_reference}/finalize"
+        
+        # Convert amount to cents
+        amount_cents = int(amount * 100)
+        
+        body = {
+            "merchantReference": merchant_reference,
+            "merchantFinancedAmount": amount_cents,
+            "configuration": {
+                "culture": self.culture,
+                "backUrl": back_url,
+                "returnUrl": return_url,
+                "notificationUrl": notification_url,
+                "sessionModes": ["WebPage"]
+            }
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(url, json=body, headers=headers)
+        response.raise_for_status()
+        
+        return response.json()
+    
+    def get_deal_status(self, deal_reference: str) -> Dict[str, Any]:
+        """
+        Get deal installment plan and status
+        
+        Args:
+            deal_reference: Deal reference
+        
+        Returns:
+            dict: Installment plan with status
+        """
+        token = self.get_access_token()
+        
+        url = f"{self.base_url}/api/v1/deals/{deal_reference}/installment-plan"
+        
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        
+        return response.json()
+    
+    def create_payment(
+        self,
+        amount: Decimal,
+        order_id: int,
+        customer_email: str,
+        customer_first_name: str,
+        customer_last_name: str,
+        customer_phone: str,
+        customer_address: Dict[str, Any],
+        items: list,
+        product_code: Optional[str] = None,
+        return_url: Optional[str] = None,
+        back_url: Optional[str] = None,
+        notification_url: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Complete Floa payment creation flow
+        
+        This is the main method that combines all steps:
+        1. Create deal
+        2. Finalize deal
+        3. Return payment_id and payment_url
+        
+        Args:
+            amount: Total amount in EUR
+            order_id: Order ID
+            customer_email: Customer email
+            customer_first_name: Customer first name
+            customer_last_name: Customer last name
+            customer_phone: Customer phone
+            customer_address: Customer address dict
+            items: List of order items
+            product_code: Product code (optional)
+            return_url: Return URL (optional, will use settings)
+            back_url: Back URL (optional, will use settings)
+            notification_url: Webhook URL (optional, will use settings)
+        
+        Returns:
+            dict: {
+                'payment_id': dealReference,
+                'payment_url': redirect URL
+            }
+        """
+        # Generate unique merchant reference
+        merchant_reference = f"ORD{order_id}_{int(datetime.now().timestamp())}"
+        
+        # Prepare URLs
+        return_url = return_url or f"{settings.FRONTEND_URL}/payment/success"
+        back_url = back_url or f"{settings.FRONTEND_URL}/payment/back"
+        notification_url = notification_url or settings.FLOA_WEBHOOK_URL
+        
+        # Prepare shipping address for Floa
+        shipping_address = {
+            "line1": customer_address.get("address_house_number", ""),
+            "line2": customer_address.get("house_number", ""),
+            "zipCode": customer_address.get("postal_code", ""),
+            "city": customer_address.get("city", ""),
+            "countryCode": "IT"  # Italy
+        }
+        
+        # Prepare customer data for Floa
+        customer_data = {
+            "civility": "Mr",  # Default, can be customized
+            "firstName": customer_first_name,
+            "lastName": customer_last_name,
+            "mobilePhoneNumber": customer_phone,
+            "email": customer_email,
+            "homeAddress": shipping_address
+        }
+        
+        # Step 1: Create deal
+        deal_response = self.create_deal(
+            merchant_reference=merchant_reference,
+            amount=amount,
+            customer_data=customer_data,
+            shipping_address=shipping_address,
+            items=items,
+            product_code=product_code
+        )
+        
+        deal_reference = deal_response["dealReference"]
+        
+        # Step 2: Finalize deal
+        finalize_response = self.finalize_deal(
+            deal_reference=deal_reference,
+            merchant_reference=merchant_reference,
+            amount=amount,
+            back_url=back_url,
+            return_url=return_url,
+            notification_url=notification_url
+        )
+        
+        # Extract payment URL from links
+        payment_url = None
+        for link in finalize_response.get("links", []):
+            if link.get("rel") == "redirect-payment-journey":
+                payment_url = link.get("href")
+                break
+        
+        if not payment_url:
+            raise ValueError("Payment URL not found in Floa response")
+        
+        return {
+            "payment_id": deal_reference,
+            "payment_url": payment_url
+        }
+
+
+# Singleton instance
+floa_service = FloaService()

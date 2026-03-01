@@ -20,6 +20,7 @@ from app.core.security.api_key import verify_api_key
 from app.core.security.dependencies import get_current_active_user
 from app.models.user import User
 from app.integrations.payplug import payplug_service
+from app.integrations.floa import floa_service
 from app.core.config import settings
 
 router = APIRouter()
@@ -147,7 +148,7 @@ async def get_payment_url(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Get PayPlug payment URL without creating an order
+    Get payment URL for PayPlug or Floa without creating an order
     
     **Requirements:**
     - API Key (in header X-API-Key)
@@ -155,23 +156,26 @@ async def get_payment_url(
     **Request Body:**
     ```json
     {
-      "payment_type": "PayPal",
+      "payment_type": "Payplug",  // or "floa"
       "user_id": 5,
       "total": 2300.98
     }
     ```
     
     **Returns:**
-    - user_id: User ID who requested payment
-    - payment_id: PayPlug payment ID (use this for verification!)
-    - payment_url: PayPlug payment URL (redirect user here - contains payment_id)
+    - user_id: User ID
+    - payment_id: Payment ID (pay_xxxxx for PayPlug, FINxxxxx for Floa)
+    - payment_url: Payment page URL - redirect user here
     - amount: Payment amount
     """
+    # Normalize payment type
+    payment_type = request.payment_type.lower()
+    
     # Validate payment type
-    if request.payment_type.lower() not in ['paypal', 'payplug', 'card', 'credit_card']:
+    if payment_type not in ['paypal', 'payplug', 'card', 'credit_card', 'floa']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid payment type. Allowed: PayPal, PayPlug, card, credit_card"
+            detail="Invalid payment type. Allowed: PayPal, PayPlug, card, credit_card, floa"
         )
     
     # Verify user exists
@@ -183,18 +187,13 @@ async def get_payment_url(
             detail=f"User with ID {request.user_id} not found"
         )
     
-    # Check if PayPlug is configured
-    if not settings.PAYPLUG_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="PayPlug is not configured"
-        )
-    
     try:
         # Get user email and info
         user_email = ""
         user_first_name = ""
         user_last_name = ""
+        user_phone = ""
+        user_address = {}
         
         # Try to get email from multiple sources
         if hasattr(user, 'email') and user.email:
@@ -221,12 +220,49 @@ async def get_payment_url(
             elif hasattr(user, 'customer_info') and isinstance(user.customer_info, dict):
                 user_first_name = user.customer_info.get('company_name', user_first_name)
         
-        # Create payment URLs
-        return_url = f"{settings.FRONTEND_URL}/payment-success"
-        cancel_url = f"{settings.FRONTEND_URL}/payment-cancel"
+        # Get phone (for Floa)
+        if hasattr(user, 'phone') and user.phone:
+            user_phone = user.phone
+        elif hasattr(user, 'customer_info') and isinstance(user.customer_info, dict):
+            user_phone = user.customer_info.get('phone', '+393331234567')
         
-        # Create PayPlug payment
-        payment_result = payplug_service.create_payment(
+        # Get address (for Floa)
+        if hasattr(user, 'addresses') and user.addresses:
+            first_address = user.addresses[0] if len(user.addresses) > 0 else None
+            if first_address:
+                user_address = {
+                    'address_house_number': getattr(first_address, 'address_house_number', ''),
+                    'house_number': getattr(first_address, 'house_number', ''),
+                    'postal_code': getattr(first_address, 'postal_code', ''),
+                    'city': getattr(first_address, 'city', ''),
+                    'country': getattr(first_address, 'country', 'IT')
+                }
+        
+        # Default address if not found
+        if not user_address:
+            user_address = {
+                'address_house_number': 'Via Roma 1',
+                'house_number': 'Scala A',
+                'postal_code': '20121',
+                'city': 'Milano',
+                'country': 'IT'
+            }
+        
+        # PayPlug payment
+        if payment_type in ['paypal', 'payplug', 'card', 'credit_card']:
+            # Check if PayPlug is configured
+            if not settings.PAYPLUG_API_KEY:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="PayPlug is not configured"
+                )
+            
+            # Create payment URLs
+            return_url = f"{settings.FRONTEND_URL}/payment-success"
+            cancel_url = f"{settings.FRONTEND_URL}/payment-cancel"
+            
+            # Create PayPlug payment
+            payment_result = payplug_service.create_payment(
             amount=float(request.total),
             order_id=f"temp_{request.user_id}_{int(datetime.now().timestamp())}",
             customer_email=user_email,
@@ -236,13 +272,56 @@ async def get_payment_url(
             cancel_url=cancel_url
         )
         
-        return PayUrlResponse(
-            user_id=request.user_id,
-            payment_id=payment_result['payment_id'],
-            payment_url=payment_result['payment_url'],
-            amount=request.total
-        )
+            return PayUrlResponse(
+                user_id=request.user_id,
+                payment_id=payment_result['payment_id'],
+                payment_url=payment_result['payment_url'],
+                amount=request.total
+            )
         
+        # Floa payment
+        elif payment_type == 'floa':
+            # Check if Floa is configured
+            if not settings.FLOA_CLIENT_ID or not settings.FLOA_CLIENT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Floa is not configured"
+                )
+            
+            # Prepare items for Floa
+            items = [
+                {
+                    "name": "Order Item",
+                    "amount": int(request.total * 100),
+                    "quantity": 1,
+                    "reference": f"ITEM_{request.user_id}",
+                    "category": "General",
+                    "subCategory": "Product",
+                    "customCategory": "E-commerce"
+                }
+            ]
+            
+            # Create Floa payment
+            payment_result = floa_service.create_payment(
+                amount=request.total,
+                order_id=request.user_id,
+                customer_email=user_email,
+                customer_first_name=user_first_name,
+                customer_last_name=user_last_name,
+                customer_phone=user_phone,
+                customer_address=user_address,
+                items=items
+            )
+            
+            return PayUrlResponse(
+                user_id=request.user_id,
+                payment_id=payment_result['payment_id'],
+                payment_url=payment_result['payment_url'],
+                amount=request.total
+            )
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -257,9 +336,9 @@ async def verify_payment_status(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Verify PayPlug payment status
+    Verify payment status for PayPlug or Floa
     
-    **Use this after user returns from PayPlug payment page**
+    **Use this after user returns from payment page**
     
     **Requirements:**
     - API Key (in header X-API-Key)
@@ -267,12 +346,12 @@ async def verify_payment_status(
     **Request Body:**
     ```json
     {
-      "payment_id": "pay_xxxxx"
+      "payment_id": "pay_xxxxx"  // PayPlug ID or "FINxxxxx" for Floa
     }
     ```
     
     **Returns:**
-    - payment_id: PayPlug payment ID
+    - payment_id: Payment ID
     - status: completed, pending, or failed
     - amount: Payment amount
     - is_paid: true if payment completed
@@ -282,103 +361,149 @@ async def verify_payment_status(
     
     **Flow:**
     1. User gets payment_id from /get_pay_url response
-    2. User completes payment on PayPlug
+    2. User completes payment
     3. User returns to your site
     4. Call this endpoint with payment_id to verify payment status
     5. If is_paid=true, payment successful!
     """
-    # Check if PayPlug is configured
-    if not settings.PAYPLUG_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="PayPlug is not configured"
-        )
-    
     try:
         # Get payment ID from request
         payment_id = verify_request.payment_id
         
-        # Retrieve payment details from PayPlug
-        payment = payplug_service.retrieve_payment(payment_id)
+        # Detect payment provider by payment_id format
+        # PayPlug: pay_xxxxx
+        # Floa: FINxxxxx
+        is_payplug = payment_id.startswith("pay_")
+        is_floa = payment_id.startswith("FIN")
         
-        if not payment:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Payment {payment_id} not found"
-            )
-        
-        # Determine status
-        is_paid = payment.is_paid
-        if is_paid:
-            status_text = "completed"
-        elif payment.failure:
-            status_text = "failed"
-        else:
-            status_text = "pending"
-        
-        # Get timestamps
-        from datetime import datetime
-        created_at = datetime.fromtimestamp(payment.created_at).isoformat() if payment.created_at else None
-        paid_at = datetime.fromtimestamp(payment.paid_at).isoformat() if hasattr(payment, 'paid_at') and payment.paid_at else None
-        
-        # Get customer email (try multiple ways)
-        customer_email = None
-        try:
-            if hasattr(payment, 'customer') and payment.customer:
-                # Try as dictionary
-                if isinstance(payment.customer, dict):
-                    customer_email = payment.customer.get('email')
-                # Try as object attribute
-                elif hasattr(payment.customer, 'email'):
-                    customer_email = payment.customer.email
-        except (TypeError, KeyError, AttributeError):
+        if is_payplug:
+            # Check if PayPlug is configured
+            if not settings.PAYPLUG_API_KEY:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="PayPlug is not configured"
+                )
+            
+            # Retrieve payment details from PayPlug
+            payment = payplug_service.retrieve_payment(payment_id)
+            
+            if not payment:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Payment {payment_id} not found"
+                )
+            
+            # Determine status
+            is_paid = payment.is_paid
+            if is_paid:
+                status_text = "completed"
+            elif payment.failure:
+                status_text = "failed"
+            else:
+                status_text = "pending"
+            
+            # Get timestamps
+            from datetime import datetime
+            created_at = datetime.fromtimestamp(payment.created_at).isoformat() if payment.created_at else None
+            paid_at = datetime.fromtimestamp(payment.paid_at).isoformat() if hasattr(payment, 'paid_at') and payment.paid_at else None
+            
+            # Get customer email
             customer_email = None
-        
-        # Get transaction number (search in multiple places)
-        transaction_number = None
-        try:
-            # Try different sources for transaction number:
+            try:
+                if hasattr(payment, 'customer') and payment.customer:
+                    if isinstance(payment.customer, dict):
+                        customer_email = payment.customer.get('email')
+                    elif hasattr(payment.customer, 'email'):
+                        customer_email = payment.customer.email
+            except (TypeError, KeyError, AttributeError):
+                customer_email = None
             
-            # 1. Authorization ID (from bank)
-            if hasattr(payment, 'authorization') and payment.authorization:
-                if isinstance(payment.authorization, dict):
-                    transaction_number = payment.authorization.get('authorization_id') or payment.authorization.get('id')
-                elif hasattr(payment.authorization, 'authorization_id'):
-                    transaction_number = payment.authorization.authorization_id
-                elif hasattr(payment.authorization, 'id'):
-                    transaction_number = payment.authorization.id
-            
-            # 2. Card transaction ID
-            if not transaction_number and hasattr(payment, 'card') and payment.card:
-                if isinstance(payment.card, dict):
-                    transaction_number = payment.card.get('id') or payment.card.get('transaction_id')
-                elif hasattr(payment.card, 'id'):
-                    transaction_number = payment.card.id
-                elif hasattr(payment.card, 'transaction_id'):
-                    transaction_number = payment.card.transaction_id
-            
-            # 3. Check for id_transaction field
-            if not transaction_number and hasattr(payment, 'id_transaction'):
-                transaction_number = payment.id_transaction
-            
-            # 4. Check for transaction_id field
-            if not transaction_number and hasattr(payment, 'transaction_id'):
-                transaction_number = payment.transaction_id
-            
-            # 5. Last resort: return None to avoid duplicating payment_id
-            if not transaction_number:
-                transaction_number = None
-                
-        except (TypeError, KeyError, AttributeError):
+            # Get transaction number
             transaction_number = None
-        
-        # Build response (exclude None values)
-        response_data = {
-            "payment_id": payment.id,
-            "status": status_text,
-            "amount": payment.amount / 100,  # PayPlug uses cents
-            "is_paid": is_paid,
-        }
+            try:
+                if hasattr(payment, 'authorization') and payment.authorization:
+                    if isinstance(payment.authorization, dict):
+                        transaction_number = payment.authorization.get('authorization_id') or payment.authorization.get('id')
+                    elif hasattr(payment.authorization, 'authorization_id'):
+                        transaction_number = payment.authorization.authorization_id
+                    elif hasattr(payment.authorization, 'id'):
+                        transaction_number = payment.authorization.id
+                
+                if not transaction_number and hasattr(payment, 'card') and payment.card:
+                    if isinstance(payment.card, dict):
+                        transaction_number = payment.card.get('id') or payment.card.get('transaction_id')
+            except (TypeError, KeyError, AttributeError):
+                transaction_number = None
+            
+            # Build response
+            response_data = {
+                "payment_id": payment.id,
+                "status": status_text,
+                "amount": payment.amount / 100,
+                "is_paid": is_paid,
+            }
+            
+        elif is_floa:
+            # Check if Floa is configured
+            if not settings.FLOA_CLIENT_ID or not settings.FLOA_CLIENT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Floa is not configured"
+                )
+            
+            # Get deal status from Floa
+            deal = floa_service.get_deal_status(payment_id)
+            
+            if not deal:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Payment {payment_id} not found"
+                )
+            
+            # Determine status from dealStatus
+            deal_status = deal.get('dealStatus', 'UNKNOWN')
+            
+            if deal_status == 'DELIVERED':
+                # Check installments to determine if paid
+                installments = deal.get('installments', [])
+                first_installment = installments[0] if installments else None
+                
+                if first_installment and first_installment.get('status') == 'PAID':
+                    status_text = "completed"
+                    is_paid = True
+                else:
+                    status_text = "pending"
+                    is_paid = False
+            elif deal_status in ['CANCELLED', 'REFUSED']:
+                status_text = "failed"
+                is_paid = False
+            else:
+                status_text = "pending"
+                is_paid = False
+            
+            # Build response
+            response_data = {
+                "payment_id": payment_id,
+                "status": status_text,
+                "amount": deal.get('customerTotalAmount', 0) / 100,  # Floa uses cents
+                "is_paid": is_paid,
+            }
+            
+            # Add created_at if available
+            created_at = None
+            paid_at = None
+            
+            # No timestamp in Floa installment-plan response
+            # Would need to track this separately or get from deal creation
+            
+            transaction_number = None
+            customer_email = None
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid payment_id format: {payment_id}"
+            )
         
         # Add optional fields only if they have values
         if transaction_number:
