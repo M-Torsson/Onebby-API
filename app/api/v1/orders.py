@@ -231,8 +231,8 @@ async def get_payment_url(
             first_address = user.addresses[0] if len(user.addresses) > 0 else None
             if first_address:
                 user_address = {
-                    'address_house_number': getattr(first_address, 'address_house_number', ''),
-                    'house_number': getattr(first_address, 'house_number', ''),
+                    'street': getattr(first_address, 'address_house_number', '') or getattr(first_address, 'street', 'Via Roma'),
+                    'house_number': getattr(first_address, 'house_number', '') or '1',
                     'postal_code': getattr(first_address, 'postal_code', ''),
                     'city': getattr(first_address, 'city', ''),
                     'country': getattr(first_address, 'country', 'IT')
@@ -241,8 +241,8 @@ async def get_payment_url(
         # Default address if not found
         if not user_address:
             user_address = {
-                'address_house_number': 'Via Roma 1',
-                'house_number': 'Scala A',
+                'street': 'Via Roma',
+                'house_number': '1',
                 'postal_code': '20121',
                 'city': 'Milano',
                 'country': 'IT'

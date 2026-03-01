@@ -109,10 +109,14 @@ class FloaService:
         
         params = {"productCode": product_code}
         
-        response = requests.post(url, json=body, headers=headers, params=params)
-        response.raise_for_status()
-        
-        return response.json()
+        try:
+            response = requests.post(url, json=body, headers=headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            # Log the error response for debugging
+            error_detail = e.response.text if hasattr(e.response, 'text') else str(e)
+            raise Exception(f"Floa create_deal failed: {e.response.status_code} - {error_detail}")
     
     def finalize_deal(
         self,
@@ -241,15 +245,24 @@ class FloaService:
         notification_url = notification_url or settings.FLOA_WEBHOOK_URL
         
         # Prepare shipping address for Floa
+        street = customer_address.get("street", "Via Roma")
+        house_number = customer_address.get("house_number", "1")
+        
         shipping_address = {
-            "line1": customer_address.get("address_house_number", ""),
-            "line2": customer_address.get("house_number", ""),
-            "zipCode": customer_address.get("postal_code", ""),
-            "city": customer_address.get("city", ""),
-            "countryCode": "IT"  # Italy
+            "line1": f"{street} {house_number}",  # Full street address
+            "line2": "",  # Additional info (optional)
+            "zipCode": customer_address.get("postal_code", "20121"),
+            "city": customer_address.get("city", "Milano"),
+            "countryCode": customer_address.get("country", "IT")
         }
         
         # Prepare customer data for Floa
+        # Ensure phone number starts with +39 (Italy)
+        if not customer_phone.startswith('+'):
+            customer_phone = f"+39{customer_phone.lstrip('0')}"
+        elif not customer_phone.startswith('+39'):
+            customer_phone = customer_phone.replace('+', '+39', 1)
+        
         customer_data = {
             "civility": "Mr",  # Default, can be customized
             "firstName": customer_first_name,
