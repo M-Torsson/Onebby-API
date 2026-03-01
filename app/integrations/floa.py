@@ -309,16 +309,11 @@ class FloaService:
         if not customer_last_name or len(customer_last_name) < 2:
             customer_last_name = "Joupey"
         
-        # Get city from address for birth fields
-        birth_city = shipping_address.get("city", "Milano").strip()
-        
-        # Map major Italian cities to their department codes (case-insensitive)
-        department_map = {
-            "milano": "MI", "roma": "RM", "torino": "TO", "napoli": "NA",
-            "palermo": "PA", "genova": "GE", "bologna": "BO", "firenze": "FI",
-            "bari": "BA", "catania": "CT", "venezia": "VE", "verona": "VR"
-        }
-        birth_department = department_map.get(birth_city.lower(), "MI")  # Default to Milano (MI)
+        # Italian birth place codes (Codice Catastale)
+        # birthCity must be the official cadastral code, not the city name!
+        # F205 = Milano, H501 = Roma, L219 = Torino, F839 = Napoli
+        birth_city_code = "F205"  # Milano cadastral code (matches Codice Fiscale)
+        birth_department = "MI"  # Milano province code
         
         # Generate or use default Italian tax ID (Codice Fiscale)
         # Using sample from Floa documentation: Aline Joupey born 1963-07-16 in Milano
@@ -332,7 +327,7 @@ class FloaService:
             "lastName": customer_last_name,
             "birthDate": birth_date,
             "nationality": "IT",  # Italian nationality - required for IT product
-            "birthCity": birth_city,  # City of birth - required
+            "birthCity": birth_city_code,  # Cadastral code, not city name! F205 = Milano
             "birthDepartment": birth_department,  # Department code (e.g., MI for Milano) - required
             "birthCountryCode": "IT",  # Country of birth - required
             "mobilePhoneNumber": customer_phone,
