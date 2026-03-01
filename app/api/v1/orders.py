@@ -288,6 +288,16 @@ async def get_payment_url(
                     detail="Floa is not configured"
                 )
             
+            # Validate product_code if provided
+            allowed_codes = ['BC1XFD', 'BC3XF', 'BC4XF']
+            product_code = request.product_code
+            
+            if product_code and product_code not in allowed_codes:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid product_code. Allowed: {', '.join(allowed_codes)}"
+                )
+            
             # Prepare items for Floa
             items = [
                 {
@@ -310,7 +320,8 @@ async def get_payment_url(
                 customer_last_name=user_last_name,
                 customer_phone=user_phone,
                 customer_address=user_address,
-                items=items
+                items=items,
+                product_code=product_code  # Pass product_code or None (will use default)
             )
             
             return PayUrlResponse(

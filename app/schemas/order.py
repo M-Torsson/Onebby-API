@@ -379,9 +379,10 @@ class OrderCreateDirect(BaseModel):
 
 class PayUrlRequest(BaseModel):
     """Request to get payment URL"""
-    payment_type: str = Field(..., description="Payment type (PayPal or PayPlug)")
+    payment_type: str = Field(..., description="Payment type (Payplug or floa)")
     user_id: int = Field(..., gt=0, description="User ID")
     total: Decimal = Field(..., gt=0, description="Total amount")
+    product_code: Optional[str] = Field(None, description="Floa product code (BC1XFD, BC3XF, BC4XF) - only for Floa payments")
 
 
 class PayUrlResponse(BaseModel):
