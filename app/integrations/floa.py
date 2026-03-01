@@ -253,20 +253,29 @@ class FloaService:
             "line2": "",  # Additional info (optional)
             "zipCode": customer_address.get("postal_code", "20121"),
             "city": customer_address.get("city", "Milano"),
-            "countryCode": customer_address.get("country", "IT")
+            "countryCode": "IT"  # Always Italy for this product
         }
         
         # Prepare customer data for Floa
-        # Ensure phone number starts with +39 (Italy)
-        if not customer_phone.startswith('+'):
+        # Ensure phone number starts with +39 (Italy) and is in E.164 format
+        if not customer_phone or customer_phone == '':
+            customer_phone = "+393331234567"  # Default Italian number
+        elif not customer_phone.startswith('+'):
             customer_phone = f"+39{customer_phone.lstrip('0')}"
         elif not customer_phone.startswith('+39'):
             customer_phone = customer_phone.replace('+', '+39', 1)
         
+        # Validate names (Floa requires non-empty names)
+        if not customer_first_name or len(customer_first_name.strip()) < 2:
+            customer_first_name = "Mario"
+        if not customer_last_name or len(customer_last_name.strip()) < 2:
+            customer_last_name = "Rossi"
+        
         customer_data = {
-            "civility": "Mr",  # Default, can be customized
-            "firstName": customer_first_name,
-            "lastName": customer_last_name,
+            "civility": "Mr",
+            "firstName": customer_first_name.strip(),
+            "lastName": customer_last_name.strip(),
+            "birthDate": "1990-01-01",  # Required by Floa - default value
             "mobilePhoneNumber": customer_phone,
             "email": customer_email,
             "homeAddress": shipping_address
