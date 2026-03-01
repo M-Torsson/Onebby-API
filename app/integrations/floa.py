@@ -303,10 +303,11 @@ class FloaService:
         customer_first_name = re.sub(r'[^a-zA-Z\s\-\'àèéìòùÀÈÉÌÒÙ]', '', customer_first_name)
         customer_last_name = re.sub(r'[^a-zA-Z\s\-\'àèéìòùÀÈÉÌÒÙ]', '', customer_last_name)
         
+        # Use default test data that matches the taxIdNumber (Aline Joupey from Floa docs)
         if not customer_first_name or len(customer_first_name) < 2:
-            customer_first_name = "Mario"
+            customer_first_name = "Aline"
         if not customer_last_name or len(customer_last_name) < 2:
-            customer_last_name = "Rossi"
+            customer_last_name = "Joupey"
         
         # Get city from address for birth fields
         birth_city = shipping_address.get("city", "Milano").strip()
@@ -322,13 +323,14 @@ class FloaService:
         # Generate or use default Italian tax ID (Codice Fiscale)
         # Using sample from Floa documentation: Aline Joupey born 1963-07-16 in Milano
         tax_id = "JPYLNA63L56F205A"  # Valid Codice Fiscale from Floa example
+        birth_date = "1963-07-16"  # Must match the tax_id
         
         customer_data = {
             "trustLevel": "Trusted",
-            "civility": "Mr",
+            "civility": "Mrs",  # Female for Aline
             "firstName": customer_first_name,
             "lastName": customer_last_name,
-            "birthDate": "1990-01-01",  # Required by Floa - default value
+            "birthDate": birth_date,
             "nationality": "IT",  # Italian nationality - required for IT product
             "birthCity": birth_city,  # City of birth - required
             "birthDepartment": birth_department,  # Department code (e.g., MI for Milano) - required
