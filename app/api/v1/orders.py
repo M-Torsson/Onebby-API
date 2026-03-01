@@ -315,11 +315,17 @@ async def get_payment_url(
             payment_result = floa_service.create_payment(
                 amount=request.total,
                 order_id=request.user_id,
-                customer_email=user_email,
-                customer_first_name=user_first_name,
-                customer_last_name=user_last_name,
-                customer_phone=user_phone,
-                customer_address=user_address,
+                customer_email=user_email or "test@example.com",
+                customer_first_name=user_first_name or "Mario",
+                customer_last_name=user_last_name or "Rossi",
+                customer_phone=user_phone or "+393331234567",
+                customer_address=user_address if user_address else {
+                    'street': 'Via Roma',
+                    'house_number': '1',
+                    'postal_code': '20121',
+                    'city': 'Milano',
+                    'country': 'IT'
+                },
                 items=items,
                 product_code=product_code  # Pass product_code or None (will use default)
             )

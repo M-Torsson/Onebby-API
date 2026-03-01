@@ -129,8 +129,11 @@ class FloaService:
             return response.json()
         except requests.exceptions.HTTPError as e:
             # Log the error response for debugging
+            import json
             error_detail = e.response.text if hasattr(e.response, 'text') else str(e)
-            raise Exception(f"Floa create_deal failed: {e.response.status_code} - {error_detail}")
+            # Also log the request body for debugging
+            request_body = json.dumps(body, indent=2, ensure_ascii=False)
+            raise Exception(f"Floa create_deal failed: {e.response.status_code} - {error_detail}\nRequest Body: {request_body}")
     
     def finalize_deal(
         self,
@@ -259,14 +262,26 @@ class FloaService:
         notification_url = notification_url or settings.FLOA_WEBHOOK_URL
         
         # Prepare shipping address for Floa
-        street = customer_address.get("street", "Via Roma")
-        house_number = customer_address.get("house_number", "1")
+        street = customer_address.get("street", "Via Roma").strip()
+        house_number = customer_address.get("house_number", "1").strip()
+        postal_code = customer_address.get("postal_code", "20121").strip()
+        city = customer_address.get("city", "Milano").strip()
+        
+        # Ensure values are not empty
+        if not street:
+            street = "Via Roma"
+        if not house_number:
+            house_number = "1"
+        if not postal_code:
+            postal_code = "20121"
+        if not city:
+            city = "Milano"
         
         shipping_address = {
             "line1": f"{street} {house_number}",  # Full street address
             "line2": "",  # Additional info (optional)
-            "zipCode": customer_address.get("postal_code", "20121"),
-            "city": customer_address.get("city", "Milano"),
+            "zipCode": postal_code,
+            "city": city,
             "countryCode": "IT"  # Always Italy for this product
         }
         
@@ -280,27 +295,35 @@ class FloaService:
             customer_phone = customer_phone.replace('+', '+39', 1)
         
         # Validate names (Floa requires non-empty names)
-        if not customer_first_name or len(customer_first_name.strip()) < 2:
+        customer_first_name = str(customer_first_name).strip() if customer_first_name else ""
+        customer_last_name = str(customer_last_name).strip() if customer_last_name else ""
+        
+        # Remove special characters and numbers from names
+        import re
+        customer_first_name = re.sub(r'[^a-zA-Z\s\-\'àèéìòùÀÈÉÌÒÙ]', '', customer_first_name)
+        customer_last_name = re.sub(r'[^a-zA-Z\s\-\'àèéìòùÀÈÉÌÒÙ]', '', customer_last_name)
+        
+        if not customer_first_name or len(customer_first_name) < 2:
             customer_first_name = "Mario"
-        if not customer_last_name or len(customer_last_name.strip()) < 2:
+        if not customer_last_name or len(customer_last_name) < 2:
             customer_last_name = "Rossi"
         
         # Get city from address for birth fields
-        birth_city = shipping_address.get("city", "Milano")
+        birth_city = shipping_address.get("city", "Milano").strip()
         
-        # Map major Italian cities to their department codes
+        # Map major Italian cities to their department codes (case-insensitive)
         department_map = {
-            "Milano": "MI", "Roma": "RM", "Torino": "TO", "Napoli": "NA",
-            "Palermo": "PA", "Genova": "GE", "Bologna": "BO", "Firenze": "FI",
-            "Bari": "BA", "Catania": "CT", "Venezia": "VE", "Verona": "VR"
+            "milano": "MI", "roma": "RM", "torino": "TO", "napoli": "NA",
+            "palermo": "PA", "genova": "GE", "bologna": "BO", "firenze": "FI",
+            "bari": "BA", "catania": "CT", "venezia": "VE", "verona": "VR"
         }
-        birth_department = department_map.get(birth_city, "MI")  # Default to Milano (MI)
+        birth_department = department_map.get(birth_city.lower(), "MI")  # Default to Milano (MI)
         
         customer_data = {
             "trustLevel": "Trusted",
             "civility": "Mr",
-            "firstName": customer_first_name.strip(),
-            "lastName": customer_last_name.strip(),
+            "firstName": customer_first_name,
+            "lastName": customer_last_name,
             "birthDate": "1990-01-01",  # Required by Floa - default value
             "nationality": "IT",  # Italian nationality - required for IT product
             "birthCity": birth_city,  # City of birth - required
