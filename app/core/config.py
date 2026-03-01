@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     FLOA_CLIENT_ID: Optional[str] = None
     FLOA_CLIENT_SECRET: Optional[str] = None
     FLOA_BASE_URL: str = "https://api.floapay.io/api-nx-live-int"
-    FLOA_PRODUCT_CODE: str = "BC3XF"  # Default: 3 times payment (BC1XFD, BC3XF, BC4XF available)
+    FLOA_PRODUCT_CODE: str = "BC3XCIT"  # Default: 3 times payment Italy (BC3XCIT, BC4XCIT available)
     FLOA_CULTURE: str = "it-IT"  # Italy locale
     FLOA_WEBHOOK_URL: Optional[str] = None  # Webhook notification URL
     

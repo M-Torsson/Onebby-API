@@ -80,7 +80,7 @@ class FloaService:
             customer_data: Customer information
             shipping_address: Shipping address
             items: List of order items
-            product_code: Product code (e.g., BC3XF), defaults to settings
+            product_code: Product code (e.g., BC3XCIT), defaults to settings
             back_url: URL for back button
             return_url: URL after payment completion
             notification_url: Webhook URL

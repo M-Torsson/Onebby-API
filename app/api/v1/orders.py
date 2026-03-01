@@ -289,7 +289,7 @@ async def get_payment_url(
                 )
             
             # Validate product_code if provided
-            allowed_codes = ['BC1XFD', 'BC3XF', 'BC4XF']
+            allowed_codes = ['BC3XCIT', 'BC4XCIT']
             product_code = request.product_code
             
             if product_code and product_code not in allowed_codes:
