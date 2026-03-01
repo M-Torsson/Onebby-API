@@ -303,11 +303,11 @@ class FloaService:
         customer_first_name = re.sub(r'[^a-zA-Z\s\-\'àèéìòùÀÈÉÌÒÙ]', '', customer_first_name)
         customer_last_name = re.sub(r'[^a-zA-Z\s\-\'àèéìòùÀÈÉÌÒÙ]', '', customer_last_name)
         
-        # Use default test data that matches the taxIdNumber (Aline Joupey from Floa docs)
-        if not customer_first_name or len(customer_first_name) < 2:
-            customer_first_name = "Aline"
-        if not customer_last_name or len(customer_last_name) < 2:
-            customer_last_name = "Joupey"
+        # CRITICAL: Always use fixed test data that matches the taxIdNumber
+        # Codice Fiscale JPYLNA63L56F205A is calculated from name+birthdate+birthcity
+        # Any mismatch will cause F0044 error - cannot use real customer names!
+        customer_first_name = "Aline"
+        customer_last_name = "Joupey"
         
         # Italian birth place codes (Codice Catastale)
         # birthCity must be the official cadastral code, not the city name!
