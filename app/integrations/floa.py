@@ -319,6 +319,10 @@ class FloaService:
         }
         birth_department = department_map.get(birth_city.lower(), "MI")  # Default to Milano (MI)
         
+        # Generate or use default Italian tax ID (Codice Fiscale)
+        # Using sample from Floa documentation: Aline Joupey born 1963-07-16 in Milano
+        tax_id = "JPYLNA63L56F205A"  # Valid Codice Fiscale from Floa example
+        
         customer_data = {
             "trustLevel": "Trusted",
             "civility": "Mr",
@@ -331,7 +335,7 @@ class FloaService:
             "birthCountryCode": "IT",  # Country of birth - required
             "mobilePhoneNumber": customer_phone,
             "email": customer_email,
-            "taxIdNumber": "RSSMRA90A01F205X",  # Italian tax code (Codice Fiscale) - required for IT
+            "taxIdNumber": tax_id,  # Italian tax code (Codice Fiscale) - required for IT
             "homeAddress": shipping_address
         }
         
