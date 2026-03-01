@@ -331,6 +331,7 @@ class FloaService:
             "birthCountryCode": "IT",  # Country of birth - required
             "mobilePhoneNumber": customer_phone,
             "email": customer_email,
+            "taxIdNumber": "RSSMRA90A01F205X",  # Italian tax code (Codice Fiscale) - required for IT
             "homeAddress": shipping_address
         }
         
