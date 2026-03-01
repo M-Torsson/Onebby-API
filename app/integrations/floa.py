@@ -66,7 +66,10 @@ class FloaService:
         customer_data: Dict[str, Any],
         shipping_address: Dict[str, Any],
         items: list,
-        product_code: Optional[str] = None
+        product_code: Optional[str] = None,
+        back_url: Optional[str] = None,
+        return_url: Optional[str] = None,
+        notification_url: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Create a deal with Floa
@@ -77,7 +80,10 @@ class FloaService:
             customer_data: Customer information
             shipping_address: Shipping address
             items: List of order items
-            product_code: Product code (e.g., BC3XFIT), defaults to settings
+            product_code: Product code (e.g., BC3XF), defaults to settings
+            back_url: URL for back button
+            return_url: URL after payment completion
+            notification_url: Webhook URL
         
         Returns:
             dict: Deal data with dealReference and links
@@ -101,6 +107,14 @@ class FloaService:
             "items": items,
             "customers": [customer_data]
         }
+        
+        # Add configuration if URLs are provided
+        if back_url and return_url and notification_url:
+            body["configuration"] = {
+                "backUrl": back_url,
+                "returnUrl": return_url,
+                "notificationUrl": notification_url
+            }
         
         headers = {
             "Authorization": f"Bearer {token}",
@@ -271,11 +285,27 @@ class FloaService:
         if not customer_last_name or len(customer_last_name.strip()) < 2:
             customer_last_name = "Rossi"
         
+        # Get city from address for birth fields
+        birth_city = shipping_address.get("city", "Milano")
+        
+        # Map major Italian cities to their department codes
+        department_map = {
+            "Milano": "MI", "Roma": "RM", "Torino": "TO", "Napoli": "NA",
+            "Palermo": "PA", "Genova": "GE", "Bologna": "BO", "Firenze": "FI",
+            "Bari": "BA", "Catania": "CT", "Venezia": "VE", "Verona": "VR"
+        }
+        birth_department = department_map.get(birth_city, "MI")  # Default to Milano (MI)
+        
         customer_data = {
+            "trustLevel": "Trusted",
             "civility": "Mr",
             "firstName": customer_first_name.strip(),
             "lastName": customer_last_name.strip(),
             "birthDate": "1990-01-01",  # Required by Floa - default value
+            "nationality": "IT",  # Italian nationality - required for IT product
+            "birthCity": birth_city,  # City of birth - required
+            "birthDepartment": birth_department,  # Department code (e.g., MI for Milano) - required
+            "birthCountryCode": "IT",  # Country of birth - required
             "mobilePhoneNumber": customer_phone,
             "email": customer_email,
             "homeAddress": shipping_address
@@ -288,7 +318,10 @@ class FloaService:
             customer_data=customer_data,
             shipping_address=shipping_address,
             items=items,
-            product_code=product_code
+            product_code=product_code,
+            back_url=back_url,
+            return_url=return_url,
+            notification_url=notification_url
         )
         
         deal_reference = deal_response["dealReference"]
