@@ -598,6 +598,17 @@ async def floa_webhook(
             # Auto-register warranties if payment successful
             await auto_register_warranties(db, order)
             
+        elif deal_status == 'APPROVED':
+            # Floa approved the payment - treat as successful
+            order.payment_status = 'completed'
+            order.status = 'confirmed'
+            order.payment_transaction_id = deal_reference
+            
+            logger.info(f"Order {order_id} Floa payment approved (deal: {deal_reference})")
+            
+            # Auto-register warranties if payment approved
+            await auto_register_warranties(db, order)
+            
         elif deal_status in ['CANCELLED', 'REFUSED', 'EXPIRED']:
             # Payment failed/cancelled
             order.payment_status = 'failed'
@@ -606,7 +617,7 @@ async def floa_webhook(
             logger.warning(f"Order {order_id} Floa payment {deal_status} (deal: {deal_reference})")
         
         else:
-            # Payment still pending (DRAFT, etc.)
+            # Payment still pending (DRAFT, PENDING, etc.)
             order.payment_status = 'pending'
             logger.info(f"Order {order_id} Floa payment pending (deal: {deal_reference})")
         

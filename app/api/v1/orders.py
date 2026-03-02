@@ -491,10 +491,15 @@ async def verify_payment_status(
                 else:
                     status_text = "pending"
                     is_paid = False
-            elif deal_status in ['CANCELLED', 'REFUSED']:
+            elif deal_status == 'APPROVED':
+                # Floa approved the payment - waiting for first installment
+                status_text = "approved"
+                is_paid = True  # Consider approved as successful
+            elif deal_status in ['CANCELLED', 'REFUSED', 'EXPIRED']:
                 status_text = "failed"
                 is_paid = False
             else:
+                # DRAFT, PENDING, etc.
                 status_text = "pending"
                 is_paid = False
             
