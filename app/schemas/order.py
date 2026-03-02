@@ -402,12 +402,13 @@ class PaymentVerifyResponse(BaseModel):
     """Payment verification response"""
     payment_id: str = Field(..., description="PayPlug payment ID")
     transaction_number: Optional[str] = Field(None, description="Transaction number (if available)")
-    status: str = Field(..., description="Payment status: completed, pending, failed")
+    status: str = Field(..., description="Payment status: completed, pending, failed, approved")
     amount: Decimal = Field(..., description="Payment amount")
     is_paid: bool = Field(..., description="Whether payment is completed")
     created_at: Optional[str] = Field(None, description="Payment creation time")
     paid_at: Optional[str] = Field(None, description="Payment completion time")
     customer_email: Optional[str] = Field(None, description="Customer email")
+    deal_status: Optional[str] = Field(None, description="Floa deal status (for debugging)")
     
     class Config:
         json_schema_extra = {
