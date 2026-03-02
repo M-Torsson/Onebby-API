@@ -485,6 +485,9 @@ async def verify_payment_status(
             logger = logging.getLogger(__name__)
             logger.info(f"Floa deal {payment_id} status: {deal_status}")
             
+            # Check if we're in integration/test environment
+            is_integration_env = 'live-int' in settings.FLOA_BASE_URL
+            
             if deal_status == 'DELIVERED':
                 # Check installments to determine if paid
                 installments = deal.get('installments', [])
@@ -500,11 +503,22 @@ async def verify_payment_status(
                 # Floa approved the payment - waiting for first installment
                 status_text = "approved"
                 is_paid = True  # Consider approved as successful
+            elif deal_status == 'DRAFT' and is_integration_env:
+                # In integration/test environment, DRAFT with installments = test success
+                installments = deal.get('installments', [])
+                if installments and len(installments) > 0:
+                    # Deal was finalized and has installment plan = simulation successful
+                    status_text = "completed"
+                    is_paid = True
+                    logger.info(f"Integration mode: treating DRAFT deal {payment_id} with installments as completed")
+                else:
+                    status_text = "pending"
+                    is_paid = False
             elif deal_status in ['CANCELLED', 'REFUSED', 'EXPIRED']:
                 status_text = "failed"
                 is_paid = False
             else:
-                # DRAFT, PENDING, etc.
+                # DRAFT (in production), PENDING, etc.
                 status_text = "pending"
                 is_paid = False
             
