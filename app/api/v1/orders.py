@@ -480,6 +480,11 @@ async def verify_payment_status(
             # Determine status from dealStatus
             deal_status = deal.get('dealStatus', 'UNKNOWN')
             
+            # Log for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Floa deal {payment_id} status: {deal_status}")
+            
             if deal_status == 'DELIVERED':
                 # Check installments to determine if paid
                 installments = deal.get('installments', [])
@@ -509,6 +514,7 @@ async def verify_payment_status(
                 "status": status_text,
                 "amount": deal.get('customerTotalAmount', 0) / 100,  # Floa uses cents
                 "is_paid": is_paid,
+                "deal_status": deal_status  # Add for debugging
             }
             
             # Add created_at if available
