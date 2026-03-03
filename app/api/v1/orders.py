@@ -290,8 +290,10 @@ async def get_payment_url(
                 )
             
             # Create payment URLs
-            return_url = f"{settings.FRONTEND_URL}/payment/success"
-            cancel_url = f"{settings.FRONTEND_URL}/payment/cancel"
+            # Use API endpoints for testing (no frontend needed)
+            base_url = "https://onebby-api.onrender.com"  # Or settings.BACKEND_URL if available
+            return_url = f"{base_url}/api/orders/payment/success"
+            cancel_url = f"{base_url}/api/orders/payment/cancel"
             
             # Create PayPal payment
             payment_result = paypal_service.create_payment(
@@ -413,6 +415,10 @@ async def verify_payment_status(
     4. Call this endpoint with payment_id to verify payment status
     5. If is_paid=true, payment successful!
     """
+    # Initialize logger
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         # Get payment ID from request
         payment_id = verify_request.payment_id
@@ -513,8 +519,6 @@ async def verify_payment_status(
             deal_status = deal.get('dealStatus', 'UNKNOWN')
             
             # Log for debugging
-            import logging
-            logger = logging.getLogger(__name__)
             logger.info(f"Floa deal {payment_id} status: {deal_status}")
             
             # Check if we're in integration/test environment
@@ -1130,3 +1134,47 @@ async def update_warranty_info_admin(
     # Return full order
     order = crud_order.get(db, id=order_id)
     return order
+
+
+# ========================================
+# PAYMENT RETURN ENDPOINTS (FOR TESTING)
+# ========================================
+
+@router.get("/payment/success")
+async def payment_success(
+    token: Optional[str] = Query(None),
+    PayerID: Optional[str] = Query(None),
+    order_id: Optional[str] = Query(None)
+):
+    """
+    Payment success page (for testing without frontend)
+    
+    This endpoint is used as return_url for PayPal payments during testing.
+    After payment approval, PayPal redirects here with query parameters.
+    
+    Query Parameters:
+    - token: PayPal order token
+    - PayerID: PayPal payer ID
+    - order_id: Custom order ID (if provided)
+    """
+    return {
+        "status": "success",
+        "message": "Payment completed successfully!",
+        "paypal_token": token,
+        "payer_id": PayerID,
+        "order_id": order_id,
+        "next_steps": [
+            "1. Copy the 'token' value (this is your payment_id)",
+            "2. Call POST /api/orders/verify_payment with this payment_id",
+            "3. Then call POST /api/orders/create-from-cart to create the order"
+        ]
+    }
+
+
+@router.get("/payment/cancel")
+async def payment_cancel():
+    """Payment cancellation page (for testing without frontend)"""
+    return {
+        "status": "cancelled",
+        "message": "Payment was cancelled by user"
+    }
