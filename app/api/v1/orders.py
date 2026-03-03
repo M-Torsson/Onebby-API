@@ -1019,6 +1019,197 @@ async def update_order_admin(
     return order
 
 
+@router.post("/admin/sync-payment/{order_id}")
+async def sync_payment_status(
+    order_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Sync payment status from payment gateway (Admin)
+    
+    Manually checks payment status from PayPal/Floa and updates order.
+    Useful when webhook doesn't arrive or for sandbox testing.
+    
+    **Requirements:**
+    - API Key (in header X-API-Key)
+    
+    **Returns:**
+    ```json
+    {
+      "order_id": 123,
+      "payment_method": "paypal",
+      "old_status": "pending",
+      "new_status": "completed",
+      "synced": true,
+      "message": "Payment confirmed"
+    }
+    ```
+    """
+    import logging
+    from app.integrations.paypal import paypal_service
+    from app.integrations.floa import floa_service
+    from app.api.v1.webhooks import auto_register_warranties
+    
+    logger = logging.getLogger(__name__)
+    
+    # Get order
+    order = crud_order.get(db, id=order_id)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+    
+    old_status = order.payment_status
+    payment_method = order.payment_method
+    
+    # Get payment_id from order
+    payment_id = None
+    if order.payment_info and isinstance(order.payment_info, dict):
+        payment_id = order.payment_info.get('payment_id')
+    
+    if not payment_id:
+        payment_id = order.payment_transaction_id
+    
+    if not payment_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No payment ID found in order"
+        )
+    
+    logger.info(f"Syncing payment {payment_id} for order {order_id} (method: {payment_method})")
+    
+    synced = False
+    new_status = old_status
+    message = "No changes"
+    
+    try:
+        # Check payment status based on method
+        if payment_method and payment_method.lower() == 'paypal':
+            # Get PayPal order details
+            paypal_order = paypal_service.get_order_details(payment_id)
+            
+            if not paypal_order:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"PayPal payment {payment_id} not found"
+                )
+            
+            order_status = paypal_order.get('status', 'UNKNOWN')
+            logger.info(f"PayPal order {payment_id} status: {order_status}")
+            
+            # Update based on status
+            if order_status == 'COMPLETED':
+                order.payment_status = 'completed'
+                order.status = 'confirmed'
+                new_status = 'completed'
+                message = "Payment confirmed (COMPLETED)"
+                synced = True
+                
+                # Auto-register warranties
+                await auto_register_warranties(db, order)
+                
+            elif order_status == 'APPROVED':
+                order.payment_status = 'completed'
+                order.status = 'confirmed'
+                new_status = 'completed'
+                message = "Payment confirmed (APPROVED)"
+                synced = True
+                
+                # Auto-register warranties
+                await auto_register_warranties(db, order)
+                
+            elif order_status in ['VOIDED', 'CANCELLED']:
+                order.payment_status = 'failed'
+                order.status = 'cancelled'
+                new_status = 'failed'
+                message = f"Payment {order_status.lower()}"
+                synced = True
+            else:
+                message = f"Payment still {order_status}"
+        
+        elif payment_method and payment_method.lower() == 'floa':
+            # Get Floa deal details
+            deal = floa_service.get_deal_status(payment_id)
+            
+            if not deal:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Floa payment {payment_id} not found"
+                )
+            
+            deal_status = deal.get('dealStatus', 'UNKNOWN')
+            installments = deal.get('installmentsList', [])
+            
+            # Check environment
+            base_url = floa_service.base_url
+            is_integration = 'live-int' in base_url
+            
+            logger.info(f"Floa deal {payment_id} status: {deal_status}, installments: {len(installments)}, integration: {is_integration}")
+            
+            # Update based on status
+            if deal_status == 'APPROVED':
+                order.payment_status = 'completed'
+                order.status = 'confirmed'
+                new_status = 'completed'
+                message = "Payment confirmed (APPROVED)"
+                synced = True
+                
+                # Auto-register warranties
+                await auto_register_warranties(db, order)
+                
+            elif deal_status == 'DRAFT' and is_integration and len(installments) > 0:
+                # Integration environment - DRAFT with installments means approved
+                order.payment_status = 'completed'
+                order.status = 'confirmed'
+                new_status = 'completed'
+                message = "Payment confirmed (DRAFT with installments - integration env)"
+                synced = True
+                
+                # Auto-register warranties
+                await auto_register_warranties(db, order)
+                
+            elif deal_status in ['CANCELLED', 'REJECTED']:
+                order.payment_status = 'failed'
+                order.status = 'cancelled'
+                new_status = 'failed'
+                message = f"Payment {deal_status.lower()}"
+                synced = True
+            else:
+                message = f"Payment still {deal_status}"
+        
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot sync payment method: {payment_method}. Only PayPal and Floa are supported."
+            )
+        
+        # Commit changes if synced
+        if synced:
+            db.commit()
+            db.refresh(order)
+        
+        return {
+            "order_id": order_id,
+            "payment_method": payment_method,
+            "payment_id": payment_id,
+            "old_status": old_status,
+            "new_status": new_status,
+            "synced": synced,
+            "message": message
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to sync payment for order {order_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to sync payment: {str(e)}"
+        )
+
+
 @router.get("/admin/statistics/overview", response_model=OrderStatsResponse)
 async def get_order_statistics(
     db: Session = Depends(get_db),
