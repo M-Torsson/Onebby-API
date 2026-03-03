@@ -712,11 +712,21 @@ async def paypal_webhook(
         # Find order in database by payment_transaction_id or payment_info
         from app.models.order import Order
         
-        # Try to find order with this payment ID
+        # Try to find order by payment_transaction_id first
         order = db.query(Order).filter(
-            (Order.payment_transaction_id == order_id) |
-            (Order.payment_info['payment_id'].astext == order_id)
+            Order.payment_transaction_id == order_id
         ).first()
+        
+        # If not found, search in payment_info JSON field
+        if not order:
+            all_orders = db.query(Order).filter(
+                Order.payment_info.isnot(None)
+            ).all()
+            
+            for o in all_orders:
+                if isinstance(o.payment_info, dict) and o.payment_info.get('payment_id') == order_id:
+                    order = o
+                    break
         
         if not order:
             logger.warning(f"Order not found for PayPal payment {order_id}")
