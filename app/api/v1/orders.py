@@ -21,6 +21,7 @@ from app.core.security.dependencies import get_current_active_user
 from app.models.user import User
 from app.integrations.payplug import payplug_service
 from app.integrations.floa import floa_service
+from app.integrations.paypal import paypal_service
 from app.core.config import settings
 
 router = APIRouter()
@@ -249,7 +250,7 @@ async def get_payment_url(
             }
         
         # PayPlug payment
-        if payment_type in ['paypal', 'payplug', 'card', 'credit_card']:
+        if payment_type in ['payplug', 'card', 'credit_card']:
             # Check if PayPlug is configured
             if not settings.PAYPLUG_API_KEY:
                 raise HTTPException(
@@ -272,6 +273,35 @@ async def get_payment_url(
             cancel_url=cancel_url
         )
         
+            return PayUrlResponse(
+                user_id=request.user_id,
+                payment_id=payment_result['payment_id'],
+                payment_url=payment_result['payment_url'],
+                amount=request.total
+            )
+        
+        # PayPal payment
+        elif payment_type == 'paypal':
+            # Check if PayPal is configured
+            if not settings.PAYPAL_CLIENT_ID or not settings.PAYPAL_CLIENT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="PayPal is not configured"
+                )
+            
+            # Create payment URLs
+            return_url = f"{settings.FRONTEND_URL}/payment/success"
+            cancel_url = f"{settings.FRONTEND_URL}/payment/cancel"
+            
+            # Create PayPal payment
+            payment_result = paypal_service.create_payment(
+                amount=request.total,
+                order_id=request.user_id,
+                customer_email=user_email or "test@example.com",
+                return_url=return_url,
+                cancel_url=cancel_url
+            )
+            
             return PayUrlResponse(
                 user_id=request.user_id,
                 payment_id=payment_result['payment_id'],
@@ -390,8 +420,10 @@ async def verify_payment_status(
         # Detect payment provider by payment_id format
         # PayPlug: pay_xxxxx
         # Floa: FINxxxxx
+        # PayPal: Usually starts with digits or uppercase letters (e.g., 8PJ12345678901234)
         is_payplug = payment_id.startswith("pay_")
         is_floa = payment_id.startswith("FIN")
+        is_paypal = not is_payplug and not is_floa  # If not PayPlug or Floa, assume PayPal
         
         if is_payplug:
             # Check if PayPlug is configured
@@ -540,6 +572,77 @@ async def verify_payment_status(
             
             transaction_number = None
             customer_email = None
+            
+        elif is_paypal:
+            # Check if PayPal is configured
+            if not settings.PAYPAL_CLIENT_ID or not settings.PAYPAL_CLIENT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="PayPal is not configured"
+                )
+            
+            # Get order details from PayPal
+            order = paypal_service.get_order_details(payment_id)
+            
+            if not order:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Payment {payment_id} not found"
+                )
+            
+            # Determine status from PayPal order status
+            # CREATED, APPROVED, VOIDED, COMPLETED, PAYER_ACTION_REQUIRED
+            order_status = order.get('status', 'UNKNOWN')
+            
+            # Log for debugging
+            logger.info(f"PayPal order {payment_id} status: {order_status}")
+            
+            if order_status == 'COMPLETED':
+                status_text = "completed"
+                is_paid = True
+            elif order_status == 'APPROVED':
+                # Order approved but not yet captured
+                status_text = "approved"
+                is_paid = True  # Consider approved as successful
+            elif order_status in ['VOIDED', 'CANCELLED']:
+                status_text = "failed"
+                is_paid = False
+            else:
+                # CREATED, PAYER_ACTION_REQUIRED, etc.
+                status_text = "pending"
+                is_paid = False
+            
+            # Extract amount
+            amount = 0
+            try:
+                purchase_units = order.get('purchase_units', [])
+                if purchase_units:
+                    amount = float(purchase_units[0].get('amount', {}).get('value', 0))
+            except (IndexError, KeyError, ValueError):
+                amount = 0
+            
+            # Build response
+            response_data = {
+                "payment_id": payment_id,
+                "status": status_text,
+                "amount": amount,
+                "is_paid": is_paid,
+                "order_status": order_status  # Add for debugging
+            }
+            
+            # Extract timestamps if available
+            created_at = order.get('create_time')
+            paid_at = order.get('update_time') if is_paid else None
+            
+            # Extract payer email
+            customer_email = None
+            try:
+                payer = order.get('payer', {})
+                customer_email = payer.get('email_address')
+            except (TypeError, KeyError):
+                customer_email = None
+            
+            transaction_number = payment_id  # Use order ID as transaction number
             
         else:
             raise HTTPException(

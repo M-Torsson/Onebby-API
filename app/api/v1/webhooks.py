@@ -650,3 +650,132 @@ async def test_floa_webhook():
         "message": "Floa webhook endpoint is ready",
         "endpoint": "/api/payments/floa"
     }
+
+
+@router.post("/paypal")
+async def paypal_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    PayPal payment notification webhook
+    
+    PayPal sends notifications to this endpoint when payment status changes.
+    This is the primary way to track payment completion.
+    
+    **Request Body:** (sent by PayPal)
+    ```json
+    {
+      "event_type": "PAYMENT.CAPTURE.COMPLETED",
+      "resource": {
+        "id": "8PJ12345678901234",
+        "status": "COMPLETED",
+        "amount": {
+          "value": "320.98",
+          "currency_code": "EUR"
+        }
+      }
+    }
+    ```
+    
+    **Returns:**
+    - 200 OK if processed successfully
+    - PayPal expects quick response (< 30s)
+    """
+    try:
+        # Get raw body
+        body = await request.json()
+        
+        logger.info(f"PayPal webhook received: {json.dumps(body, indent=2)}")
+        
+        # Extract event type and resource
+        event_type = body.get('event_type')
+        resource = body.get('resource', {})
+        
+        # Get order/payment ID from resource
+        order_id = resource.get('id')
+        if not order_id:
+            # Try supplementary_data for order_id
+            supplementary_data = resource.get('supplementary_data', {})
+            related_ids = supplementary_data.get('related_ids', {})
+            order_id = related_ids.get('order_id')
+        
+        if not order_id:
+            logger.error("Missing order ID in PayPal webhook")
+            return {"status": "error", "message": "Missing order ID"}
+        
+        # Get payment status
+        payment_status = resource.get('status', 'UNKNOWN')
+        
+        logger.info(f"PayPal webhook - Event: {event_type}, Order: {order_id}, Status: {payment_status}")
+        
+        # Find order in database by payment_transaction_id or payment_info
+        from app.models.order import Order
+        
+        # Try to find order with this payment ID
+        order = db.query(Order).filter(
+            (Order.payment_transaction_id == order_id) |
+            (Order.payment_info['payment_id'].astext == order_id)
+        ).first()
+        
+        if not order:
+            logger.warning(f"Order not found for PayPal payment {order_id}")
+            # Don't fail - PayPal might send webhook before order is created
+            return {
+                "status": "ok",
+                "message": f"Order not found for payment {order_id}, will be processed when order is created"
+            }
+        
+        # Update order based on event type and status
+        if event_type in ['PAYMENT.CAPTURE.COMPLETED', 'CHECKOUT.ORDER.APPROVED'] or payment_status == 'COMPLETED':
+            # Payment successful
+            order.payment_status = 'completed'
+            order.status = 'confirmed'
+            order.payment_transaction_id = order_id
+            
+            logger.info(f"Order {order.id} PayPal payment completed (order: {order_id})")
+            
+            # Auto-register warranties if payment successful
+            await auto_register_warranties(db, order)
+            
+        elif payment_status in ['VOIDED', 'CANCELLED', 'DECLINED']:
+            # Payment failed/cancelled
+            order.payment_status = 'failed'
+            order.admin_note = f"PayPal payment {payment_status.lower()}: {order_id}"
+            
+            logger.warning(f"Order {order.id} PayPal payment {payment_status} (order: {order_id})")
+        
+        else:
+            # Payment still pending
+            order.payment_status = 'pending'
+            logger.info(f"Order {order.id} PayPal payment pending (order: {order_id})")
+        
+        # Save changes
+        db.commit()
+        db.refresh(order)
+        
+        return {
+            "status": "ok",
+            "event_type": event_type,
+            "order_id": order_id,
+            "payment_status": order.payment_status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing PayPal webhook: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook processing failed: {str(e)}"
+        )
+
+
+@router.get("/paypal/test")
+async def test_paypal_webhook():
+    """Test endpoint to verify PayPal webhook route is accessible"""
+    return {
+        "status": "ok",
+        "message": "PayPal webhook endpoint is ready",
+        "endpoint": "/api/webhooks/paypal"
+    }

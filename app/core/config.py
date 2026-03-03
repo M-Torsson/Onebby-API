@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     PAYPLUG_MODE: str = "test"  # test or live
     PAYPLUG_WEBHOOK_URL: Optional[str] = None  # Full webhook URL
     
+    # PayPal Payment Configuration
+    PAYPAL_CLIENT_ID: Optional[str] = None
+    PAYPAL_CLIENT_SECRET: Optional[str] = None
+    PAYPAL_BASE_URL: str = "https://api-m.sandbox.paypal.com"  # Sandbox by default
+    PAYPAL_WEBHOOK_URL: Optional[str] = None  # Webhook notification URL
+    
     # Floa Payment Configuration
     FLOA_CLIENT_ID: Optional[str] = None
     FLOA_CLIENT_SECRET: Optional[str] = None
