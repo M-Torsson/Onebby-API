@@ -692,9 +692,55 @@ class CRUDOrder:
             "payment_id": order_data.payment_info.payment_id
         }
         
-        # Payment status always starts as "pending"
-        # Will be updated to "completed" or "failed" by PayPlug webhook
+        # 7.1 Check payment status from payment gateway
         payment_status = "pending"
+        payment_transaction_id = None
+        
+        payment_id = order_data.payment_info.payment_id
+        payment_type = order_data.payment_info.payment_type.lower()
+        
+        # Auto-verify payment status at order creation
+        try:
+            if payment_type == 'paypal':
+                from app.integrations.paypal import paypal_service
+                paypal_order = paypal_service.get_order_details(payment_id)
+                
+                if paypal_order:
+                    order_status = paypal_order.get('status', 'UNKNOWN')
+                    if order_status in ['COMPLETED', 'APPROVED']:
+                        payment_status = "completed"
+                        payment_transaction_id = payment_id
+                    elif order_status in ['VOIDED', 'CANCELLED']:
+                        payment_status = "failed"
+            
+            elif payment_type == 'floa':
+                from app.integrations.floa import floa_service
+                from app.core.config import settings
+                
+                deal = floa_service.get_deal_status(payment_id)
+                
+                if deal:
+                    deal_status = deal.get('dealStatus', 'UNKNOWN')
+                    installments = deal.get('installmentsList', [])
+                    is_integration = 'live-int' in settings.FLOA_BASE_URL
+                    
+                    if deal_status == 'APPROVED':
+                        payment_status = "completed"
+                        payment_transaction_id = payment_id
+                    elif deal_status == 'DRAFT' and is_integration and len(installments) > 0:
+                        payment_status = "completed"
+                        payment_transaction_id = payment_id
+                    elif deal_status in ['CANCELLED', 'REJECTED']:
+                        payment_status = "failed"
+            
+            # PayPlug uses webhook, keep as pending
+            
+        except Exception as e:
+            # If verification fails, keep as pending
+            # Will be updated by webhook or manual sync
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to verify payment {payment_id} at order creation: {str(e)}")
         
         # 8. Create Order
         order = Order(
@@ -712,6 +758,7 @@ class CRUDOrder:
             currency='EUR',
             payment_status=payment_status,
             payment_method=order_data.payment_info.payment_type,
+            payment_transaction_id=payment_transaction_id,
             payment_info=payment_info,
             order_date=order_data.order_date,
             shipping_method='standard',
@@ -745,6 +792,23 @@ class CRUDOrder:
             
             # 10. Update product stock
             item_data["product"].stock_quantity -= item_data["quantity"]
+        
+        # 11. If payment is completed, auto-register warranties
+        if payment_status == "completed":
+            try:
+                # Import here to avoid circular dependency
+                import asyncio
+                from app.api.v1.webhooks import auto_register_warranties
+                
+                # Run async function in sync context
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(auto_register_warranties(db, order))
+                loop.close()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to auto-register warranties for order {order.id}: {str(e)}")
         
         db.commit()
         db.refresh(order)
