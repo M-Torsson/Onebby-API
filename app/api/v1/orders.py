@@ -664,6 +664,52 @@ async def verify_payment_status(
         if customer_email:
             response_data["customer_email"] = customer_email
         
+        # ========================================
+        # AUTO-UPDATE ORDER IN DATABASE
+        # ========================================
+        # Find order with this payment_id and update its status
+        from app.models.order import Order
+        from app.api.v1.webhooks import auto_register_warranties
+        
+        order = db.query(Order).filter(
+            (Order.payment_transaction_id == payment_id) |
+            (Order.payment_info['payment_id'].astext == payment_id)
+        ).first()
+        
+        if order:
+            logger.info(f"Found order {order.id} for payment {payment_id}, updating status")
+            
+            old_payment_status = order.payment_status
+            
+            # Update order based on payment status
+            if is_paid and status_text in ['completed', 'approved']:
+                order.payment_status = 'completed'
+                order.status = 'confirmed'
+                order.payment_transaction_id = payment_id
+                
+                # Auto-register warranties if payment successful
+                await auto_register_warranties(db, order)
+                
+                logger.info(f"Order {order.id} payment completed: {payment_id}")
+                
+            elif status_text == 'failed':
+                order.payment_status = 'failed'
+                order.status = 'cancelled'
+                logger.warning(f"Order {order.id} payment failed: {payment_id}")
+            
+            # Commit changes if status changed
+            if order.payment_status != old_payment_status:
+                db.commit()
+                db.refresh(order)
+                logger.info(f"Order {order.id} updated: {old_payment_status} -> {order.payment_status}")
+                response_data["order_updated"] = True
+                response_data["order_id"] = order.id
+            else:
+                response_data["order_updated"] = False
+        else:
+            logger.warning(f"No order found for payment {payment_id}")
+            response_data["order_updated"] = False
+        
         return response_data
         
     except HTTPException:
@@ -1208,6 +1254,184 @@ async def sync_payment_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sync payment: {str(e)}"
         )
+
+
+@router.post("/admin/sync-all-pending-payments")
+async def sync_all_pending_payments(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Sync all pending payment orders (Admin)
+    
+    Checks all orders with payment_status='pending' and updates from gateways.
+    Useful for dashboard initial load or bulk sync.
+    
+    **Requirements:**
+    - API Key (in header X-API-Key)
+    
+    **Returns:**
+    ```json
+    {
+      "total_checked": 10,
+      "updated": 5,
+      "failed": 1,
+      "skipped": 4,
+      "results": [...]
+    }
+    ```
+    """
+    import logging
+    from app.integrations.paypal import paypal_service
+    from app.integrations.floa import floa_service
+    from app.api.v1.webhooks import auto_register_warranties
+    from app.models.order import Order
+    
+    logger = logging.getLogger(__name__)
+    
+    # Get all pending orders with payment info
+    pending_orders = db.query(Order).filter(
+        Order.payment_status == 'pending',
+        Order.payment_info.isnot(None)
+    ).all()
+    
+    total_checked = 0
+    updated = 0
+    failed = 0
+    skipped = 0
+    results = []
+    
+    for order in pending_orders:
+        total_checked += 1
+        
+        # Get payment_id
+        payment_id = None
+        if order.payment_info and isinstance(order.payment_info, dict):
+            payment_id = order.payment_info.get('payment_id')
+        
+        if not payment_id:
+            payment_id = order.payment_transaction_id
+        
+        if not payment_id:
+            skipped += 1
+            results.append({
+                "order_id": order.id,
+                "status": "skipped",
+                "message": "No payment ID"
+            })
+            continue
+        
+        payment_method = order.payment_method
+        if not payment_method:
+            skipped += 1
+            results.append({
+                "order_id": order.id,
+                "payment_id": payment_id,
+                "status": "skipped",
+                "message": "No payment method"
+            })
+            continue
+        
+        try:
+            synced = False
+            message = "No change"
+            
+            # Check based on payment method
+            if payment_method.lower() == 'paypal':
+                paypal_order = paypal_service.get_order_details(payment_id)
+                
+                if paypal_order:
+                    order_status = paypal_order.get('status', 'UNKNOWN')
+                    
+                    if order_status in ['COMPLETED', 'APPROVED']:
+                        order.payment_status = 'completed'
+                        order.status = 'confirmed'
+                        await auto_register_warranties(db, order)
+                        message = f"Confirmed ({order_status})"
+                        synced = True
+                    elif order_status in ['VOIDED', 'CANCELLED']:
+                        order.payment_status = 'failed'
+                        order.status = 'cancelled'
+                        message = f"Failed ({order_status})"
+                        synced = True
+                else:
+                    message = "Payment not found"
+            
+            elif payment_method.lower() == 'floa':
+                deal = floa_service.get_deal_status(payment_id)
+                
+                if deal:
+                    deal_status = deal.get('dealStatus', 'UNKNOWN')
+                    installments = deal.get('installmentsList', [])
+                    is_integration = 'live-int' in floa_service.base_url
+                    
+                    if deal_status == 'APPROVED':
+                        order.payment_status = 'completed'
+                        order.status = 'confirmed'
+                        await auto_register_warranties(db, order)
+                        message = f"Confirmed (APPROVED)"
+                        synced = True
+                    elif deal_status == 'DRAFT' and is_integration and len(installments) > 0:
+                        order.payment_status = 'completed'
+                        order.status = 'confirmed'
+                        await auto_register_warranties(db, order)
+                        message = f"Confirmed (DRAFT-integration)"
+                        synced = True
+                    elif deal_status in ['CANCELLED', 'REJECTED']:
+                        order.payment_status = 'failed'
+                        order.status = 'cancelled'
+                        message = f"Failed ({deal_status})"
+                        synced = True
+                else:
+                    message = "Payment not found"
+            
+            elif payment_method.lower() == 'payplug':
+                # PayPlug already has working webhook, skip
+                skipped += 1
+                message = "PayPlug has webhook (skipped)"
+            
+            else:
+                skipped += 1
+                message = f"Unsupported method: {payment_method}"
+            
+            if synced:
+                db.commit()
+                db.refresh(order)
+                updated += 1
+                results.append({
+                    "order_id": order.id,
+                    "payment_id": payment_id,
+                    "payment_method": payment_method,
+                    "status": "updated",
+                    "message": message
+                })
+            else:
+                results.append({
+                    "order_id": order.id,
+                    "payment_id": payment_id,
+                    "payment_method": payment_method,
+                    "status": "no_change",
+                    "message": message
+                })
+        
+        except Exception as e:
+            failed += 1
+            logger.error(f"Failed to sync order {order.id}: {str(e)}")
+            results.append({
+                "order_id": order.id,
+                "payment_id": payment_id,
+                "payment_method": payment_method,
+                "status": "error",
+                "message": str(e)
+            })
+    
+    return {
+        "total_checked": total_checked,
+        "updated": updated,
+        "failed": failed,
+        "skipped": skipped,
+        "results": results
+    }
 
 
 @router.get("/admin/statistics/overview", response_model=OrderStatsResponse)
