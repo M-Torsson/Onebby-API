@@ -5,6 +5,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from typing import Optional
+from slugify import slugify
 from app.db.session import get_db
 from app.models.category import Category
 from app.schemas.category import (
@@ -299,14 +300,14 @@ async def create_category(
     - **parent_id**: ID of parent category (null for main categories)
     """
     try:
-        # Check if slug already exists
-        if category.slug:
-            existing = crud_category.get_category_by_slug(db, category.slug)
-            if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Category with this slug already exists"
-                )
+        # Always check slug uniqueness — whether provided explicitly or auto-generated from name
+        check_slug = category.slug if category.slug else slugify(category.name)
+        existing = crud_category.get_category_by_slug(db, check_slug)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A category with slug '{check_slug}' already exists (ID: {existing.id}, name: '{existing.name}', active: {existing.is_active})"
+            )
         
         db_category = crud_category.create_category(db=db, category=category)
         return {"data": db_category}

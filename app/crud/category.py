@@ -52,7 +52,8 @@ def get_all_categories(
     
     categories = query.order_by(
         Category.parent_id.nulls_first(), 
-        Category.sort_order
+        Category.sort_order,
+        Category.id
     ).offset(skip).limit(limit).all()
     
     # If language is specified, load translated names
@@ -169,7 +170,7 @@ def get_main_categories(
     ).filter(
         Category.parent_id == None,
         Category.is_active == True
-    ).order_by(Category.sort_order).offset(skip).limit(limit).all()
+    ).order_by(Category.sort_order, Category.id).offset(skip).limit(limit).all()
     
     # If language is specified, load translated names
     if lang and categories:
@@ -207,8 +208,8 @@ def get_category_children(
     children = db.query(Category).filter(
         Category.parent_id == parent_id,
         Category.is_active == True
-    ).order_by(Category.sort_order).all()
-    
+    ).order_by(Category.sort_order, Category.id).all()
+
     # If language is specified, load translated names
     if lang and children:
         for child in children:
@@ -234,7 +235,7 @@ def get_category_grandchildren(
     children = db.query(Category).filter(
         Category.parent_id == parent_id,
         Category.is_active == True
-    ).order_by(Category.sort_order).all()
+    ).order_by(Category.sort_order, Category.id).all()
     
     # If language is specified, load translated names
     if lang and children:
