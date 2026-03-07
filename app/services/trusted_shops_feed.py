@@ -58,11 +58,11 @@ def build_trusted_shops_preview_html(limit: int = 100) -> str:
     total_rows = len(rows)
 
     return f"""<!DOCTYPE html>
-<html lang=\"en\">
+<html lang=\"it\">
 <head>
   <meta charset=\"utf-8\">
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-  <title>Trusted Shops Feed Preview</title>
+  <title>Anteprima Feed Trusted Shops</title>
   <style>
     :root {{
       --bg: #f5f1e8;
@@ -314,29 +314,29 @@ def build_trusted_shops_preview_html(limit: int = 100) -> str:
   <div class=\"shell\">
     <section class=\"hero\">
       <div class=\"panel intro\">
-        <div class=\"eyebrow\">Trusted Shops Feed Preview</div>
-        <h1>عرض بصري للمنتجات بدل ملف CSV فقط</h1>
-        <p class=\"lead\">هذه الصفحة تقرأ نفس بيانات الفيد وتعرضها كبطاقات واضحة فيها الصورة، العنوان، السعر، الحالة، البراند، التصنيف والرابط المباشر. ملف CSV بقي كما هو ولم يتم تغييره.</p>
+        <div class=\"eyebrow\">Anteprima Feed Trusted Shops</div>
+        <h1>Visualizzazione prodotti invece del solo file CSV</h1>
+        <p class=\"lead\">Questa pagina legge gli stessi dati del feed e li mostra come schede chiare con immagine, titolo, prezzo, disponibilita, brand, categoria e collegamento diretto. Il file CSV resta invariato.</p>
         <div class=\"actions\">
-          <a class=\"button primary\" href=\"/api/feeds/trusted-shops.csv?limit={total_rows}\">Open CSV</a>
-          <a class=\"button\" href=\"/api/feeds/trusted-shops.html?limit=1000\">Open 1000 Products</a>
+          <a class=\"button primary\" href=\"/api/feeds/trusted-shops.csv?limit={total_rows}\">Apri CSV</a>
+          <a class=\"button\" href=\"/api/feeds/trusted-shops.html?limit=1000\">Apri 1000 prodotti</a>
         </div>
       </div>
       <div class=\"panel stats\">
         <div class=\"stat\">
-          <div class=\"stat-label\">Visible Products</div>
+          <div class=\"stat-label\">Prodotti visibili</div>
           <div class=\"stat-value\">{total_rows}</div>
         </div>
         <div class=\"stat\">
-          <div class=\"stat-label\">Raw Feed</div>
+          <div class=\"stat-label\">Feed sorgente</div>
           <div class=\"stat-value\">CSV</div>
         </div>
         <div class=\"stat\">
-          <div class=\"stat-label\">Preview Mode</div>
+          <div class=\"stat-label\">Modalita anteprima</div>
           <div class=\"stat-value\">HTML</div>
         </div>
         <div class=\"stat\">
-          <div class=\"stat-label\">Categories</div>
+          <div class=\"stat-label\">Categorie</div>
           <div class=\"stat-value\">Clean</div>
         </div>
       </div>
@@ -344,14 +344,14 @@ def build_trusted_shops_preview_html(limit: int = 100) -> str:
 
     <section class=\"panel toolbar\">
       <div>
-        <strong>Search Products</strong><br>
-        <span style=\"color: var(--muted); font-size: 14px;\">ابحث بالعنوان أو البراند أو التصنيف أو GTIN</span>
+        <strong>Cerca prodotti</strong><br>
+        <span style=\"color: var(--muted); font-size: 14px;\">Cerca per titolo, brand, categoria o GTIN</span>
       </div>
-      <input id=\"search\" type=\"search\" placeholder=\"Search title, brand, category, GTIN...\">
+      <input id=\"search\" type=\"search\" placeholder=\"Cerca titolo, brand, categoria, GTIN...\">
     </section>
 
     <section id=\"grid\" class=\"grid\">{cards}</section>
-    <section id=\"empty\" class=\"panel empty\">No products match the current search.</section>
+    <section id=\"empty\" class=\"panel empty\">Nessun prodotto corrisponde alla ricerca corrente.</section>
   </div>
 
   <script>
@@ -378,11 +378,11 @@ def build_trusted_shops_preview_html(limit: int = 100) -> str:
 
 
 def _build_product_card(row: dict[str, str]) -> str:
-    title = html.escape(row.get("title", "") or "Untitled product")
-    brand = html.escape(row.get("brand", "") or "No brand")
-    category = html.escape(row.get("product_type", "") or "No category")
-    availability = html.escape(row.get("availability", "") or "Unknown")
-    condition = html.escape(row.get("condition", "") or "Unknown")
+    title = html.escape(row.get("title", "") or "Prodotto senza titolo")
+    brand = html.escape(row.get("brand", "") or "Brand non disponibile")
+    category = html.escape(row.get("product_type", "") or "Categoria non disponibile")
+    availability = html.escape(row.get("availability", "") or "Non disponibile")
+    condition = html.escape(row.get("condition", "") or "Non disponibile")
     gtin = html.escape(row.get("gtin", "") or row.get("id", ""))
     price = html.escape(row.get("price", "") or "")
     link = html.escape(row.get("link", "") or "#", quote=True)
@@ -404,7 +404,7 @@ def _build_product_card(row: dict[str, str]) -> str:
     image_markup = (
         f'<img src="{image_link}" alt="{title}" loading="lazy">'
         if image_link
-        else '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#617168;font-weight:700;">No image</div>'
+        else '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#617168;font-weight:700;">Nessuna immagine</div>'
     )
 
     return f"""
@@ -418,10 +418,10 @@ def _build_product_card(row: dict[str, str]) -> str:
         </div>
         <h2 class=\"title\"><a href=\"{link}\" target=\"_blank\" rel=\"noreferrer\">{title}</a></h2>
         <div class=\"price\">{price}</div>
-        <p class=\"meta\"><strong>Category:</strong> {category}</p>
+        <p class=\"meta\"><strong>Categoria:</strong> {category}</p>
         <p class=\"meta\"><strong>GTIN:</strong> {gtin}</p>
         <p class=\"description\">{description}</p>
-        <a class=\"footer-link\" href=\"{link}\" target=\"_blank\" rel=\"noreferrer\">Open product page</a>
+        <a class=\"footer-link\" href=\"{link}\" target=\"_blank\" rel=\"noreferrer\">Apri scheda prodotto</a>
       </div>
     </article>"""
 
